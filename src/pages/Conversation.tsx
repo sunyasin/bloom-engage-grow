@@ -96,6 +96,7 @@ export default function Conversation() {
       });
     } else {
       setNewPost("");
+      fetchPosts();
       toast({
         title: "Success",
         description: "Post created successfully",
