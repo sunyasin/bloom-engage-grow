@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Pin, MessageSquare } from "lucide-react";
+import { EmojiReactions } from "@/components/EmojiReactions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Post {
@@ -176,6 +177,7 @@ export default function Conversation() {
                     <MessageSquare className="w-4 h-4" />
                     <span>Click to view conversation</span>
                   </div>
+                  <EmojiReactions postId={post.id} userId={user?.id || null} />
                 </div>
               </div>
             </Card>
