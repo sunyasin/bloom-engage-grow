@@ -60,14 +60,24 @@ export default function Conversation() {
   }, []);
 
   const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*, profiles(*)')
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase.functions.invoke('get-posts');
+      
+      if (error) {
+        console.error('Error fetching posts:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load posts",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (!error && data) {
-      setPosts(data as any);
+      if (data?.data) {
+        setPosts(data.data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
     }
   };
 
