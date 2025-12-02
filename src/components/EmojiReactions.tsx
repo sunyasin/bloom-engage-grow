@@ -9,7 +9,8 @@ const EMOJI_LIST = [
 ];
 
 interface EmojiReactionsProps {
-  postId: string;
+  postId?: string;
+  replyId?: string;
   userId: string | null;
 }
 
@@ -20,19 +21,24 @@ interface Reaction {
   post_id: string;
 }
 
-export function EmojiReactions({ postId, userId }: EmojiReactionsProps) {
+export function EmojiReactions({ postId, replyId, userId }: EmojiReactionsProps) {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [userReaction, setUserReaction] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReactions();
-  }, [postId]);
+  }, [postId, replyId]);
 
   const fetchReactions = async () => {
-    const { data } = await supabase
-      .from('post_reactions')
-      .select('*')
-      .eq('post_id', postId);
+    let query = supabase.from('post_reactions').select('*');
+    
+    if (postId) {
+      query = query.eq('post_id', postId).is('reply_id', null);
+    } else if (replyId) {
+      query = query.eq('reply_id', replyId);
+    }
+    
+    const { data } = await query;
 
     if (data) {
       setReactions(data);
@@ -46,11 +52,15 @@ export function EmojiReactions({ postId, userId }: EmojiReactionsProps) {
 
     // If clicking the same emoji, remove it
     if (userReaction === emoji) {
-      const { error } = await supabase
-        .from('post_reactions')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', userId);
+      let deleteQuery = supabase.from('post_reactions').delete().eq('user_id', userId);
+      
+      if (postId) {
+        deleteQuery = deleteQuery.eq('post_id', postId).is('reply_id', null);
+      } else if (replyId) {
+        deleteQuery = deleteQuery.eq('reply_id', replyId);
+      }
+
+      const { error } = await deleteQuery;
 
       if (!error) {
         setUserReaction(null);
@@ -59,17 +69,25 @@ export function EmojiReactions({ postId, userId }: EmojiReactionsProps) {
     } else {
       // If user has a different reaction, remove it first
       if (userReaction) {
-        await supabase
-          .from('post_reactions')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', userId);
+        let deleteQuery = supabase.from('post_reactions').delete().eq('user_id', userId);
+        
+        if (postId) {
+          deleteQuery = deleteQuery.eq('post_id', postId).is('reply_id', null);
+        } else if (replyId) {
+          deleteQuery = deleteQuery.eq('reply_id', replyId);
+        }
+        
+        await deleteQuery;
       }
 
       // Add new reaction
+      const insertData: any = { emoji, user_id: userId };
+      if (postId) insertData.post_id = postId;
+      if (replyId) insertData.reply_id = replyId;
+      
       const { error } = await supabase
         .from('post_reactions')
-        .insert({ emoji, post_id: postId, user_id: userId });
+        .insert(insertData);
 
       if (!error) {
         setUserReaction(emoji);

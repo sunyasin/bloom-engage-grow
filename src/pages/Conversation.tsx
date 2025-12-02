@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Pin, MessageSquare } from "lucide-react";
 import { EmojiReactions } from "@/components/EmojiReactions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReplyDialog } from "@/components/ReplyDialog";
 
 interface Post {
   id: string;
@@ -147,8 +147,7 @@ export default function Conversation() {
           {posts.map((post) => (
             <Card
               key={post.id}
-              className="p-4 hover:shadow-medium transition-smooth cursor-pointer"
-              onClick={() => setSelectedPost(post)}
+              className="p-4 hover:shadow-medium transition-smooth"
             >
               <div className="flex items-start gap-4">
                 <Avatar>
@@ -173,9 +172,18 @@ export default function Conversation() {
                     )}
                   </div>
                   <p className="text-foreground/80 line-clamp-2">{post.content}</p>
-                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Click to view conversation</span>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPost(post);
+                      }}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-1" />
+                      Reply
+                    </Button>
                   </div>
                   <EmojiReactions postId={post.id} userId={user?.id || null} />
                 </div>
@@ -185,27 +193,12 @@ export default function Conversation() {
         </div>
       </div>
 
-      <Dialog open={!!selectedPost} onOpenChange={() => setSelectedPost(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Post Details</DialogTitle>
-          </DialogHeader>
-          {selectedPost && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <Avatar>
-                  <AvatarImage src={selectedPost.profiles?.avatar_url} />
-                  <AvatarFallback>{selectedPost.profiles?.real_name?.[0] || 'U'}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="font-semibold mb-2">{selectedPost.profiles?.real_name || 'Anonymous'}</div>
-                  <p className="text-foreground/80 whitespace-pre-wrap">{selectedPost.content}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ReplyDialog
+        post={selectedPost}
+        open={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+        userId={user?.id || null}
+      />
     </div>
   );
 }
