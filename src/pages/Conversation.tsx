@@ -19,6 +19,7 @@ interface Post {
     real_name: string | null;
     avatar_url: string | null;
   } | null;
+  reply_count?: number;
 }
 
 export default function Conversation() {
@@ -75,7 +76,26 @@ export default function Conversation() {
       }
 
       if (data?.data) {
-        setPosts(data.data);
+        // Fetch reply counts for all posts
+        const postIds = data.data.map((p: Post) => p.id);
+        const { data: replyCounts } = await supabase
+          .from('post_replies')
+          .select('post_id')
+          .in('post_id', postIds);
+        
+        // Count replies per post
+        const countMap: Record<string, number> = {};
+        replyCounts?.forEach((r: { post_id: string }) => {
+          countMap[r.post_id] = (countMap[r.post_id] || 0) + 1;
+        });
+        
+        // Add reply counts to posts
+        const postsWithCounts = data.data.map((post: Post) => ({
+          ...post,
+          reply_count: countMap[post.id] || 0
+        }));
+        
+        setPosts(postsWithCounts);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -184,6 +204,11 @@ export default function Conversation() {
                       <MessageSquare className="w-4 h-4 mr-1" />
                       Reply
                     </Button>
+                    {post.reply_count && post.reply_count > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        {post.reply_count} {post.reply_count === 1 ? 'reply' : 'replies'}
+                      </span>
+                    )}
                   </div>
                   <EmojiReactions postId={post.id} userId={user?.id || null} />
                 </div>
