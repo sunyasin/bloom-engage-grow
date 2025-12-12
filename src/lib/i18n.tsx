@@ -21,6 +21,7 @@ const translations: Translations = {
   'nav.signOut': { ru: 'Выйти', en: 'Sign Out' },
   'nav.register': { ru: 'Регистрация', en: 'Register' },
   'nav.admin': { ru: 'Админ', en: 'Admin' },
+  'nav.myCourses': { ru: 'Мои курсы', en: 'My Courses' },
   
   // Home page
   'home.popularCommunities': { ru: 'Популярные сообщества', en: 'Popular Communities' },

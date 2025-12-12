@@ -88,6 +88,15 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
           >
             {t('nav.profile')}
           </Link>
+          {(isAuthor || isSuperuser) && (
+            <Link 
+              to="/my-courses" 
+              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {t('nav.myCourses')}
+            </Link>
+          )}
           {isSuperuser && (
             <Link 
               to="/admin" 
