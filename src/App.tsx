@@ -18,6 +18,9 @@ import Events from "./pages/Events";
 import MyProfile from "./pages/MyProfile";
 import Admin from "./pages/Admin";
 import Help from "./pages/Help";
+import MyCourses from "./pages/MyCourses";
+import CourseEditor from "./pages/CourseEditor";
+import LessonEditor from "./pages/LessonEditor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -109,6 +112,18 @@ const App = () => {
                 <Route 
                   path="/admin" 
                   element={isSuperuser ? <Admin /> : <Navigate to="/" />} 
+                />
+                <Route 
+                  path="/my-courses" 
+                  element={(isAuthor || isSuperuser) ? <MyCourses /> : <Navigate to="/" />} 
+                />
+                <Route 
+                  path="/course/:courseId/lessons" 
+                  element={(isAuthor || isSuperuser) ? <CourseEditor /> : <Navigate to="/" />} 
+                />
+                <Route 
+                  path="/course/:courseId/lesson/:lessonId" 
+                  element={(isAuthor || isSuperuser) ? <LessonEditor /> : <Navigate to="/" />} 
                 />
                 <Route path="*" element={<NotFound />} />
               </Routes>
