@@ -21,6 +21,7 @@ import Help from "./pages/Help";
 import MyCourses from "./pages/MyCourses";
 import CourseEditor from "./pages/CourseEditor";
 import LessonEditor from "./pages/LessonEditor";
+import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -124,6 +125,10 @@ const App = () => {
                 <Route 
                   path="/course/:courseId/lesson/:lessonId" 
                   element={(isAuthor || isSuperuser) ? <LessonEditor /> : <Navigate to="/" />} 
+                />
+                <Route 
+                  path="/community/:communityId/lessons" 
+                  element={user ? <CommunityLessonBuilder user={user} /> : <Navigate to="/" />} 
                 />
                 <Route path="*" element={<NotFound />} />
               </Routes>

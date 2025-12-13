@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Pin, MessageSquare, Send, Loader2 } from 'lucide-react';
+import { Users, Pin, MessageSquare, Send, Loader2, BookOpen } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 
@@ -40,6 +41,7 @@ interface CommunityProps {
 
 export default function Community({ user }: CommunityProps) {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { t, language } = useI18n();
   const { toast } = useToast();
   
@@ -314,9 +316,26 @@ export default function Community({ user }: CommunityProps) {
               </TabsContent>
 
               <TabsContent value="courses">
-                <div className="text-center py-16 text-muted-foreground">
-                  Courses coming soon...
-                </div>
+                {isOwner ? (
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={() => navigate(`/community/${id}/lessons`)}
+                      className="bg-gradient-primary"
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      {language === 'ru' ? 'Редактор уроков' : 'Lesson Editor'}
+                    </Button>
+                    <p className="text-muted-foreground text-sm">
+                      {language === 'ru' 
+                        ? 'Создавайте и редактируйте уроки для вашего сообщества' 
+                        : 'Create and edit lessons for your community'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-muted-foreground">
+                    {language === 'ru' ? 'Уроки скоро появятся...' : 'Courses coming soon...'}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="members">
