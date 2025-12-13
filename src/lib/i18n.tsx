@@ -43,6 +43,18 @@ const translations: Translations = {
   'community.pin': { ru: 'Закрепить', en: 'Pin' },
   'community.unpin': { ru: 'Открепить', en: 'Unpin' },
   'community.pinned': { ru: 'Закреплено', en: 'Pinned' },
+  'community.create': { ru: 'Создать сообщество', en: 'Create Community' },
+  'community.created': { ru: 'Сообщество создано', en: 'Community Created' },
+  'community.createdDesc': { ru: 'Ваше сообщество успешно создано', en: 'Your community has been created successfully' },
+  'community.name': { ru: 'Название', en: 'Name' },
+  'community.namePlaceholder': { ru: 'Введите название сообщества', en: 'Enter community name' },
+  'community.description': { ru: 'Описание', en: 'Description' },
+  'community.descriptionPlaceholder': { ru: 'Расскажите о сообществе...', en: 'Tell us about the community...' },
+  'community.visibility': { ru: 'Видимость', en: 'Visibility' },
+  'community.public': { ru: 'Публичное', en: 'Public' },
+  'community.byRequest': { ru: 'По заявке', en: 'By Request' },
+  'community.private': { ru: 'Приватное', en: 'Private' },
+  'common.error': { ru: 'Ошибка', en: 'Error' },
   
   // Auth
   'auth.email': { ru: 'Email', en: 'Email' },

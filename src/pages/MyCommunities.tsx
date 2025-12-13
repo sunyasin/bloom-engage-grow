@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useI18n } from '@/lib/i18n';
 import { CommunityCard } from '@/components/CommunityCard';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
-
+import { CreateCommunityDialog } from '@/components/CreateCommunityDialog';
 interface Community {
   id: string;
   name: string;
@@ -23,39 +23,40 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchMyCommunities = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data: memberships, error: memberError } = await supabase
-        .from('community_members')
-        .select('community_id')
-        .eq('user_id', user.id);
-
-      if (memberError || !memberships?.length) {
-        setLoading(false);
-        return;
-      }
-
-      const communityIds = memberships.map(m => m.community_id);
-      
-      const { data, error } = await supabase
-        .from('communities')
-        .select('id, name, description, cover_image_url, member_count')
-        .in('id', communityIds)
-        .order('name');
-
-      if (!error && data) {
-        setCommunities(data);
-      }
+  const fetchMyCommunities = useCallback(async () => {
+    if (!user) {
       setLoading(false);
-    };
+      return;
+    }
 
-    fetchMyCommunities();
+    const { data: memberships, error: memberError } = await supabase
+      .from('community_members')
+      .select('community_id')
+      .eq('user_id', user.id);
+
+    if (memberError || !memberships?.length) {
+      setCommunities([]);
+      setLoading(false);
+      return;
+    }
+
+    const communityIds = memberships.map(m => m.community_id);
+    
+    const { data, error } = await supabase
+      .from('communities')
+      .select('id, name, description, cover_image_url, member_count')
+      .in('id', communityIds)
+      .order('name');
+
+    if (!error && data) {
+      setCommunities(data);
+    }
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => {
+    fetchMyCommunities();
+  }, [fetchMyCommunities]);
 
   if (loading) {
     return (
@@ -71,6 +72,7 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
         <h1 className="text-3xl font-bold text-foreground">
           {t('nav.myCommunities')}
         </h1>
+        <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} />
       </div>
       
       {communities.length === 0 ? (

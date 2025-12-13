@@ -99,7 +99,7 @@ const App = () => {
               />
               <Routes>
                 <Route path="/" element={<Home user={user} />} />
-                <Route path="/discover" element={<Discover />} />
+                <Route path="/discover" element={<Discover user={user} />} />
                 <Route path="/my-communities" element={user ? <MyCommunities user={user} /> : <Navigate to="/" />} />
                 <Route path="/community/:id" element={<Community user={user} />} />
                 <Route path="/events" element={<Events />} />
