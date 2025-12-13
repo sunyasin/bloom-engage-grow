@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useI18n } from '@/lib/i18n';
 import { CommunityCard } from '@/components/CommunityCard';
 import { Loader2 } from 'lucide-react';
-
+import { User } from '@supabase/supabase-js';
+import { CreateCommunityDialog } from '@/components/CreateCommunityDialog';
 interface Community {
   id: string;
   name: string;
@@ -12,27 +13,31 @@ interface Community {
   member_count: number;
 }
 
-export default function Discover() {
+interface DiscoverProps {
+  user: User | null;
+}
+
+export default function Discover({ user }: DiscoverProps) {
   const { t } = useI18n();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCommunities = async () => {
-      const { data, error } = await supabase
-        .from('communities')
-        .select('id, name, description, cover_image_url, member_count')
-        .eq('visibility', 'public')
-        .order('member_count', { ascending: false });
+  const fetchCommunities = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('communities')
+      .select('id, name, description, cover_image_url, member_count')
+      .eq('visibility', 'public')
+      .order('member_count', { ascending: false });
 
-      if (!error && data) {
-        setCommunities(data);
-      }
-      setLoading(false);
-    };
-
-    fetchCommunities();
+    if (!error && data) {
+      setCommunities(data);
+    }
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchCommunities();
+  }, [fetchCommunities]);
 
   if (loading) {
     return (
@@ -44,9 +49,12 @@ export default function Discover() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-foreground mb-8">
-        {t('home.popularCommunities')}
-      </h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-foreground">
+          {t('home.popularCommunities')}
+        </h1>
+        <CreateCommunityDialog user={user} onCommunityCreated={fetchCommunities} />
+      </div>
       
       {communities.length === 0 ? (
         <div className="text-center py-16">
