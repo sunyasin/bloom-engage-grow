@@ -78,6 +78,7 @@ const translations: Translations = {
   'auth.enterCredentials': { ru: 'Введите данные для входа', en: 'Enter your credentials to access your account' },
   'auth.createNewAccount': { ru: 'Создайте новый аккаунт', en: 'Create a new account to get started' },
   'auth.success': { ru: 'Успешно', en: 'Success' },
+  'auth.password': { ru: 'Пароль', en: 'Password' },
   
   // Common
   'common.loading': { ru: 'Загрузка...', en: 'Loading...' },
