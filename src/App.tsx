@@ -20,6 +20,7 @@ import Admin from "./pages/Admin";
 import Help from "./pages/Help";
 import MyCourses from "./pages/MyCourses";
 import CourseEditor from "./pages/CourseEditor";
+import CoursePreview from "./pages/CoursePreview";
 import LessonEditor from "./pages/LessonEditor";
 import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
 import ResetPassword from "./pages/ResetPassword";
@@ -130,6 +131,10 @@ const App = () => {
                 <Route 
                   path="/community/:communityId/lessons" 
                   element={user ? <CommunityLessonBuilder user={user} /> : <Navigate to="/" />} 
+                />
+                <Route 
+                  path="/course/:courseId/preview" 
+                  element={<CoursePreview user={user} />} 
                 />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<NotFound />} />
