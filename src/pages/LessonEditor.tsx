@@ -13,6 +13,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import VideoUploader from '@/components/VideoUploader';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type BlockType = 'text' | 'image' | 'checkbox' | 'input_text' | 'button' | 'link' | 'list' | 'video';
 
@@ -222,25 +224,44 @@ export default function LessonEditor() {
 
               {block.block_type === 'video' && (
                 <div className="space-y-3">
-                  <Input
-                    value={config.url || ''}
-                    onChange={(e) => updateBlock(block.id, { ...config, url: e.target.value })}
-                    placeholder={language === 'ru' ? 'URL видео (YouTube, Vimeo, HLS)' : 'Video URL (YouTube, Vimeo, HLS)'}
-                  />
+                  <Tabs defaultValue={config.url?.startsWith('http') ? 'url' : 'upload'} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="upload">
+                        {language === 'ru' ? 'Загрузить' : 'Upload'}
+                      </TabsTrigger>
+                      <TabsTrigger value="url">
+                        {language === 'ru' ? 'По ссылке' : 'By URL'}
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="upload" className="mt-3">
+                      <VideoUploader
+                        lessonId={lessonId || ''}
+                        currentUrl={config.url && !config.url.startsWith('http') ? config.url : undefined}
+                        onUploadComplete={(path) => updateBlock(block.id, { ...config, url: path })}
+                      />
+                    </TabsContent>
+                    <TabsContent value="url" className="mt-3 space-y-2">
+                      <Input
+                        value={config.url?.startsWith('http') ? config.url : ''}
+                        onChange={(e) => updateBlock(block.id, { ...config, url: e.target.value })}
+                        placeholder={language === 'ru' ? 'URL видео (YouTube, Vimeo, прямая ссылка)' : 'Video URL (YouTube, Vimeo, direct link)'}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {language === 'ru' 
+                          ? 'Вставьте ссылку на YouTube, Vimeo или прямую ссылку на видео' 
+                          : 'Paste YouTube, Vimeo or direct video link'}
+                      </p>
+                    </TabsContent>
+                  </Tabs>
                   {config.url && (
-                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                    <div className="aspect-video bg-muted rounded-lg overflow-hidden mt-3">
                       <video 
-                        src={config.url} 
+                        src={config.url.startsWith('http') ? config.url : undefined} 
                         controls 
                         className="w-full h-full" 
                       />
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    {language === 'ru' 
-                      ? 'Поддерживаются: прямые ссылки на видео, HLS (.m3u8), YouTube, Vimeo' 
-                      : 'Supported: direct video links, HLS (.m3u8), YouTube, Vimeo'}
-                  </p>
                 </div>
               )}
 
