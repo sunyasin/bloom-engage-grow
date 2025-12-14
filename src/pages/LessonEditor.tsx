@@ -55,6 +55,8 @@ export default function LessonEditor() {
   const [blocks, setBlocks] = useState<LessonBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
+  const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     if (lessonId) {
@@ -140,6 +142,57 @@ export default function LessonEditor() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, blockId: string) => {
+    setDraggedBlockId(blockId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', blockId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, blockId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedBlockId !== blockId) {
+      setDragOverBlockId(blockId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverBlockId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetBlockId: string) => {
+    e.preventDefault();
+    setDragOverBlockId(null);
+    
+    if (!draggedBlockId || draggedBlockId === targetBlockId) {
+      setDraggedBlockId(null);
+      return;
+    }
+
+    const draggedIndex = blocks.findIndex(b => b.id === draggedBlockId);
+    const targetIndex = blocks.findIndex(b => b.id === targetBlockId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newBlocks = [...blocks];
+    const [draggedBlock] = newBlocks.splice(draggedIndex, 1);
+    newBlocks.splice(targetIndex, 0, draggedBlock);
+
+    // Update order_index for all blocks
+    const reorderedBlocks = newBlocks.map((block, index) => ({
+      ...block,
+      order_index: index
+    }));
+
+    setBlocks(reorderedBlocks);
+    setDraggedBlockId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedBlockId(null);
+    setDragOverBlockId(null);
+  };
+
   const saveAll = async () => {
     setSaving(true);
 
@@ -172,12 +225,24 @@ export default function LessonEditor() {
     const blockInfo = blockTypes.find(bt => bt.type === block.block_type);
     const Icon = blockInfo?.icon || Type;
 
+    const isDragging = draggedBlockId === block.id;
+    const isDragOver = dragOverBlockId === block.id;
+
     return (
-      <Card key={block.id} className="mb-3">
+      <Card 
+        key={block.id} 
+        className={`mb-3 transition-all duration-200 ${isDragging ? 'opacity-50 scale-95' : ''} ${isDragOver ? 'border-primary border-2 shadow-lg' : ''}`}
+        draggable
+        onDragStart={(e) => handleDragStart(e, block.id)}
+        onDragOver={(e) => handleDragOver(e, block.id)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, block.id)}
+        onDragEnd={handleDragEnd}
+      >
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="flex flex-col items-center gap-2 pt-1">
-              <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+            <div className="flex flex-col items-center gap-2 pt-1 cursor-grab active:cursor-grabbing">
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
               <Icon className="w-4 h-4 text-primary" />
             </div>
             
