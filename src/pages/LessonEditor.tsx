@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import VideoUploader from '@/components/VideoUploader';
+import ImageUploader from '@/components/ImageUploader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type BlockType = 'text' | 'image' | 'checkbox' | 'input_text' | 'button' | 'link' | 'list' | 'video';
@@ -205,20 +206,39 @@ export default function LessonEditor() {
               )}
 
               {block.block_type === 'image' && (
-                <div className="space-y-2">
-                  <Input
-                    value={config.url || ''}
-                    onChange={(e) => updateBlock(block.id, { ...config, url: e.target.value })}
-                    placeholder={language === 'ru' ? 'URL изображения' : 'Image URL'}
-                  />
+                <div className="space-y-3">
+                  <Tabs defaultValue="upload" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="upload">
+                        {language === 'ru' ? 'Загрузить' : 'Upload'}
+                      </TabsTrigger>
+                      <TabsTrigger value="url">
+                        {language === 'ru' ? 'По ссылке' : 'By URL'}
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="upload" className="mt-3">
+                      <ImageUploader
+                        lessonId={lessonId || ''}
+                        currentUrl={config.url}
+                        onUploadComplete={(url) => updateBlock(block.id, { ...config, url })}
+                      />
+                    </TabsContent>
+                    <TabsContent value="url" className="mt-3 space-y-2">
+                      <Input
+                        value={config.url || ''}
+                        onChange={(e) => updateBlock(block.id, { ...config, url: e.target.value })}
+                        placeholder={language === 'ru' ? 'URL изображения' : 'Image URL'}
+                      />
+                      {config.url && (
+                        <img src={config.url} alt={config.alt} className="max-h-40 rounded" />
+                      )}
+                    </TabsContent>
+                  </Tabs>
                   <Input
                     value={config.alt || ''}
                     onChange={(e) => updateBlock(block.id, { ...config, alt: e.target.value })}
                     placeholder={language === 'ru' ? 'Описание (alt)' : 'Alt text'}
                   />
-                  {config.url && (
-                    <img src={config.url} alt={config.alt} className="max-h-40 rounded" />
-                  )}
                 </div>
               )}
 
