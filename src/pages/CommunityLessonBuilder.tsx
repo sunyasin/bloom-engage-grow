@@ -609,7 +609,7 @@ export default function CommunityLessonBuilder({ user }: CommunityLessonBuilderP
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b bg-card">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/community/${communityId}`)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(course ? `/course/${course.id}/preview` : `/community/${communityId}`)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1">
