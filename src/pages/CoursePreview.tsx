@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Edit, BookOpen, FileText, ClipboardCheck, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit, BookOpen, FileText, ClipboardCheck, Loader2, Play } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 
 interface Course {
@@ -23,6 +23,8 @@ interface Lesson {
   type: string;
   order_index: number;
   parent_lesson_id: string | null;
+  content_html: string | null;
+  video_url: string | null;
   children?: Lesson[];
 }
 
@@ -37,6 +39,8 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [allLessons, setAllLessons] = useState<Lesson[]>([]);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
 
@@ -49,7 +53,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         .from('courses')
         .select('*')
         .eq('id', courseId)
-        .single();
+        .maybeSingle();
 
       if (courseData) {
         setCourse(courseData);
@@ -63,6 +67,8 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         .order('order_index', { ascending: true });
 
       if (lessonsData) {
+        setAllLessons(lessonsData);
+        
         // Build tree structure
         const lessonMap = new Map<string, Lesson>();
         const rootLessons: Lesson[] = [];
@@ -85,6 +91,11 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         });
 
         setLessons(rootLessons);
+        
+        // Select first lesson by default
+        if (rootLessons.length > 0) {
+          setSelectedLesson(lessonMap.get(rootLessons[0].id) || rootLessons[0]);
+        }
       }
 
       setLoading(false);
@@ -116,50 +127,46 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    const labels: Record<string, { ru: string; en: string }> = {
-      lesson: { ru: 'Урок', en: 'Lesson' },
-      test: { ru: 'Тест', en: 'Test' },
-      assignment: { ru: 'Задание', en: 'Assignment' }
-    };
-    return labels[type]?.[language] || type;
+  const handleSelectLesson = (lesson: Lesson) => {
+    // Find full lesson data from allLessons
+    const fullLesson = allLessons.find(l => l.id === lesson.id);
+    setSelectedLesson(fullLesson || lesson);
   };
 
   const renderLesson = (lesson: Lesson, depth: number = 0) => {
     const hasChildren = lesson.children && lesson.children.length > 0;
     const isExpanded = expandedLessons.has(lesson.id);
+    const isSelected = selectedLesson?.id === lesson.id;
 
     return (
       <div key={lesson.id}>
         <div
-          className={`flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer border border-transparent hover:border-border`}
-          style={{ paddingLeft: `${depth * 24 + 12}px` }}
-          onClick={() => hasChildren && toggleExpand(lesson.id)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+            isSelected 
+              ? 'bg-primary/10 text-primary border border-primary/20' 
+              : 'hover:bg-muted/50'
+          }`}
+          style={{ paddingLeft: `${depth * 16 + 12}px` }}
+          onClick={() => {
+            handleSelectLesson(lesson);
+            if (hasChildren) toggleExpand(lesson.id);
+          }}
         >
           {hasChildren ? (
-            <button className="p-1 hover:bg-muted rounded">
-              {isExpanded ? (
-                <ChevronRight className="h-4 w-4 rotate-90 transition-transform" />
-              ) : (
-                <ChevronRight className="h-4 w-4 transition-transform" />
-              )}
-            </button>
+            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
           ) : (
-            <div className="w-6" />
+            <div className="w-4" />
           )}
           
           {getTypeIcon(lesson.type)}
           
-          <div className="flex-1">
-            <span className="font-medium text-foreground">{lesson.title}</span>
-            <span className="ml-2 text-xs text-muted-foreground">
-              ({getTypeLabel(lesson.type)})
-            </span>
-          </div>
+          <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''}`}>
+            {lesson.title}
+          </span>
         </div>
 
         {hasChildren && isExpanded && (
-          <div className="ml-2 border-l border-border">
+          <div>
             {lesson.children!.map(child => renderLesson(child, depth + 1))}
           </div>
         )}
@@ -189,103 +196,139 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Cover */}
-      <div className="h-48 md:h-64 bg-muted relative">
-        {course.cover_image_url ? (
-          <img 
-            src={course.cover_image_url} 
-            alt={course.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-r from-primary/20 to-primary/5 flex items-center justify-center">
-            <BookOpen className="h-16 w-16 text-primary/40" />
-          </div>
-        )}
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate(-1)}
-          className="mb-6"
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          {language === 'ru' ? 'Назад' : 'Back'}
-        </Button>
-
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Main content */}
-          <div className="flex-1">
-            <div className="flex items-start justify-between mb-6">
+      {/* Header */}
+      <div className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate(-1)}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                {language === 'ru' ? 'Назад' : 'Back'}
+              </Button>
               <div>
-                <h1 className="text-3xl font-bold text-foreground mb-2">{course.title}</h1>
+                <h1 className="text-xl font-semibold text-foreground">{course.title}</h1>
                 {course.description && (
-                  <p className="text-muted-foreground">{course.description}</p>
+                  <p className="text-sm text-muted-foreground">{course.description}</p>
                 )}
               </div>
-              
-              {isAuthor && (
-                <Button 
-                  onClick={() => navigate(`/community/${course.community_id}/lessons`)}
-                  className="bg-gradient-primary"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  {language === 'ru' ? 'Редактировать' : 'Edit'}
-                </Button>
+            </div>
+            
+            {isAuthor && selectedLesson && (
+              <Button 
+                onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
+                className="bg-gradient-primary"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                {language === 'ru' ? 'Редактировать урок' : 'Edit Lesson'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex h-[calc(100vh-130px)]">
+        {/* Left sidebar - Lesson hierarchy */}
+        <div className="w-72 border-r border-border bg-card overflow-y-auto">
+          <div className="p-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              {language === 'ru' ? 'Содержание' : 'Contents'}
+            </h2>
+            
+            {lessons.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                {language === 'ru' ? 'Уроки не добавлены' : 'No lessons'}
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {lessons.map(lesson => renderLesson(lesson))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right content - Lesson viewer */}
+        <div className="flex-1 overflow-y-auto">
+          {selectedLesson ? (
+            <div className="p-6 max-w-4xl mx-auto">
+              <div className="flex items-center gap-2 mb-4">
+                {getTypeIcon(selectedLesson.type)}
+                <h2 className="text-2xl font-bold text-foreground">{selectedLesson.title}</h2>
+              </div>
+
+              {/* Video player */}
+              {selectedLesson.video_url && (
+                <Card className="mb-6">
+                  <CardContent className="p-0">
+                    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                      {selectedLesson.video_url.includes('youtube') || selectedLesson.video_url.includes('youtu.be') ? (
+                        <iframe
+                          className="w-full h-full rounded-lg"
+                          src={selectedLesson.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video 
+                          src={selectedLesson.video_url} 
+                          controls 
+                          className="w-full h-full rounded-lg"
+                        />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Content */}
+              {selectedLesson.content_html ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <div 
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                      dangerouslySetInnerHTML={{ __html: selectedLesson.content_html }}
+                    />
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+                    <p className="text-muted-foreground">
+                      {language === 'ru' 
+                        ? 'Содержимое урока пока не добавлено' 
+                        : 'Lesson content not added yet'}
+                    </p>
+                    {isAuthor && (
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        {language === 'ru' ? 'Добавить содержимое' : 'Add content'}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
-
-            {/* Lessons list */}
-            <Card>
-              <CardContent className="p-4">
-                <h2 className="text-lg font-semibold mb-4">
-                  {language === 'ru' ? 'Содержание курса' : 'Course Content'}
-                </h2>
-                
-                {lessons.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    {language === 'ru' ? 'Уроки пока не добавлены' : 'No lessons yet'}
-                  </p>
-                ) : (
-                  <div className="space-y-1">
-                    {lessons.map(lesson => renderLesson(lesson))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:w-80">
-            <Card className="sticky top-24">
-              <CardContent className="p-6">
-                <div className="text-sm text-muted-foreground mb-2">
-                  {language === 'ru' ? 'Статус' : 'Status'}
-                </div>
-                <div className={`inline-flex px-2 py-1 rounded text-sm font-medium ${
-                  course.status === 'published' 
-                    ? 'bg-green-500/10 text-green-500' 
-                    : course.status === 'draft'
-                    ? 'bg-yellow-500/10 text-yellow-500'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {course.status === 'published' 
-                    ? (language === 'ru' ? 'Опубликован' : 'Published')
-                    : course.status === 'draft'
-                    ? (language === 'ru' ? 'Черновик' : 'Draft')
-                    : (language === 'ru' ? 'В архиве' : 'Archived')}
-                </div>
-
-                <div className="mt-6 text-sm text-muted-foreground mb-2">
-                  {language === 'ru' ? 'Уроков' : 'Lessons'}
-                </div>
-                <div className="text-2xl font-bold text-foreground">
-                  {lessons.length}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
+                <p className="text-muted-foreground">
+                  {language === 'ru' 
+                    ? 'Выберите урок из списка слева' 
+                    : 'Select a lesson from the list'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
