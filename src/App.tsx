@@ -22,6 +22,7 @@ import MyCourses from "./pages/MyCourses";
 import CourseEditor from "./pages/CourseEditor";
 import LessonEditor from "./pages/LessonEditor";
 import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -130,6 +131,7 @@ const App = () => {
                   path="/community/:communityId/lessons" 
                   element={user ? <CommunityLessonBuilder user={user} /> : <Navigate to="/" />} 
                 />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>

@@ -56,16 +56,28 @@ const translations: Translations = {
   'community.private': { ru: 'Приватное', en: 'Private' },
   'common.error': { ru: 'Ошибка', en: 'Error' },
   
-  // Auth
-  'auth.email': { ru: 'Email', en: 'Email' },
-  'auth.password': { ru: 'Пароль', en: 'Password' },
-  'auth.name': { ru: 'Имя', en: 'Name' },
-  'auth.country': { ru: 'Страна', en: 'Country' },
-  'auth.aboutMe': { ru: 'О себе', en: 'About me' },
-  'auth.signInTitle': { ru: 'Вход в аккаунт', en: 'Sign in to your account' },
-  'auth.registerTitle': { ru: 'Создать аккаунт', en: 'Create an account' },
-  'auth.noAccount': { ru: 'Нет аккаунта?', en: "Don't have an account?" },
-  'auth.hasAccount': { ru: 'Уже есть аккаунт?', en: 'Already have an account?' },
+  // Password Reset
+  'auth.forgotPassword': { ru: 'Забыли пароль?', en: 'Forgot password?' },
+  'auth.resetPassword': { ru: 'Сбросить пароль', en: 'Reset Password' },
+  'auth.enterEmailFirst': { ru: 'Сначала введите email', en: 'Enter your email first' },
+  'auth.resetEmailSent': { ru: 'Письмо для сброса пароля отправлено', en: 'Password reset email sent' },
+  'auth.checkEmailForReset': { ru: 'Проверьте почту для инструкций по сбросу пароля', en: 'Check your email for password reset instructions' },
+  'auth.backToLogin': { ru: 'Вернуться к входу', en: 'Back to login' },
+  'auth.newPassword': { ru: 'Новый пароль', en: 'New Password' },
+  'auth.confirmPassword': { ru: 'Подтвердите пароль', en: 'Confirm Password' },
+  'auth.enterNewPassword': { ru: 'Введите новый пароль', en: 'Enter your new password' },
+  'auth.passwordsDoNotMatch': { ru: 'Пароли не совпадают', en: 'Passwords do not match' },
+  'auth.passwordTooShort': { ru: 'Пароль должен быть не менее 6 символов', en: 'Password must be at least 6 characters' },
+  'auth.passwordResetSuccess': { ru: 'Пароль успешно изменён', en: 'Password successfully changed' },
+  'auth.invalidResetLink': { ru: 'Недействительная ссылка сброса пароля', en: 'Invalid password reset link' },
+  'auth.signedInSuccessfully': { ru: 'Вход выполнен успешно', en: 'Signed in successfully' },
+  'auth.accountCreatedSuccessfully': { ru: 'Аккаунт создан успешно', en: 'Account created successfully' },
+  'auth.processing': { ru: 'Обработка...', en: 'Processing...' },
+  'auth.signIn': { ru: 'Войти', en: 'Sign In' },
+  'auth.createAccount': { ru: 'Создать аккаунт', en: 'Create Account' },
+  'auth.enterCredentials': { ru: 'Введите данные для входа', en: 'Enter your credentials to access your account' },
+  'auth.createNewAccount': { ru: 'Создайте новый аккаунт', en: 'Create a new account to get started' },
+  'auth.success': { ru: 'Успешно', en: 'Success' },
   
   // Common
   'common.loading': { ru: 'Загрузка...', en: 'Loading...' },
@@ -118,3 +130,5 @@ export const useI18n = () => {
   }
   return context;
 };
+
+export const useLanguage = useI18n;
