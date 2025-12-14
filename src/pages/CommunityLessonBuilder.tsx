@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
 
@@ -717,26 +717,32 @@ export default function CommunityLessonBuilder({ user }: CommunityLessonBuilderP
 
       {/* Create/Edit Lesson Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editingLesson 
                 ? (language === 'ru' ? 'Редактировать урок' : 'Edit Lesson')
                 : (language === 'ru' ? 'Создать урок' : 'Create Lesson')}
             </DialogTitle>
+            <DialogDescription>
+              {editingLesson
+                ? (language === 'ru' ? 'Измените параметры урока' : 'Modify lesson settings')
+                : (language === 'ru' ? 'Заполните информацию о новом уроке' : 'Fill in new lesson details')}
+            </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div>
-              <Label>{language === 'ru' ? 'Название' : 'Title'}</Label>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="lesson-title">{language === 'ru' ? 'Название' : 'Title'}</Label>
               <Input
+                id="lesson-title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder={language === 'ru' ? 'Название урока' : 'Lesson title'}
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label>{language === 'ru' ? 'Тип' : 'Type'}</Label>
               <Select 
                 value={formData.type} 
@@ -753,9 +759,10 @@ export default function CommunityLessonBuilder({ user }: CommunityLessonBuilderP
               </Select>
             </div>
 
-            <div>
-              <Label>{language === 'ru' ? 'Ссылка на видео (опционально)' : 'Video URL (optional)'}</Label>
+            <div className="space-y-2">
+              <Label htmlFor="video-url">{language === 'ru' ? 'Ссылка на видео (опционально)' : 'Video URL (optional)'}</Label>
               <Input
+                id="video-url"
                 value={formData.video_url}
                 onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
                 placeholder="https://youtube.com/..."
@@ -763,11 +770,11 @@ export default function CommunityLessonBuilder({ user }: CommunityLessonBuilderP
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleSubmitLesson} disabled={!formData.title}>
+            <Button type="button" onClick={handleSubmitLesson} disabled={!formData.title.trim()}>
               {t('common.save')}
             </Button>
           </DialogFooter>
