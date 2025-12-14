@@ -69,7 +69,7 @@ export default function LessonEditor() {
 
     if (error) {
       toast.error(language === 'ru' ? 'Урок не найден' : 'Lesson not found');
-      navigate(`/course/${courseId}/lessons`);
+      navigate(`/course/${courseId}/preview`);
     } else {
       setLesson(data);
     }
@@ -336,7 +336,7 @@ export default function LessonEditor() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/course/${courseId}/lessons`)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(`/course/${courseId}/preview`)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1">
