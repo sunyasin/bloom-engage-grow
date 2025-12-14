@@ -30,6 +30,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 import CourseSettingsDialog from '@/components/CourseSettingsDialog';
+import VideoPlayer from '@/components/VideoPlayer';
 import type { Database } from '@/integrations/supabase/types';
 
 type AccessType = Database['public']['Enums']['access_type'];
@@ -256,9 +257,11 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         );
       case 'video':
         return config.url ? (
-          <div key={block.id} className="aspect-video bg-muted rounded-lg">
-            <video src={config.url as string} controls className="w-full h-full rounded-lg" />
-          </div>
+          <VideoPlayer 
+            key={block.id}
+            src={config.url as string} 
+            lessonId={selectedLesson?.id}
+          />
         ) : null;
       default:
         return null;

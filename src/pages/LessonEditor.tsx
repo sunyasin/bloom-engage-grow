@@ -221,11 +221,27 @@ export default function LessonEditor() {
               )}
 
               {block.block_type === 'video' && (
-                <Input
-                  value={config.url || ''}
-                  onChange={(e) => updateBlock(block.id, { ...config, url: e.target.value })}
-                  placeholder="https://youtube.com/embed/..."
-                />
+                <div className="space-y-3">
+                  <Input
+                    value={config.url || ''}
+                    onChange={(e) => updateBlock(block.id, { ...config, url: e.target.value })}
+                    placeholder={language === 'ru' ? 'URL видео (YouTube, Vimeo, HLS)' : 'Video URL (YouTube, Vimeo, HLS)'}
+                  />
+                  {config.url && (
+                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                      <video 
+                        src={config.url} 
+                        controls 
+                        className="w-full h-full" 
+                      />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {language === 'ru' 
+                      ? 'Поддерживаются: прямые ссылки на видео, HLS (.m3u8), YouTube, Vimeo' 
+                      : 'Supported: direct video links, HLS (.m3u8), YouTube, Vimeo'}
+                  </p>
+                </div>
               )}
 
               {block.block_type === 'checkbox' && (
