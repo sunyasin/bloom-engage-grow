@@ -216,7 +216,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       case 'checkbox':
         return (
           <div key={block.id} className="flex items-center gap-2">
-            <input type="checkbox" checked={Boolean(config.checked)} disabled className="h-4 w-4" />
+            <input type="checkbox" defaultChecked={Boolean(config.checked)} className="h-4 w-4" />
             <span>{(config.label as string) || ''}</span>
           </div>
         );
@@ -227,8 +227,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
             <input 
               type="text" 
               placeholder={(config.placeholder as string) || ''} 
-              disabled
-              className="w-full px-3 py-2 border rounded-md bg-muted"
+              className="w-full px-3 py-2 border border-border rounded-md bg-background"
             />
           </div>
         );
