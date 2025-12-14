@@ -397,10 +397,10 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('/my-courses')}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
-                {language === 'ru' ? 'Назад' : 'Back'}
+                {language === 'ru' ? 'Курсы' : 'Courses'}
               </Button>
               <div>
                 <div className="flex items-center gap-2">
