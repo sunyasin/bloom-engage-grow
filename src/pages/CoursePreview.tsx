@@ -14,7 +14,8 @@ import {
   Loader2, 
   Trash2, 
   Settings, 
-  Globe 
+  Globe,
+  Plus
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -82,8 +83,11 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showDeleteLessonDialog, setShowDeleteLessonDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingLesson, setDeletingLesson] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [creatingLesson, setCreatingLesson] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -326,6 +330,173 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     setCourse(updatedCourse);
   };
 
+  const handleCreateLesson = async (parentLessonId: string | null = null, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (!courseId) return;
+    
+    setCreatingLesson(true);
+    try {
+      // Get max order_index for siblings
+      const siblings = parentLessonId 
+        ? allLessons.filter(l => l.parent_lesson_id === parentLessonId)
+        : allLessons.filter(l => !l.parent_lesson_id);
+      
+      const maxOrder = siblings.length > 0 
+        ? Math.max(...siblings.map(l => l.order_index)) + 1 
+        : 0;
+
+      const { data: newLesson, error } = await supabase
+        .from('lessons')
+        .insert({
+          course_id: courseId,
+          title: language === 'ru' ? 'Новый урок' : 'New Lesson',
+          type: 'lesson',
+          order_index: maxOrder,
+          parent_lesson_id: parentLessonId,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh lessons
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true });
+
+      if (lessonsData) {
+        setAllLessons(lessonsData);
+        
+        const lessonMap = new Map<string, Lesson>();
+        const rootLessons: Lesson[] = [];
+
+        lessonsData.forEach(lesson => {
+          lessonMap.set(lesson.id, { ...lesson, children: [] });
+        });
+
+        lessonsData.forEach(lesson => {
+          const lessonWithChildren = lessonMap.get(lesson.id)!;
+          if (lesson.parent_lesson_id) {
+            const parent = lessonMap.get(lesson.parent_lesson_id);
+            if (parent) {
+              parent.children = parent.children || [];
+              parent.children.push(lessonWithChildren);
+            }
+          } else {
+            rootLessons.push(lessonWithChildren);
+          }
+        });
+
+        setLessons(rootLessons);
+        
+        // Expand parent if creating nested lesson
+        if (parentLessonId) {
+          setExpandedLessons(prev => new Set([...prev, parentLessonId]));
+        }
+        
+        // Select the new lesson
+        if (newLesson) {
+          setSelectedLesson(newLesson);
+          setLessonBlocks([]);
+        }
+      }
+
+      toast({
+        title: language === 'ru' ? 'Урок создан' : 'Lesson created',
+      });
+    } catch (error) {
+      console.error('Create lesson error:', error);
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Не удалось создать урок' : 'Failed to create lesson',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreatingLesson(false);
+    }
+  };
+
+  const handleDeleteLesson = async () => {
+    if (!selectedLesson || !courseId) return;
+    
+    setDeletingLesson(true);
+    try {
+      // Delete lesson blocks first
+      await supabase.from('lesson_blocks').delete().eq('lesson_id', selectedLesson.id);
+      
+      // Delete child lessons recursively
+      const childLessons = allLessons.filter(l => l.parent_lesson_id === selectedLesson.id);
+      for (const child of childLessons) {
+        await supabase.from('lesson_blocks').delete().eq('lesson_id', child.id);
+        await supabase.from('lessons').delete().eq('id', child.id);
+      }
+      
+      // Delete the lesson itself
+      const { error } = await supabase.from('lessons').delete().eq('id', selectedLesson.id);
+      
+      if (error) throw error;
+
+      // Refresh lessons
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true });
+
+      if (lessonsData) {
+        setAllLessons(lessonsData);
+        
+        const lessonMap = new Map<string, Lesson>();
+        const rootLessons: Lesson[] = [];
+
+        lessonsData.forEach(lesson => {
+          lessonMap.set(lesson.id, { ...lesson, children: [] });
+        });
+
+        lessonsData.forEach(lesson => {
+          const lessonWithChildren = lessonMap.get(lesson.id)!;
+          if (lesson.parent_lesson_id) {
+            const parent = lessonMap.get(lesson.parent_lesson_id);
+            if (parent) {
+              parent.children = parent.children || [];
+              parent.children.push(lessonWithChildren);
+            }
+          } else {
+            rootLessons.push(lessonWithChildren);
+          }
+        });
+
+        setLessons(rootLessons);
+        
+        // Select first lesson or null
+        if (rootLessons.length > 0) {
+          setSelectedLesson(rootLessons[0]);
+        } else {
+          setSelectedLesson(null);
+        }
+        setLessonBlocks([]);
+      }
+
+      toast({
+        title: language === 'ru' ? 'Урок удалён' : 'Lesson deleted',
+      });
+    } catch (error) {
+      console.error('Delete lesson error:', error);
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Не удалось удалить урок' : 'Failed to delete lesson',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingLesson(false);
+      setShowDeleteLessonDialog(false);
+    }
+  };
+
   const renderLesson = (lesson: Lesson, depth: number = 0) => {
     const hasChildren = lesson.children && lesson.children.length > 0;
     const isExpanded = expandedLessons.has(lesson.id);
@@ -334,7 +505,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     return (
       <div key={lesson.id}>
         <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+          className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
             isSelected 
               ? 'bg-primary/10 text-primary border border-primary/20' 
               : 'hover:bg-muted/50'
@@ -356,6 +527,16 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''}`}>
             {lesson.title}
           </span>
+          
+          {isAuthor && (
+            <button
+              onClick={(e) => handleCreateLesson(lesson.id, e)}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
+              title={language === 'ru' ? 'Добавить вложенный урок' : 'Add nested lesson'}
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
         {hasChildren && isExpanded && (
@@ -464,13 +645,23 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               )}
               
               {isAuthor && selectedLesson && (
-                <Button 
-                  onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
-                  className="bg-gradient-primary"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  {language === 'ru' ? 'Редактировать урок' : 'Edit Lesson'}
-                </Button>
+                <>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteLessonDialog(true)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
+                    className="bg-gradient-primary"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    {language === 'ru' ? 'Редактировать урок' : 'Edit Lesson'}
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -494,6 +685,23 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               <div className="space-y-1">
                 {lessons.map(lesson => renderLesson(lesson))}
               </div>
+            )}
+            
+            {isAuthor && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-4"
+                onClick={() => handleCreateLesson(null)}
+                disabled={creatingLesson}
+              >
+                {creatingLesson ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                {language === 'ru' ? 'Новый урок' : 'New Lesson'}
+              </Button>
             )}
           </div>
         </div>
@@ -608,6 +816,35 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {language === 'ru' ? 'Удалить' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete lesson confirmation dialog */}
+      <AlertDialog open={showDeleteLessonDialog} onOpenChange={setShowDeleteLessonDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {language === 'ru' ? 'Удалить урок?' : 'Delete lesson?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {language === 'ru' 
+                ? 'Это действие нельзя отменить. Все вложенные уроки также будут удалены.'
+                : 'This action cannot be undone. All nested lessons will also be deleted.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {language === 'ru' ? 'Отмена' : 'Cancel'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteLesson}
+              disabled={deletingLesson}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingLesson && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {language === 'ru' ? 'Удалить' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
