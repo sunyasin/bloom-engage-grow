@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Play, Pause, Maximize, Minimize, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VideoPlayerProps {
   src: string;
@@ -24,6 +25,7 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
 
   // Format time mm:ss
@@ -34,12 +36,47 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Resolve the video URL (get signed URL for storage paths)
+  useEffect(() => {
+    const resolveUrl = async () => {
+      if (!src) {
+        setResolvedUrl(null);
+        return;
+      }
+
+      // If it's already a full URL, use it directly
+      if (src.startsWith('http')) {
+        setResolvedUrl(src);
+        return;
+      }
+
+      // It's a storage path, get signed URL
+      try {
+        const { data, error } = await supabase.storage
+          .from('lesson-videos')
+          .createSignedUrl(src, 3600); // 1 hour
+
+        if (error) {
+          console.error('Error getting signed URL:', error);
+          setResolvedUrl(null);
+        } else {
+          setResolvedUrl(data.signedUrl);
+        }
+      } catch (err) {
+        console.error('Error resolving video URL:', err);
+        setResolvedUrl(null);
+      }
+    };
+
+    resolveUrl();
+  }, [src]);
+
   // Initialize HLS or native video
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video || !resolvedUrl) return;
 
-    const isHls = src.includes('.m3u8') || src.includes('/stream');
+    const isHls = resolvedUrl.includes('.m3u8');
     
     if (isHls && Hls.isSupported()) {
       const hls = new Hls({
@@ -47,7 +84,7 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
         lowLatencyMode: true,
       });
       
-      hls.loadSource(src);
+      hls.loadSource(resolvedUrl);
       hls.attachMedia(video);
       
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -69,14 +106,14 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Safari native HLS support
-      video.src = src;
+      video.src = resolvedUrl;
       setIsLoading(false);
     } else {
       // Regular video file
-      video.src = src;
+      video.src = resolvedUrl;
       setIsLoading(false);
     }
-  }, [src]);
+  }, [resolvedUrl]);
 
   // Update progress
   useEffect(() => {
