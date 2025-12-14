@@ -45,6 +45,14 @@ interface Course {
   community_id: string;
 }
 
+interface LessonBlock {
+  id: string;
+  lesson_id: string;
+  block_type: string;
+  config_json: unknown;
+  order_index: number | null;
+}
+
 interface Lesson {
   id: string;
   title: string;
@@ -69,6 +77,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [allLessons, setAllLessons] = useState<Lesson[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [lessonBlocks, setLessonBlocks] = useState<LessonBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -155,9 +164,102 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     }
   };
 
-  const handleSelectLesson = (lesson: Lesson) => {
+  const handleSelectLesson = async (lesson: Lesson) => {
     const fullLesson = allLessons.find(l => l.id === lesson.id);
     setSelectedLesson(fullLesson || lesson);
+    
+    // Fetch lesson blocks
+    const { data: blocksData } = await supabase
+      .from('lesson_blocks')
+      .select('*')
+      .eq('lesson_id', lesson.id)
+      .order('order_index', { ascending: true });
+    
+    setLessonBlocks(blocksData || []);
+  };
+
+  // Load blocks for initial selected lesson
+  useEffect(() => {
+    const loadInitialBlocks = async () => {
+      if (selectedLesson && lessonBlocks.length === 0) {
+        const { data: blocksData } = await supabase
+          .from('lesson_blocks')
+          .select('*')
+          .eq('lesson_id', selectedLesson.id)
+          .order('order_index', { ascending: true });
+        
+        setLessonBlocks(blocksData || []);
+      }
+    };
+    loadInitialBlocks();
+  }, [selectedLesson]);
+
+  const renderBlock = (block: LessonBlock) => {
+    const config = (block.config_json || {}) as Record<string, unknown>;
+    
+    switch (block.block_type) {
+      case 'text':
+        return (
+          <div key={block.id} className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
+            {(config.content as string) || ''}
+          </div>
+        );
+      case 'image':
+        return config.url ? (
+          <img 
+            key={block.id}
+            src={config.url as string} 
+            alt={(config.alt as string) || ''} 
+            className="max-w-full rounded-lg"
+          />
+        ) : null;
+      case 'checkbox':
+        return (
+          <div key={block.id} className="flex items-center gap-2">
+            <input type="checkbox" checked={Boolean(config.checked)} disabled className="h-4 w-4" />
+            <span>{(config.label as string) || ''}</span>
+          </div>
+        );
+      case 'input_text':
+        return (
+          <div key={block.id} className="space-y-1">
+            {config.label && <label className="text-sm font-medium">{config.label as string}</label>}
+            <input 
+              type="text" 
+              placeholder={(config.placeholder as string) || ''} 
+              disabled
+              className="w-full px-3 py-2 border rounded-md bg-muted"
+            />
+          </div>
+        );
+      case 'button':
+        return (
+          <button key={block.id} className="px-4 py-2 bg-primary text-primary-foreground rounded-md" disabled>
+            {(config.label as string) || 'Button'}
+          </button>
+        );
+      case 'link':
+        return (
+          <a key={block.id} href={(config.url as string) || '#'} className="text-primary underline">
+            {(config.label as string) || (config.url as string) || 'Link'}
+          </a>
+        );
+      case 'list':
+        const items = (config.items as string[]) || [];
+        return (
+          <ul key={block.id} className="list-disc pl-5 space-y-1">
+            {items.map((item, i) => <li key={i}>{item}</li>)}
+          </ul>
+        );
+      case 'video':
+        return config.url ? (
+          <div key={block.id} className="aspect-video bg-muted rounded-lg">
+            <video src={config.url as string} controls className="w-full h-full rounded-lg" />
+          </div>
+        ) : null;
+      default:
+        return null;
+    }
   };
 
   const handleDeleteCourse = async () => {
@@ -430,8 +532,14 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 </Card>
               )}
 
-              {/* Content */}
-              {selectedLesson.content_html ? (
+              {/* Content - blocks or html */}
+              {lessonBlocks.length > 0 ? (
+                <Card>
+                  <CardContent className="p-6 space-y-4">
+                    {lessonBlocks.map(block => renderBlock(block))}
+                  </CardContent>
+                </Card>
+              ) : selectedLesson.content_html ? (
                 <Card>
                   <CardContent className="p-6">
                     <div 
