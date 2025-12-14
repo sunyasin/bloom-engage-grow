@@ -4,8 +4,35 @@ import { supabase } from '@/integrations/supabase/client';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Edit, BookOpen, FileText, ClipboardCheck, Loader2, Play } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Edit, 
+  BookOpen, 
+  FileText, 
+  ClipboardCheck, 
+  Loader2, 
+  Trash2, 
+  Settings, 
+  Globe 
+} from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
+import CourseSettingsDialog from '@/components/CourseSettingsDialog';
+import type { Database } from '@/integrations/supabase/types';
+
+type AccessType = Database['public']['Enums']['access_type'];
+type CourseStatus = Database['public']['Enums']['course_status'];
 
 interface Course {
   id: string;
@@ -13,7 +40,8 @@ interface Course {
   description: string | null;
   cover_image_url: string | null;
   author_id: string;
-  status: string;
+  status: CourseStatus | null;
+  access_type: AccessType | null;
   community_id: string;
 }
 
@@ -43,12 +71,15 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!courseId) return;
 
-      // Fetch course
       const { data: courseData } = await supabase
         .from('courses')
         .select('*')
@@ -59,7 +90,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         setCourse(courseData);
       }
 
-      // Fetch lessons
       const { data: lessonsData } = await supabase
         .from('lessons')
         .select('*')
@@ -69,7 +99,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       if (lessonsData) {
         setAllLessons(lessonsData);
         
-        // Build tree structure
         const lessonMap = new Map<string, Lesson>();
         const rootLessons: Lesson[] = [];
 
@@ -92,7 +121,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
         setLessons(rootLessons);
         
-        // Select first lesson by default
         if (rootLessons.length > 0) {
           setSelectedLesson(lessonMap.get(rootLessons[0].id) || rootLessons[0]);
         }
@@ -128,9 +156,73 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   };
 
   const handleSelectLesson = (lesson: Lesson) => {
-    // Find full lesson data from allLessons
     const fullLesson = allLessons.find(l => l.id === lesson.id);
     setSelectedLesson(fullLesson || lesson);
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!course) return;
+    
+    setDeleting(true);
+    try {
+      await supabase.from('lessons').delete().eq('course_id', course.id);
+      
+      const { error } = await supabase.from('courses').delete().eq('id', course.id);
+      
+      if (error) throw error;
+
+      toast({
+        title: language === 'ru' ? 'Курс удалён' : 'Course deleted',
+      });
+
+      navigate(`/community/${course.community_id}`);
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Не удалось удалить курс' : 'Failed to delete course',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!course) return;
+
+    setPublishing(true);
+    try {
+      const newStatus: CourseStatus = course.status === 'published' ? 'draft' : 'published';
+      
+      const { error } = await supabase
+        .from('courses')
+        .update({ status: newStatus })
+        .eq('id', course.id);
+
+      if (error) throw error;
+
+      setCourse({ ...course, status: newStatus });
+
+      toast({
+        title: newStatus === 'published' 
+          ? (language === 'ru' ? 'Курс опубликован' : 'Course published')
+          : (language === 'ru' ? 'Курс снят с публикации' : 'Course unpublished'),
+      });
+    } catch (error) {
+      console.error('Publish error:', error);
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        variant: 'destructive',
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleSettingsSave = (updatedCourse: Course) => {
+    setCourse(updatedCourse);
   };
 
   const renderLesson = (lesson: Lesson, depth: number = 0) => {
@@ -210,22 +302,76 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 {language === 'ru' ? 'Назад' : 'Back'}
               </Button>
               <div>
-                <h1 className="text-xl font-semibold text-foreground">{course.title}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-semibold text-foreground">{course.title}</h1>
+                  {course.status === 'draft' && (
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-muted text-muted-foreground">
+                      {language === 'ru' ? 'Черновик' : 'Draft'}
+                    </span>
+                  )}
+                  {course.status === 'archived' && (
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-muted text-muted-foreground">
+                      {language === 'ru' ? 'В архиве' : 'Archived'}
+                    </span>
+                  )}
+                </div>
                 {course.description && (
                   <p className="text-sm text-muted-foreground">{course.description}</p>
                 )}
               </div>
             </div>
             
-            {isAuthor && selectedLesson && (
-              <Button 
-                onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
-                className="bg-gradient-primary"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                {language === 'ru' ? 'Редактировать урок' : 'Edit Lesson'}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {isAuthor && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {language === 'ru' ? 'Удалить' : 'Delete'}
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handlePublish}
+                    disabled={publishing}
+                  >
+                    {publishing ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Globe className="h-4 w-4 mr-1" />
+                    )}
+                    {course.status === 'published' 
+                      ? (language === 'ru' ? 'Снять с публикации' : 'Unpublish')
+                      : (language === 'ru' ? 'Опубликовать' : 'Publish')
+                    }
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowSettingsDialog(true)}
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    {language === 'ru' ? 'Настройки' : 'Settings'}
+                  </Button>
+                </>
+              )}
+              
+              {isAuthor && selectedLesson && (
+                <Button 
+                  onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
+                  className="bg-gradient-primary"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Редактировать урок' : 'Edit Lesson'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -331,6 +477,45 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {language === 'ru' ? 'Удалить курс?' : 'Delete course?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {language === 'ru' 
+                ? 'Это действие нельзя отменить. Все уроки курса будут удалены.'
+                : 'This action cannot be undone. All lessons will be deleted.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {language === 'ru' ? 'Отмена' : 'Cancel'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCourse}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {language === 'ru' ? 'Удалить' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Settings dialog */}
+      {course && (
+        <CourseSettingsDialog
+          open={showSettingsDialog}
+          onOpenChange={setShowSettingsDialog}
+          course={course}
+          onSave={handleSettingsSave}
+        />
+      )}
     </div>
   );
 }
