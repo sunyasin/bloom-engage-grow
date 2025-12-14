@@ -126,7 +126,7 @@ const App = () => {
                 />
                 <Route 
                   path="/course/:courseId/lesson/:lessonId" 
-                  element={(isAuthor || isSuperuser) ? <LessonEditor /> : <Navigate to="/" />} 
+                  element={user ? <LessonEditor /> : <Navigate to="/" />} 
                 />
                 <Route 
                   path="/community/:communityId/lessons" 
