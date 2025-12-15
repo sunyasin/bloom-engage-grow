@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 export const signUp = async (email: string, password: string) => {
   const redirectUrl = `${window.location.origin}/`;

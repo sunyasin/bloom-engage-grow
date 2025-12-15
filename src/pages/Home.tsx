@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 import { useI18n } from '@/lib/i18n';
 import { CommunityCard } from '@/components/CommunityCard';
 import { Loader2 } from 'lucide-react';
