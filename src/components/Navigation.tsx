@@ -4,7 +4,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 interface NavigationProps {
   user: User | null;

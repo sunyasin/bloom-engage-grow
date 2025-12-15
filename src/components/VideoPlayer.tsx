@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Play, Pause, Maximize, Minimize, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 
 interface VideoPlayerProps {
   src: string;
