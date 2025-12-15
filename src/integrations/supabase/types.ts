@@ -647,6 +647,63 @@ export type Database = {
           },
         ]
       }
+      memberships: {
+        Row: {
+          community_id: string
+          created_at: string
+          expires_at: string | null
+          external_subscription_id: string | null
+          id: string
+          renewal_period: Database["public"]["Enums"]["renewal_period"]
+          started_at: string
+          status: Database["public"]["Enums"]["membership_status"]
+          subscription_tier_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          expires_at?: string | null
+          external_subscription_id?: string | null
+          id?: string
+          renewal_period?: Database["public"]["Enums"]["renewal_period"]
+          started_at?: string
+          status?: Database["public"]["Enums"]["membership_status"]
+          subscription_tier_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          expires_at?: string | null
+          external_subscription_id?: string | null
+          id?: string
+          renewal_period?: Database["public"]["Enums"]["renewal_period"]
+          started_at?: string
+          status?: Database["public"]["Enums"]["membership_status"]
+          subscription_tier_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_subscription_tier_id_fkey"
+            columns: ["subscription_tier_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_reactions: {
         Row: {
           created_at: string | null
@@ -882,6 +939,65 @@ export type Database = {
           },
         ]
       }
+      subscription_tiers: {
+        Row: {
+          community_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean
+          is_free: boolean
+          name: string
+          price_monthly: number | null
+          price_yearly: number | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean
+          is_free?: boolean
+          name: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean
+          is_free?: boolean
+          name?: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_tiers_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           community_id: string | null
@@ -1099,9 +1215,11 @@ export type Database = {
       course_status: "draft" | "published" | "archived"
       discount_type: "percent" | "fixed"
       lesson_type: "lesson" | "test" | "assignment"
+      membership_status: "active" | "canceled" | "expired" | "trial"
       payment_status: "pending" | "paid" | "failed" | "refunded"
       progress_status: "not_started" | "in_progress" | "completed"
       rating_level: "newbie" | "regular" | "experienced" | "guru"
+      renewal_period: "monthly" | "yearly" | "lifetime"
       subscription_status: "active" | "expired" | "canceled" | "pending"
       subscription_type: "one_time" | "periodic"
     }
@@ -1255,9 +1373,11 @@ export const Constants = {
       course_status: ["draft", "published", "archived"],
       discount_type: ["percent", "fixed"],
       lesson_type: ["lesson", "test", "assignment"],
+      membership_status: ["active", "canceled", "expired", "trial"],
       payment_status: ["pending", "paid", "failed", "refunded"],
       progress_status: ["not_started", "in_progress", "completed"],
       rating_level: ["newbie", "regular", "experienced", "guru"],
+      renewal_period: ["monthly", "yearly", "lifetime"],
       subscription_status: ["active", "expired", "canceled", "pending"],
       subscription_type: ["one_time", "periodic"],
     },
