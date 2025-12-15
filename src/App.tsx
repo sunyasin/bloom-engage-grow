@@ -26,7 +26,14 @@ import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 const App = () => {
   const [user, setUser] = useState<User | null>(null);

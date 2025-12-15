@@ -56,7 +56,7 @@ export function SubscriptionTierDialog({
   maxSortOrder,
   onSaved,
 }: SubscriptionTierDialogProps) {
-  const { t, language } = useI18n();
+  const { language } = useI18n();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   
