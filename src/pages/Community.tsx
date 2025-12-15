@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Pin, MessageSquare, Send, Loader2 } from 'lucide-react';
+import { Users, Pin, MessageSquare, Send, Loader2, Settings } from 'lucide-react';
+import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager';
 import { User } from '@supabase/supabase-js';
 import { CoursesTab } from '@/components/CoursesTab';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,6 +52,7 @@ export default function Community({ user }: CommunityProps) {
   const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
   const [posting, setPosting] = useState(false);
+  const [subscriptionSettingsOpen, setSubscriptionSettingsOpen] = useState(false);
 
   const fetchCommunity = async () => {
     if (!id) return;
@@ -358,10 +360,29 @@ export default function Community({ user }: CommunityProps) {
                   {t('community.leave')}
                 </Button>
               )}
+              {isOwner && (
+                <Button 
+                  onClick={() => setSubscriptionSettingsOpen(true)} 
+                  variant="outline" 
+                  className="w-full mt-3"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Настройки подписок' : 'Subscription Settings'}
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Subscription Settings Manager */}
+      {community && (
+        <SubscriptionTiersManager
+          open={subscriptionSettingsOpen}
+          onOpenChange={setSubscriptionSettingsOpen}
+          communityId={community.id}
+        />
+      )}
     </div>
   );
 }
