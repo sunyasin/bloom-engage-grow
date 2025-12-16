@@ -1,14 +1,24 @@
 import React, { useMemo } from "react";
 import VideoPlayer from "@/components/VideoPlayer";
 
+function normalizeLessonVideoSrc(src: string): string {
+  // If HTML contains a public URL to the private bucket, convert it back to storage path
+  const marker = "/storage/v1/object/public/lesson-videos/";
+  const idx = src.indexOf(marker);
+  if (idx !== -1) {
+    return src.slice(idx + marker.length);
+  }
+  return src;
+}
+
 function extractVideoSrc(videoHtml: string): string | null {
   // 1) <video src="...">
   const direct = videoHtml.match(/<video[^>]*\ssrc=("|')([^"']+)("|')[^>]*>/i);
-  if (direct?.[2]) return direct[2];
+  if (direct?.[2]) return normalizeLessonVideoSrc(direct[2]);
 
   // 2) <source src="...">
   const source = videoHtml.match(/<source[^>]*\ssrc=("|')([^"']+)("|')[^>]*>/i);
-  if (source?.[2]) return source[2];
+  if (source?.[2]) return normalizeLessonVideoSrc(source[2]);
 
   return null;
 }

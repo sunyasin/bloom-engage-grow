@@ -533,9 +533,8 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   lessonId={lessonId}
                   onUploadComplete={(path) => {
                     if (path) {
-                      // For uploaded videos, construct the full URL
-                      const fullUrl = `https://njrhaqycomfsluefnkec.supabase.co/storage/v1/object/public/lesson-videos/${path}`;
-                      insertVideo(fullUrl);
+                      // Store only the storage path (bucket is private; VideoPlayer will request a signed URL)
+                      insertVideo(path);
                     }
                   }}
                 />

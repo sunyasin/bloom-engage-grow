@@ -15,8 +15,16 @@ declare module "@tiptap/core" {
   }
 }
 
+const normalizeLessonVideoSrc = (src: string) => {
+  const marker = "/storage/v1/object/public/lesson-videos/";
+  const idx = src.indexOf(marker);
+  if (idx !== -1) return src.slice(idx + marker.length);
+  return src;
+};
+
 const VideoNodeView = (props: any) => {
-  const src = props?.node?.attrs?.src as string | null;
+  const rawSrc = props?.node?.attrs?.src as string | null;
+  const src = rawSrc ? normalizeLessonVideoSrc(rawSrc) : null;
 
   return (
     <NodeViewWrapper className="not-prose">
