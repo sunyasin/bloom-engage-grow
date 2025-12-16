@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import VideoUploader from '@/components/VideoUploader';
 import ImageUploader from '@/components/ImageUploader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import FormattingToolbar from '@/components/FormattingToolbar';
 
 type BlockType = 'text' | 'image' | 'checkbox' | 'input_text' | 'button' | 'link' | 'list' | 'video';
 
@@ -503,6 +504,15 @@ export default function LessonEditor() {
 
         {/* Content editor */}
         <div className="lg:col-span-3">
+          <FormattingToolbar 
+            onFormat={(format) => {
+              // For now, log the format action - can be expanded later
+              console.log('Format action:', format);
+              toast.info(language === 'ru' ? `Формат: ${format}` : `Format: ${format}`);
+            }} 
+            language={language} 
+          />
+          
           {blocks.length === 0 ? (
             <Card className="text-center py-12">
               <CardContent>
