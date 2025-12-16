@@ -118,8 +118,9 @@ export default function LessonEditor() {
       return;
     }
 
-    // If WYSIWYG content is empty but legacy blocks exist, convert blocks -> HTML for preview/edit.
-    const hasHtml = Boolean(data.content_html && String(data.content_html).trim().length > 0);
+    // If WYSIWYG content is empty (or contains legacy escaped embeds) but legacy blocks exist, convert blocks -> HTML for preview/edit.
+    const rawHtml = String(data.content_html || '');
+    const hasHtml = rawHtml.trim().length > 0 && !rawHtml.includes('&lt;video');
     if (!hasHtml) {
       const { data: blocksData } = await supabase
         .from('lesson_blocks')
