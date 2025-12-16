@@ -7,6 +7,10 @@ import Youtube from '@tiptap/extension-youtube';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Bold,
   Italic,
@@ -22,16 +26,26 @@ import {
   Undo,
   Redo
 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import ImageUploader from './ImageUploader';
+import VideoUploader from './VideoUploader';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
   language: string;
   placeholder?: string;
+  lessonId?: string;
 }
 
-export default function RichTextEditor({ content, onChange, language, placeholder }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, language, placeholder, lessonId }: RichTextEditorProps) {
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -70,26 +84,37 @@ export default function RichTextEditor({ content, onChange, language, placeholde
     },
   });
 
-  const addImage = useCallback(() => {
-    const url = window.prompt(language === 'ru' ? 'URL изображения:' : 'Image URL:');
+  const insertImage = useCallback((url: string) => {
     if (url && editor) {
       editor.chain().focus().setImage({ src: url }).run();
+      setImageDialogOpen(false);
+      setImageUrl('');
     }
-  }, [editor, language]);
+  }, [editor]);
 
-  const addLink = useCallback(() => {
-    const url = window.prompt(language === 'ru' ? 'URL ссылки:' : 'Link URL:');
+  const insertVideo = useCallback((url: string) => {
     if (url && editor) {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+      // Check if it's a YouTube URL
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        editor.chain().focus().setYoutubeVideo({ src: url }).run();
+      } else {
+        // For direct video URLs, insert as HTML
+        editor.chain().focus().insertContent(
+          `<video controls class="w-full rounded-lg"><source src="${url}" type="video/mp4"></video>`
+        ).run();
+      }
+      setVideoDialogOpen(false);
+      setVideoUrl('');
     }
-  }, [editor, language]);
+  }, [editor]);
 
-  const addVideo = useCallback(() => {
-    const url = window.prompt(language === 'ru' ? 'URL видео (YouTube):' : 'Video URL (YouTube):');
-    if (url && editor) {
-      editor.chain().focus().setYoutubeVideo({ src: url }).run();
+  const insertLink = useCallback(() => {
+    if (linkUrl && editor) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run();
+      setLinkDialogOpen(false);
+      setLinkUrl('');
     }
-  }, [editor, language]);
+  }, [editor, linkUrl]);
 
   if (!editor) {
     return null;
@@ -337,7 +362,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80"
-                  onClick={addImage}
+                  onClick={() => setImageDialogOpen(true)}
                 >
                   <ImageIcon className="h-4 w-4" />
                 </Button>
@@ -355,7 +380,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive('link') ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={addLink}
+                  onClick={() => setLinkDialogOpen(true)}
                 >
                   <Link2 className="h-4 w-4" />
                 </Button>
@@ -387,7 +412,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80"
-                  onClick={addVideo}
+                  onClick={() => setVideoDialogOpen(true)}
                 >
                   <Play className="h-4 w-4" />
                 </Button>
@@ -402,6 +427,143 @@ export default function RichTextEditor({ content, onChange, language, placeholde
         {/* Editor Content */}
         <EditorContent editor={editor} />
       </div>
+
+      {/* Image Upload Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'ru' ? 'Вставить изображение' : 'Insert Image'}
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue={lessonId ? "upload" : "url"} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              {lessonId && (
+                <TabsTrigger value="upload">
+                  {language === 'ru' ? 'Загрузить' : 'Upload'}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="url">
+                {language === 'ru' ? 'По ссылке' : 'By URL'}
+              </TabsTrigger>
+            </TabsList>
+            {lessonId && (
+              <TabsContent value="upload" className="mt-4">
+                <ImageUploader
+                  lessonId={lessonId}
+                  onUploadComplete={(url) => {
+                    if (url) insertImage(url);
+                  }}
+                />
+              </TabsContent>
+            )}
+            <TabsContent value="url" className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <Label>{language === 'ru' ? 'URL изображения' : 'Image URL'}</Label>
+                <Input
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+              <Button 
+                className="w-full" 
+                onClick={() => insertImage(imageUrl)}
+                disabled={!imageUrl}
+              >
+                {language === 'ru' ? 'Вставить' : 'Insert'}
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video Upload Dialog */}
+      <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'ru' ? 'Вставить видео' : 'Insert Video'}
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue={lessonId ? "upload" : "url"} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              {lessonId && (
+                <TabsTrigger value="upload">
+                  {language === 'ru' ? 'Загрузить' : 'Upload'}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="url">
+                {language === 'ru' ? 'По ссылке' : 'By URL'}
+              </TabsTrigger>
+            </TabsList>
+            {lessonId && (
+              <TabsContent value="upload" className="mt-4">
+                <VideoUploader
+                  lessonId={lessonId}
+                  onUploadComplete={(path) => {
+                    if (path) {
+                      // For uploaded videos, construct the full URL
+                      const fullUrl = `https://njrhaqycomfsluefnkec.supabase.co/storage/v1/object/public/lesson-videos/${path}`;
+                      insertVideo(fullUrl);
+                    }
+                  }}
+                />
+              </TabsContent>
+            )}
+            <TabsContent value="url" className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <Label>{language === 'ru' ? 'URL видео' : 'Video URL'}</Label>
+                <Input
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  {language === 'ru' 
+                    ? 'Поддерживаются YouTube, Vimeo и прямые ссылки на видео' 
+                    : 'YouTube, Vimeo and direct video links supported'}
+                </p>
+              </div>
+              <Button 
+                className="w-full" 
+                onClick={() => insertVideo(videoUrl)}
+                disabled={!videoUrl}
+              >
+                {language === 'ru' ? 'Вставить' : 'Insert'}
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'ru' ? 'Вставить ссылку' : 'Insert Link'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{language === 'ru' ? 'URL ссылки' : 'Link URL'}</Label>
+              <Input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={insertLink}
+              disabled={!linkUrl}
+            >
+              {language === 'ru' ? 'Вставить' : 'Insert'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
