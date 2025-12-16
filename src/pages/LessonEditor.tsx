@@ -34,6 +34,8 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
+const SUPABASE_URL = 'https://njrhaqycomfsluefnkec.supabase.co';
+
 const blocksToHtml = (blocks: LessonBlock[]) => {
   const parts: string[] = [];
 
@@ -58,11 +60,12 @@ const blocksToHtml = (blocks: LessonBlock[]) => {
       }
       case 'video': {
         if (config.url) {
-          const src = String(config.url);
-          // TipTap doesn't have a generic video extension here, so keep as HTML.
-          parts.push(
-            `<video controls class="w-full rounded-lg"><source src="${src}" type="video/mp4"></video>`
-          );
+          let src = String(config.url);
+          // If relative path, construct full Supabase storage URL
+          if (!src.startsWith('http')) {
+            src = `${SUPABASE_URL}/storage/v1/object/public/lesson-videos/${src}`;
+          }
+          parts.push(`<video src="${src}"></video>`);
         }
         break;
       }
