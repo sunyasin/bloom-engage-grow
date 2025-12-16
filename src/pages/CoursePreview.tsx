@@ -31,6 +31,7 @@ import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 import CourseSettingsDialog from '@/components/CourseSettingsDialog';
 import VideoPlayer from '@/components/VideoPlayer';
+import LessonContentRenderer from '@/components/LessonContentRenderer';
 import type { Database } from '@/integrations/supabase/types';
 
 type AccessType = Database['public']['Enums']['access_type'];
@@ -731,11 +732,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                           allowFullScreen
                         />
                       ) : (
-                        <video 
-                          src={selectedLesson.video_url} 
-                          controls 
-                          className="w-full h-full rounded-lg"
-                        />
+                        <VideoPlayer src={selectedLesson.video_url} lessonId={selectedLesson.id} className="w-full" />
                       )}
                     </div>
                   </CardContent>
@@ -746,9 +743,10 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               {selectedLesson.content_html && selectedLesson.content_html.trim().length > 0 ? (
                 <Card>
                   <CardContent className="p-6">
-                    <div
+                    <LessonContentRenderer
+                      lessonId={selectedLesson.id}
+                      html={selectedLesson.content_html}
                       className="prose prose-sm max-w-none dark:prose-invert"
-                      dangerouslySetInnerHTML={{ __html: selectedLesson.content_html }}
                     />
                   </CardContent>
                 </Card>
