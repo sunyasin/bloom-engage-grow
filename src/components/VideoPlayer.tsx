@@ -295,7 +295,11 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
         ref={videoRef}
         className="w-full h-full object-contain"
         playsInline
-        onClick={(e) => e.stopPropagation()}
+        preload="metadata"
+        onClick={(e) => {
+          e.stopPropagation();
+          togglePlay();
+        }}
       />
 
       {/* Loading spinner */}
