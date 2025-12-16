@@ -76,11 +76,13 @@ const blocksToHtml = (blocks: LessonBlock[]) => {
       case 'video': {
         if (config.url) {
           let src = String(config.url);
-          // If relative path, construct full Supabase storage URL
+          // If relative path, construct full storage URL
           if (!src.startsWith('http')) {
             src = `${SUPABASE_URL}/storage/v1/object/public/lesson-videos/${src}`;
           }
-          parts.push(`<video src="${src}"></video>`);
+          parts.push(
+            `<video controls class="w-full rounded-lg"><source src="${src}" type="video/mp4" /></video>`
+          );
         }
         break;
       }
