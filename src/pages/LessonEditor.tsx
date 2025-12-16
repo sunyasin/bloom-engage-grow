@@ -75,11 +75,8 @@ const blocksToHtml = (blocks: LessonBlock[]) => {
       }
       case 'video': {
         if (config.url) {
-          let src = String(config.url);
-          // If relative path, construct full storage URL
-          if (!src.startsWith('http')) {
-            src = `${SUPABASE_URL}/storage/v1/object/public/lesson-videos/${src}`;
-          }
+          const src = String(config.url);
+          // Store path in HTML; runtime renderer (preview/editor) will convert to signed URL
           parts.push(
             `<video controls class="w-full rounded-lg"><source src="${src}" type="video/mp4" /></video>`
           );
