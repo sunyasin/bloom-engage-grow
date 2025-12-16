@@ -34,6 +34,21 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
+// Converts old "escaped" video HTML (stored as &lt;video&gt;...) into real video nodes for TipTap.
+const normalizeLegacyEscapedVideo = (html: string) => {
+  if (!html) return html;
+
+  // Matches: &lt;video ...&gt;&lt;source src="..." ...&gt;&lt;/video&gt;
+  // Note: attributes may contain regular quotes (") and are not always encoded as &quot;.
+  const replaced = html.replace(
+    /&lt;video[^&]*&gt;\s*&lt;source[^&]*src=(?:&quot;|")([^&\"]+?)(?:&quot;|")[^&]*&gt;\s*&lt;\/video&gt;/gi,
+    (_m, src) => `</p><video src="${src}"></video><p>`
+  );
+
+  // Clean up if the replacement happened at the very start.
+  return replaced.replace(/^<\/p>/i, '').replace(/<p><\/p>/gi, '');
+};
+
 const SUPABASE_URL = 'https://njrhaqycomfsluefnkec.supabase.co';
 
 const blocksToHtml = (blocks: LessonBlock[]) => {
@@ -121,7 +136,10 @@ export default function LessonEditor() {
       }
     }
 
-    setLesson(data as Lesson);
+    // Normalize legacy escaped video embeds so the editor can render them.
+    const normalizedContent = normalizeLegacyEscapedVideo(String(data.content_html || ''));
+
+    setLesson({ ...(data as Lesson), content_html: normalizedContent });
     setLoading(false);
   }, [courseId, language, lessonId, navigate]);
 
