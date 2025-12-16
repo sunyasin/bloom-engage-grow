@@ -87,9 +87,17 @@ export default function RichTextEditor({ content, onChange, language, placeholde
   });
 
   // Sync editor content when prop changes (e.g., after loading from DB)
+  // Important: TipTap normalizes an "empty" doc to "<p></p>".
+  // If we compare to an empty string, we'd keep resetting content and the editor looks blank.
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || '');
+    if (!editor) return;
+
+    const normalized = (content && content.trim().length > 0) ? content : '<p></p>';
+    const current = editor.getHTML();
+
+    if (current !== normalized) {
+      // do not emit update -> prevents onUpdate loops while syncing
+      editor.commands.setContent(normalized, { emitUpdate: false });
     }
   }, [content, editor]);
 
