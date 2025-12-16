@@ -241,3 +241,18 @@ All colors MUST be HSL.
   color: hsl(var(--muted-foreground));
   pointer-events: none;
 }
+
+.ProseMirror video {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  background: hsl(var(--muted));
+}
+
+.ProseMirror iframe {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
