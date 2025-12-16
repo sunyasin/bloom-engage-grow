@@ -233,6 +233,13 @@ export default function Community({ user }: CommunityProps) {
         <div className="flex flex-col lg:flex-row gap-8 -mt-8 relative">
           {/* Main content */}
           <div className="flex-1">
+            {community.cover_image_url && (
+              <img 
+                src={community.cover_image_url} 
+                alt={community.name}
+                className="h-12 w-auto object-contain mb-4"
+              />
+            )}
             <Tabs defaultValue="feed" className="w-full">
               <TabsList className="mb-6">
                 <TabsTrigger value="feed">{t('community.feed')}</TabsTrigger>
