@@ -102,6 +102,7 @@ export default function LessonEditor() {
         onChange={(html) => setLesson(lesson ? { ...lesson, content_html: html } : null)}
         language={language}
         placeholder={language === 'ru' ? 'Начните писать содержимое урока...' : 'Start writing lesson content...'}
+        lessonId={lessonId}
       />
     </div>
   );
