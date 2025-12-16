@@ -32,6 +32,15 @@ export const Video = Node.create<VideoOptions>({
     return {
       src: {
         default: null,
+        parseHTML: (element) => {
+          // Try to get src from video element directly
+          const directSrc = element.getAttribute('src');
+          if (directSrc) return directSrc;
+          
+          // Or from source child element
+          const source = element.querySelector('source');
+          return source?.getAttribute('src') || null;
+        },
       },
     };
   },
@@ -47,8 +56,7 @@ export const Video = Node.create<VideoOptions>({
   renderHTML({ HTMLAttributes }) {
     return [
       'video',
-      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),
-      ['source', { src: HTMLAttributes.src, type: 'video/mp4' }],
+      mergeAttributes(this.options.HTMLAttributes, { src: HTMLAttributes.src }),
     ];
   },
 
