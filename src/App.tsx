@@ -24,6 +24,7 @@ import CoursePreview from "./pages/CoursePreview";
 import LessonEditor from "./pages/LessonEditor";
 import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
 import ResetPassword from "./pages/ResetPassword";
+import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -144,6 +145,7 @@ const App = () => {
                   element={<CoursePreview user={user} />} 
                 />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/payment/callback" element={<PaymentCallback />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
