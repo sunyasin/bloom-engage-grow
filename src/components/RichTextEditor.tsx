@@ -26,7 +26,7 @@ import {
   Undo,
   Redo
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
 import VideoUploader from './VideoUploader';
 
@@ -83,6 +83,13 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       },
     },
   });
+
+  // Sync editor content when prop changes (e.g., after loading from DB)
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content || '');
+    }
+  }, [content, editor]);
 
   const insertImage = useCallback((url: string) => {
     if (url && editor) {
