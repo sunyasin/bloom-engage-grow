@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../config/supabase.js';
+import { prisma } from '../config/database.js';
 import { yookassaService } from '../services/yookassa.js';
 import dotenv from 'dotenv';
 
@@ -17,13 +17,11 @@ export const createSubscription = async (req, res) => {
       });
     }
 
-    const { data: tier, error: tierError } = await supabaseAdmin
-      .from('subscription_tiers')
-      .select('*')
-      .eq('id', subscriptionTierId)
-      .single();
+    const tier = await prisma.subscription_tiers.findUnique({
+      where: { id: subscriptionTierId }
+    });
 
-    if (tierError || !tier) {
+    if (!tier) {
       return res.status(404).json({ error: 'Subscription tier not found' });
     }
 
@@ -31,23 +29,20 @@ export const createSubscription = async (req, res) => {
       return res.status(400).json({ error: 'Subscription tier is not active' });
     }
 
-    const { data: community, error: communityError } = await supabaseAdmin
-      .from('communities')
-      .select('*')
-      .eq('id', communityId)
-      .single();
+    const community = await prisma.communities.findUnique({
+      where: { id: communityId }
+    });
 
-    if (communityError || !community) {
+    if (!community) {
       return res.status(404).json({ error: 'Community not found' });
     }
 
     const transactionId = crypto.randomUUID();
     const idempotencyKey = `${userId}-${communityId}-${subscriptionTierId}-${Date.now()}`;
-    const amount = tier.price_monthly || 0;
+    const amount = Number(tier.price_monthly) || 0;
 
-    const { data: transaction, error: transactionError } = await supabaseAdmin
-      .from('transactions')
-      .insert({
+    const transaction = await prisma.transactions.create({
+      data: {
         id: transactionId,
         user_id: userId,
         community_id: communityId,
@@ -58,14 +53,8 @@ export const createSubscription = async (req, res) => {
         provider: 'yookassa',
         idempotency_key: idempotencyKey,
         description: `Подписка на сообщество ${community.name} / план ${tier.name}`
-      })
-      .select()
-      .single();
-
-    if (transactionError) {
-      console.error('Failed to create transaction:', transactionError);
-      return res.status(500).json({ error: 'Failed to create transaction' });
-    }
+      }
+    });
 
     const paymentResult = await yookassaService.createPayment({
       amount,
@@ -80,10 +69,10 @@ export const createSubscription = async (req, res) => {
       idempotencyKey
     });
 
-    await supabaseAdmin
-      .from('transactions')
-      .update({ provider_payment_id: paymentResult.id })
-      .eq('id', transactionId);
+    await prisma.transactions.update({
+      where: { id: transactionId },
+      data: { provider_payment_id: paymentResult.id }
+    });
 
     return res.json({
       confirmationUrl: paymentResult.confirmation.confirmation_url,
@@ -109,67 +98,65 @@ export const handleYooKassaWebhook = async (req, res) => {
     const paymentId = payment.id;
     const paymentStatus = payment.status;
 
-    const { data: transaction, error: transactionError } = await supabaseAdmin
-      .from('transactions')
-      .select('*')
-      .eq('provider_payment_id', paymentId)
-      .single();
+    const transaction = await prisma.transactions.findFirst({
+      where: { provider_payment_id: paymentId }
+    });
 
-    if (transactionError || !transaction) {
+    if (!transaction) {
       console.error('Transaction not found for payment:', paymentId);
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
     if (paymentStatus === 'succeeded') {
-      await supabaseAdmin
-        .from('transactions')
-        .update({ status: 'succeeded' })
-        .eq('id', transaction.id);
+      await prisma.transactions.update({
+        where: { id: transaction.id },
+        data: { status: 'succeeded' }
+      });
 
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-      const { data: existingMembership } = await supabaseAdmin
-        .from('memberships')
-        .select('*')
-        .eq('user_id', transaction.user_id)
-        .eq('community_id', transaction.community_id)
-        .single();
+      const existingMembership = await prisma.memberships.findFirst({
+        where: {
+          user_id: transaction.user_id,
+          community_id: transaction.community_id
+        }
+      });
 
       if (existingMembership) {
-        await supabaseAdmin
-          .from('memberships')
-          .update({
+        await prisma.memberships.update({
+          where: { id: existingMembership.id },
+          data: {
             subscription_tier_id: transaction.subscription_tier_id,
             status: 'active',
-            started_at: new Date().toISOString(),
-            expires_at: expiresAt.toISOString(),
+            started_at: new Date(),
+            expires_at: expiresAt,
             renewal_period: 'monthly',
             external_subscription_id: paymentId,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingMembership.id);
+            updated_at: new Date()
+          }
+        });
       } else {
-        await supabaseAdmin
-          .from('memberships')
-          .insert({
+        await prisma.memberships.create({
+          data: {
             user_id: transaction.user_id,
             community_id: transaction.community_id,
             subscription_tier_id: transaction.subscription_tier_id,
             status: 'active',
-            started_at: new Date().toISOString(),
-            expires_at: expiresAt.toISOString(),
+            started_at: new Date(),
+            expires_at: expiresAt,
             renewal_period: 'monthly',
             external_subscription_id: paymentId
-          });
+          }
+        });
       }
 
       console.log(`Payment succeeded and membership created for transaction ${transaction.id}`);
     } else if (paymentStatus === 'canceled') {
-      await supabaseAdmin
-        .from('transactions')
-        .update({ status: 'canceled' })
-        .eq('id', transaction.id);
+      await prisma.transactions.update({
+        where: { id: transaction.id },
+        data: { status: 'canceled' }
+      });
 
       console.log(`Payment canceled for transaction ${transaction.id}`);
     } else if (paymentStatus === 'waiting_for_capture') {
@@ -189,25 +176,21 @@ export const getMemberships = async (req, res) => {
     const userId = req.user.id;
     const { communityId } = req.query;
 
-    let query = supabaseAdmin
-      .from('memberships')
-      .select(`
-        *,
-        subscription_tier:subscription_tiers(*),
-        community:communities(*)
-      `)
-      .eq('user_id', userId);
+    const where = {
+      user_id: userId
+    };
 
     if (communityId) {
-      query = query.eq('community_id', communityId);
+      where.community_id = communityId;
     }
 
-    const { data: memberships, error } = await query;
-
-    if (error) {
-      console.error('Error fetching memberships:', error);
-      return res.status(500).json({ error: 'Failed to fetch memberships' });
-    }
+    const memberships = await prisma.memberships.findMany({
+      where,
+      include: {
+        subscription_tier: true,
+        community: true
+      }
+    });
 
     const enrichedMemberships = memberships.map(membership => {
       const now = new Date();
@@ -230,18 +213,18 @@ export const getMemberships = async (req, res) => {
 
 export const getUserCommunityMembership = async (userId, communityId) => {
   try {
-    const { data: membership, error } = await supabaseAdmin
-      .from('memberships')
-      .select(`
-        *,
-        subscription_tier:subscription_tiers(*)
-      `)
-      .eq('user_id', userId)
-      .eq('community_id', communityId)
-      .eq('status', 'active')
-      .single();
+    const membership = await prisma.memberships.findFirst({
+      where: {
+        user_id: userId,
+        community_id: communityId,
+        status: 'active'
+      },
+      include: {
+        subscription_tier: true
+      }
+    });
 
-    if (error || !membership) {
+    if (!membership) {
       return null;
     }
 
@@ -249,10 +232,10 @@ export const getUserCommunityMembership = async (userId, communityId) => {
     const expiresAt = membership.expires_at ? new Date(membership.expires_at) : null;
 
     if (expiresAt && expiresAt < now) {
-      await supabaseAdmin
-        .from('memberships')
-        .update({ status: 'expired' })
-        .eq('id', membership.id);
+      await prisma.memberships.update({
+        where: { id: membership.id },
+        data: { status: 'expired' }
+      });
 
       return null;
     }

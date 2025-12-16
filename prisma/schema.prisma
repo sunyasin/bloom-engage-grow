@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum membership_status {
+  active
+  canceled
+  expired
+  trial
+}
+
+enum renewal_period {
+  monthly
+  yearly
+  lifetime
+}
+
+enum payment_status {
+  pending
+  paid
+  failed
+  refunded
+  succeeded
+  canceled
+}
+
+model communities {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String
+  slug                String?               @unique
+  description         String?
+  creator_id          String?               @db.Uuid
+  owner_id            String?               @db.Uuid
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  subscription_tiers  subscription_tiers[]
+  memberships         memberships[]
+  transactions        transactions[]
+
+  @@map("communities")
+  @@schema("public")
+}
+
+model subscription_tiers {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  community_id    String        @db.Uuid
+  name            String
+  slug            String
+  description     String?
+  price_monthly   Decimal?      @default(0) @db.Decimal(10, 2)
+  price_yearly    Decimal?      @default(0) @db.Decimal(10, 2)
+  currency        String        @default("RUB")
+  is_free         Boolean       @default(false)
+  is_active       Boolean       @default(true)
+  sort_order      Int           @default(0)
+  features        Json?         @default("[]")
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+
+  community       communities   @relation(fields: [community_id], references: [id], onDelete: Cascade)
+  memberships     memberships[]
+  transactions    transactions[]
+
+  @@unique([community_id, slug])
+  @@map("subscription_tiers")
+  @@schema("public")
+}
+
+model memberships {
+  id                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                  String              @db.Uuid
+  community_id             String              @db.Uuid
+  subscription_tier_id     String?             @db.Uuid
+  status                   membership_status   @default(active)
+  started_at               DateTime            @default(now()) @db.Timestamptz(6)
+  expires_at               DateTime?           @db.Timestamptz(6)
+  renewal_period           renewal_period      @default(monthly)
+  external_subscription_id String?
+  created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime            @default(now()) @db.Timestamptz(6)
+
+  community                communities         @relation(fields: [community_id], references: [id], onDelete: Cascade)
+  subscription_tier        subscription_tiers? @relation(fields: [subscription_tier_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, community_id])
+  @@map("memberships")
+  @@schema("public")
+}
+
+model transactions {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String              @db.Uuid
+  course_id            String?             @db.Uuid
+  community_id         String?             @db.Uuid
+  subscription_tier_id String?             @db.Uuid
+  amount               Decimal             @db.Decimal(10, 2)
+  currency             String              @default("RUB")
+  payment_method       String?
+  status               payment_status      @default(pending)
+  provider             String?             @default("yookassa")
+  provider_payment_id  String?
+  idempotency_key      String?             @unique
+  description          String?
+  metadata             Json?
+  created_at           DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?           @default(now()) @db.Timestamptz(6)
+
+  community            communities?        @relation(fields: [community_id], references: [id], onDelete: SetNull)
+  subscription_tier    subscription_tiers? @relation(fields: [subscription_tier_id], references: [id], onDelete: SetNull)
+
+  @@index([provider_payment_id], map: "idx_transactions_provider_payment_id")
+  @@index([user_id], map: "idx_transactions_user_id")
+  @@index([status], map: "idx_transactions_status")
+  @@map("transactions")
+  @@schema("public")
+}

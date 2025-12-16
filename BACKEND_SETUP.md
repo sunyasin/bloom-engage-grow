@@ -1,5 +1,13 @@
 # Backend Setup - Quick Start Guide
 
+## Стек
+
+- **Runtime:** Node.js + Express
+- **ORM:** Prisma
+- **Database:** Supabase PostgreSQL
+- **Auth:** Supabase Auth (JWT)
+- **Payments:** YooKassa
+
 ## Быстрый старт
 
 ### 1. Установка зависимостей
@@ -14,9 +22,12 @@ npm install
 
 ```env
 # Supabase (получите в Supabase Dashboard)
-VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_URL=https://npezwndlklnbjkmenahw.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Prisma Database URL
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.njrhaqycomfsluefnkec.supabase.co:5432/postgres
 
 # Backend
 PORT=3001
@@ -29,10 +40,17 @@ YOOKASSA_SECRET_KEY=your_secret_key
 ```
 
 **Где взять ключи:**
-- Supabase: Dashboard → Settings → API
+- Supabase Keys: Dashboard → Settings → API
+- Database URL: Dashboard → Settings → Database → Connection string → URI
 - YooKassa: https://yookassa.ru → Настройки → Протокол API
 
-### 3. Запуск проекта
+### 3. Сгенерировать Prisma Client
+
+```bash
+npm run prisma:generate
+```
+
+### 4. Запуск проекта
 
 **Вариант 1: Frontend и Backend вместе**
 ```bash
@@ -67,10 +85,14 @@ https://xxxxx.ngrok.io/api/payments/webhook/yookassa
 ## Структура Backend
 
 ```
+prisma/
+└── schema.prisma            # Prisma схема БД
+
 server/
 ├── index.js                 # Express сервер
 ├── config/
-│   └── supabase.js         # Supabase клиент
+│   ├── database.js         # Prisma Client
+│   └── supabase.js         # Supabase Auth Client
 ├── services/
 │   └── yookassa.js         # YooKassa API
 ├── middleware/
@@ -79,6 +101,16 @@ server/
 │   └── paymentsController.js
 └── routes/
     └── payments.js
+```
+
+## Prisma Commands
+
+```bash
+# Сгенерировать Prisma Client
+npm run prisma:generate
+
+# Открыть Prisma Studio (GUI для БД)
+npm run prisma:studio
 ```
 
 ## API Endpoints
@@ -119,6 +151,17 @@ CVC: 123
 
 ## Troubleshooting
 
+### Prisma Client не сгенерирован
+```bash
+npm run prisma:generate
+```
+
+### Ошибка DATABASE_URL
+Проверьте:
+1. Пароль корректный
+2. Формат: `postgresql://postgres:[PASSWORD]@db.njrhaqycomfsluefnkec.supabase.co:5432/postgres`
+3. Нет лишних пробелов в .env
+
 ### CORS ошибки
 Проверьте `FRONTEND_URL` в `.env`
 
@@ -150,4 +193,4 @@ pm2 save
 
 ## Документация
 
-Полная документация: `YOOKASSA_EXPRESS_INTEGRATION.md`
+Полная документация: `YOOKASSA_PRISMA_INTEGRATION.md`

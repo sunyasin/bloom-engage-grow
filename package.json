@@ -11,7 +11,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start:backend": "node server/index.js"
+    "start:backend": "node server/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -47,6 +49,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "@prisma/client": "^6.1.0",
     "@tiptap/extension-code-block-lowlight": "^3.13.0",
     "@tiptap/extension-image": "^3.13.0",
     "@tiptap/extension-link": "^3.13.0",
@@ -82,6 +85,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "concurrently": "^9.1.2",
     "nodemon": "^3.1.9",
+    "prisma": "^6.1.0",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
