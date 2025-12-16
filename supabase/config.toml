@@ -1,0 +1,7 @@
+project_id = "njrhaqycomfsluefnkec"
+
+[functions.get-posts]
+verify_jwt = false
+
+[functions.lesson-stream]
+verify_jwt = false
