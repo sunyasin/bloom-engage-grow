@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import { Play, Pause, Maximize, Minimize, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 
 interface VideoPlayerProps {
   src: string;
@@ -153,6 +154,12 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
       setIsPlaying(false);
     };
 
+    const handleError = () => {
+      const mediaError = video.error;
+      console.error('Video element error:', mediaError);
+      setIsLoading(false);
+    };
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('progress', handleProgress);
@@ -160,6 +167,7 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('playing', handlePlaying);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
@@ -169,6 +177,7 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('error', handleError);
     };
   }, []);
 
@@ -195,16 +204,26 @@ export default function VideoPlayer({ src, lessonId, className }: VideoPlayerPro
     }
   }, [isPlaying]);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (video.paused) {
-      video.play();
-    } else {
-      video.pause();
+    try {
+      if (video.paused) {
+        const p = video.play();
+        if (p && typeof (p as Promise<void>).catch === 'function') {
+          await p;
+        }
+      } else {
+        video.pause();
+      }
+    } catch (err: any) {
+      console.error('Video play error:', err);
+      toast.error(`Не удалось запустить видео: ${err?.name || 'ошибка'}`);
+      setIsLoading(false);
+    } finally {
+      resetControlsTimeout();
     }
-    resetControlsTimeout();
   }, [resetControlsTimeout]);
 
   const toggleMute = useCallback(() => {
