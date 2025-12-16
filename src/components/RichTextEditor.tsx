@@ -49,6 +49,8 @@ export default function RichTextEditor({ content, onChange, language, placeholde
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        // Avoid duplicate extension names (StarterKit may include Link)
+        link: false,
         heading: {
           levels: [1, 2, 3, 4],
         },
