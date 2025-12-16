@@ -99,11 +99,19 @@ export default function RichTextEditor({ content, onChange, language, placeholde
   useEffect(() => {
     if (!editor) return;
 
-    const normalized = (content && content.trim().length > 0) ? content : '<p></p>';
+    const normalizeEscapedVideo = (html: string) => {
+      if (!html) return html;
+      return html.replace(
+        /&lt;video[^&]*&gt;\s*&lt;source[^&]*src=(?:&quot;|\")([^&\"]+?)(?:&quot;|\")[^&]*&gt;\s*&lt;\/video&gt;/gi,
+        (_m, src) => `</p><video src="${src}"></video><p>`
+      );
+    };
+
+    const incoming = normalizeEscapedVideo(content || '');
+    const normalized = incoming.trim().length > 0 ? incoming : '<p></p>';
     const current = editor.getHTML();
 
     if (current !== normalized) {
-      // do not emit update -> prevents onUpdate loops while syncing
       editor.commands.setContent(normalized, { emitUpdate: false });
     }
   }, [content, editor]);

@@ -56,7 +56,11 @@ export const Video = Node.create<VideoOptions>({
   renderHTML({ HTMLAttributes }) {
     return [
       'video',
-      mergeAttributes(this.options.HTMLAttributes, { src: HTMLAttributes.src }),
+      mergeAttributes(this.options.HTMLAttributes, {
+        src: HTMLAttributes.src,
+        controls: true,
+        playsinline: 'true',
+      }),
     ];
   },
 
