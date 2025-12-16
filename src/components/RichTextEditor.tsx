@@ -4,6 +4,7 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Youtube from '@tiptap/extension-youtube';
+import Video from './tiptap/VideoExtension';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -71,6 +72,12 @@ export default function RichTextEditor({ content, onChange, language, placeholde
           class: 'w-full aspect-video rounded-lg',
         },
       }),
+      Video.configure({
+        HTMLAttributes: {
+          class: 'w-full rounded-lg my-4',
+          controls: true,
+        },
+      }),
       Placeholder.configure({
         placeholder: placeholder || (language === 'ru' ? 'Начните писать...' : 'Start writing...'),
       }),
@@ -115,10 +122,8 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       if (url.includes('youtube.com') || url.includes('youtu.be')) {
         editor.chain().focus().setYoutubeVideo({ src: url }).run();
       } else {
-        // For direct video URLs, insert as HTML
-        editor.chain().focus().insertContent(
-          `<video controls class="w-full rounded-lg"><source src="${url}" type="video/mp4"></video>`
-        ).run();
+        // For direct video URLs, use custom Video extension
+        editor.chain().focus().setVideo({ src: url }).run();
       }
       setVideoDialogOpen(false);
       setVideoUrl('');
