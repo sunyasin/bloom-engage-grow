@@ -742,20 +742,20 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 </Card>
               )}
 
-              {/* Content - blocks or html */}
-              {lessonBlocks.length > 0 ? (
-                <Card>
-                  <CardContent className="p-6 space-y-4">
-                    {lessonBlocks.map(block => renderBlock(block))}
-                  </CardContent>
-                </Card>
-              ) : selectedLesson.content_html ? (
+              {/* Content - prefer WYSIWYG HTML when present to avoid flicker while blocks load */}
+              {selectedLesson.content_html && selectedLesson.content_html.trim().length > 0 ? (
                 <Card>
                   <CardContent className="p-6">
-                    <div 
+                    <div
                       className="prose prose-sm max-w-none dark:prose-invert"
                       dangerouslySetInnerHTML={{ __html: selectedLesson.content_html }}
                     />
+                  </CardContent>
+                </Card>
+              ) : lessonBlocks.length > 0 ? (
+                <Card>
+                  <CardContent className="p-6 space-y-4">
+                    {lessonBlocks.map(block => renderBlock(block))}
                   </CardContent>
                 </Card>
               ) : (
@@ -763,13 +763,13 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                   <CardContent className="p-12 text-center">
                     <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
                     <p className="text-muted-foreground">
-                      {language === 'ru' 
-                        ? 'Содержимое урока пока не добавлено' 
+                      {language === 'ru'
+                        ? 'Содержимое урока пока не добавлено'
                         : 'Lesson content not added yet'}
                     </p>
                     {isAuthor && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="mt-4"
                         onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
                       >
