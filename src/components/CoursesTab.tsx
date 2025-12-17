@@ -6,6 +6,10 @@ import { BookOpen, Plus, Loader2, Lock, ShoppingCart } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 import { paymentsApi } from '@/lib/paymentsApi';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface Course {
   id: string;
@@ -38,6 +42,9 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
   const [hasActiveMembership, setHasActiveMembership] = useState(false);
   const [cheapestTier, setCheapestTier] = useState<SubscriptionTier | null>(null);
   const [purchasingCourseId, setPurchasingCourseId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formData, setFormData] = useState({ title: '', description: '' });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -136,6 +143,39 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
     }
   };
 
+  const handleCreateCourse = async () => {
+    if (!userId || !formData.title.trim()) return;
+    
+    setCreating(true);
+    const slug = formData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-а-яё]/gi, '') + '-' + Date.now();
+    
+    const { data, error } = await supabase
+      .from('courses')
+      .insert({
+        title: formData.title,
+        description: formData.description || null,
+        slug,
+        community_id: communityId,
+        author_id: userId,
+        status: 'draft',
+        access_type: 'open'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating course:', error);
+      toast.error(language === 'ru' ? 'Ошибка создания курса' : 'Error creating course');
+    } else {
+      toast.success(language === 'ru' ? 'Курс создан' : 'Course created');
+      setDialogOpen(false);
+      setFormData({ title: '', description: '' });
+      // Navigate to the course editor
+      navigate(`/course/${data.id}/lessons`);
+    }
+    setCreating(false);
+  };
+
   const isPaidCourse = (course: Course) => course.access_type === 'paid_subscription';
   const isCourseLocked = (course: Course) => isPaidCourse(course) && !hasActiveMembership && !isOwner;
 
@@ -151,7 +191,10 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
     <div className="space-y-6">
       {isOwner && (
         <Button 
-          onClick={() => navigate(`/community/${communityId}/lessons`)}
+          onClick={() => {
+            setFormData({ title: '', description: '' });
+            setDialogOpen(true);
+          }}
           className="bg-gradient-primary"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -260,6 +303,47 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
           })}
         </div>
       )}
+
+      {/* Create Course Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'ru' ? 'Создать курс' : 'Create Course'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>{language === 'ru' ? 'Название' : 'Title'}</Label>
+              <Input
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder={language === 'ru' ? 'Название курса' : 'Course title'}
+              />
+            </div>
+
+            <div>
+              <Label>{language === 'ru' ? 'Описание' : 'Description'}</Label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder={language === 'ru' ? 'Описание курса' : 'Course description'}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              {language === 'ru' ? 'Отмена' : 'Cancel'}
+            </Button>
+            <Button onClick={handleCreateCourse} disabled={!formData.title.trim() || creating}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : (language === 'ru' ? 'Создать' : 'Create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
