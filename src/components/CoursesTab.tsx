@@ -67,12 +67,18 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         setCourses(coursesWithCounts);
       }
 
-      // Fetch user's membership status
+      // Fetch user's membership status directly from Supabase
       if (userId) {
         try {
-          const { memberships } = await paymentsApi.getMemberships(communityId);
-          const activePaidMembership = memberships.find(
-            m => m.isActive && m.subscription_tier && !m.subscription_tier.is_free
+          const { data: membershipsData } = await supabase
+            .from('memberships')
+            .select('*, subscription_tiers(*)')
+            .eq('community_id', communityId)
+            .eq('user_id', userId)
+            .eq('status', 'active');
+          
+          const activePaidMembership = membershipsData?.find(
+            m => m.subscription_tiers && !m.subscription_tiers.is_free
           );
           setHasActiveMembership(!!activePaidMembership);
         } catch (error) {
