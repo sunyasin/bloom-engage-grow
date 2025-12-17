@@ -291,7 +291,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                         ) : (
                           <>
                             <ShoppingCart className="h-3 w-3 mr-1" />
-                            {language === 'ru' ? 'Купить' : 'Buy'} {cheapestTier.price_monthly} ₽
+                            {language === 'ru' ? 'Оплатить' : 'Pay'} {cheapestTier.price_monthly} ₽
                           </>
                         )}
                       </Button>
