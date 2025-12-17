@@ -44,9 +44,9 @@ export default function PaymentCallback() {
 
       setTransaction(data);
 
-      if (data.status === 'succeeded') {
+      if (data.status === 'paid') {
         setStatus('success');
-      } else if (data.status === 'failed' || data.status === 'canceled') {
+      } else if (data.status === 'failed') {
         setStatus('failed');
       }
     } catch (error) {
