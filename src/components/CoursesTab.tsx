@@ -11,6 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
+interface CoursePricing {
+  price: number;
+  period: string;
+}
+
 interface Course {
   id: string;
   title: string;
@@ -19,6 +24,7 @@ interface Course {
   status: string;
   lesson_count: number;
   access_type: string | null;
+  pricing?: CoursePricing | null;
 }
 
 interface SubscriptionTier {
@@ -56,22 +62,33 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         .order('created_at', { ascending: false });
 
       if (coursesData) {
-        // Fetch lesson counts
-        const coursesWithCounts = await Promise.all(
+        // Fetch lesson counts and pricing for each course
+        const coursesWithData = await Promise.all(
           coursesData.map(async (course) => {
-            const { count } = await supabase
-              .from('lessons')
-              .select('*', { count: 'exact', head: true })
-              .eq('course_id', course.id);
+            const [lessonsResult, pricingResult] = await Promise.all([
+              supabase
+                .from('lessons')
+                .select('*', { count: 'exact', head: true })
+                .eq('course_id', course.id),
+              supabase
+                .from('course_access_rules')
+                .select('value')
+                .eq('course_id', course.id)
+                .eq('rule_type', 'subscription_pricing')
+                .maybeSingle()
+            ]);
+
+            const pricing = pricingResult.data?.value as unknown as CoursePricing | null;
 
             return {
               ...course,
-              lesson_count: count || 0
+              lesson_count: lessonsResult.count || 0,
+              pricing
             };
           })
         );
 
-        setCourses(coursesWithCounts);
+        setCourses(coursesWithData);
       }
 
       // Fetch user's membership status directly from Supabase
@@ -281,7 +298,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                     </div>
                     
                     {/* Buy button for paid courses */}
-                    {showPayButton(course) && cheapestTier && (
+                    {showPayButton(course) && (course.pricing || cheapestTier) && (
                       <Button
                         size="sm"
                         onClick={(e) => handlePurchase(course.id, e)}
@@ -293,7 +310,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                         ) : (
                           <>
                             <ShoppingCart className="h-3 w-3 mr-1" />
-                            {language === 'ru' ? 'Оплатить' : 'Pay'} {cheapestTier.price_monthly} ₽
+                            {language === 'ru' ? 'Оплатить' : 'Pay'} {course.pricing?.price ?? cheapestTier?.price_monthly ?? 0} ₽
                           </>
                         )}
                       </Button>
