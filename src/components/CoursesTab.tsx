@@ -93,14 +93,13 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         }
       }
 
-      // Fetch cheapest paid subscription tier for this community (with price > 0)
+      // Fetch cheapest paid subscription tier for this community
       const { data: tiersData } = await supabase
         .from('subscription_tiers')
         .select('id, name, price_monthly, is_free')
         .eq('community_id', communityId)
         .eq('is_active', true)
         .eq('is_free', false)
-        .gt('price_monthly', 0)
         .order('price_monthly', { ascending: true })
         .limit(1);
 
@@ -179,7 +178,8 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
 
   const isPaidCourse = (course: Course) => course.access_type === 'paid_subscription';
   const isCourseLocked = (course: Course) => isPaidCourse(course) && !hasActiveMembership && !isOwner;
-  const showPayButton = (course: Course) => isPaidCourse(course) && !hasActiveMembership && !isOwner;
+  // Show pay button for all paid courses, regardless of user role
+  const showPayButton = (course: Course) => isPaidCourse(course);
 
   if (loading) {
     return (
