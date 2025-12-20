@@ -93,13 +93,14 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         }
       }
 
-      // Fetch cheapest paid subscription tier for this community
+      // Fetch cheapest paid subscription tier for this community (with price > 0)
       const { data: tiersData } = await supabase
         .from('subscription_tiers')
         .select('id, name, price_monthly, is_free')
         .eq('community_id', communityId)
         .eq('is_active', true)
         .eq('is_free', false)
+        .gt('price_monthly', 0)
         .order('price_monthly', { ascending: true })
         .limit(1);
 
@@ -178,6 +179,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
 
   const isPaidCourse = (course: Course) => course.access_type === 'paid_subscription';
   const isCourseLocked = (course: Course) => isPaidCourse(course) && !hasActiveMembership && !isOwner;
+  const showPayButton = (course: Course) => isPaidCourse(course) && !hasActiveMembership && !isOwner;
 
   if (loading) {
     return (
@@ -278,8 +280,8 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                       </span>
                     </div>
                     
-                    {/* Buy button for locked courses */}
-                    {locked && cheapestTier && (
+                    {/* Buy button for paid courses */}
+                    {showPayButton(course) && cheapestTier && (
                       <Button
                         size="sm"
                         onClick={(e) => handlePurchase(course.id, e)}
