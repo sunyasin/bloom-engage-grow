@@ -160,6 +160,22 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
     return false;
   };
 
+  // Get tier names that give access to a specific course
+  const getTierNamesForCourse = (courseId: string): string[] => {
+    return allTiers
+      .filter(tier => {
+        const features = Array.isArray(tier.features) ? tier.features : [];
+        // Tier has access to all courses
+        if (features.includes('courses_all')) return true;
+        // Tier has this course selected
+        if (features.includes('courses_selected')) {
+          return (tier.selected_course_ids || []).includes(courseId);
+        }
+        return false;
+      })
+      .map(tier => tier.name);
+  };
+
   const handlePurchase = async (course: Course, e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -236,8 +252,8 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
     if (isOwner) return false;
     return !hasAccessToCourse(course.id);
   };
-  // Show pay button for all paid courses, regardless of user role
-  const showPayButton = (course: Course) => isPaidCourse(course);
+  // Show pay button only for locked courses (user hasn't paid)
+  const showPayButton = (course: Course) => isCourseLocked(course);
 
   if (loading) {
     return (
@@ -338,8 +354,22 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                       </span>
                     </div>
                     
-                    {/* Buy button for paid courses */}
-                    {showPayButton(course) && (course.pricing || cheapestTier) && (
+                    {/* Tier availability info for locked courses */}
+                    {locked && (() => {
+                      const tierNames = getTierNamesForCourse(course.id);
+                      if (tierNames.length > 0) {
+                        return (
+                          <p className="text-xs text-muted-foreground">
+                            {language === 'ru' ? 'Доступен на уровне: ' : 'Available at tier: '}
+                            {tierNames.join(', ')}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
+                    {/* Buy button for locked paid courses only */}
+                    {showPayButton(course) && (
                       <Button
                         size="sm"
                         onClick={(e) => handlePurchase(course, e)}
@@ -351,7 +381,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                         ) : (
                           <>
                             <ShoppingCart className="h-3 w-3 mr-1" />
-                            {language === 'ru' ? 'Оплатить' : 'Pay'} {course.pricing?.price ?? cheapestTier?.price_monthly ?? 0} ₽
+                            {language === 'ru' ? 'Оплатить доступ' : 'Pay for access'}
                           </>
                         )}
                       </Button>
