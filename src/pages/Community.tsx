@@ -12,6 +12,7 @@ import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager'
 import { CommunitySettingsDialog } from '@/components/CommunitySettingsDialog';
 import { User } from '@supabase/supabase-js';
 import { CoursesTab } from '@/components/CoursesTab';
+import { CommunityReplyDialog } from '@/components/CommunityReplyDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 
@@ -55,6 +56,8 @@ export default function Community({ user }: CommunityProps) {
   const [posting, setPosting] = useState(false);
   const [subscriptionSettingsOpen, setSubscriptionSettingsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const fetchCommunity = async () => {
     if (!id) return;
@@ -202,6 +205,17 @@ export default function Community({ user }: CommunityProps) {
 
   const isOwner = user?.id === community?.creator_id;
 
+  const handleOpenReplyDialog = (post: Post) => {
+    setSelectedPost(post);
+    setReplyDialogOpen(true);
+  };
+
+  const handleCloseReplyDialog = () => {
+    setReplyDialogOpen(false);
+    setSelectedPost(null);
+    fetchPosts();
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -299,7 +313,10 @@ export default function Community({ user }: CommunityProps) {
                           </div>
                           <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
                           <div className="flex items-center gap-4 mt-3">
-                            <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth">
+                            <button
+                              onClick={() => handleOpenReplyDialog(post)}
+                              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
+                            >
                               <MessageSquare className="h-4 w-4" />
                               <span>{t('community.reply')}</span>
                               {post.reply_count && post.reply_count > 0 && (
@@ -410,6 +427,15 @@ export default function Community({ user }: CommunityProps) {
           communityId={community.id}
         />
       )}
+
+      {/* Reply Dialog */}
+      <CommunityReplyDialog
+        post={selectedPost}
+        open={replyDialogOpen}
+        onClose={handleCloseReplyDialog}
+        userId={user?.id || null}
+        language={language}
+      />
     </div>
   );
 }
