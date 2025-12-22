@@ -335,13 +335,17 @@ export type Database = {
       courses: {
         Row: {
           access_type: Database["public"]["Enums"]["access_type"] | null
+          access_types: string[] | null
           author_id: string
           community_id: string
           cover_image_url: string | null
           created_at: string | null
           delay_days: number | null
           description: string | null
+          gifted_emails: string | null
           id: string
+          promo_code: string | null
+          required_rating: number | null
           required_rating_level:
             | Database["public"]["Enums"]["rating_level"]
             | null
@@ -352,13 +356,17 @@ export type Database = {
         }
         Insert: {
           access_type?: Database["public"]["Enums"]["access_type"] | null
+          access_types?: string[] | null
           author_id: string
           community_id: string
           cover_image_url?: string | null
           created_at?: string | null
           delay_days?: number | null
           description?: string | null
+          gifted_emails?: string | null
           id?: string
+          promo_code?: string | null
+          required_rating?: number | null
           required_rating_level?:
             | Database["public"]["Enums"]["rating_level"]
             | null
@@ -369,13 +377,17 @@ export type Database = {
         }
         Update: {
           access_type?: Database["public"]["Enums"]["access_type"] | null
+          access_types?: string[] | null
           author_id?: string
           community_id?: string
           cover_image_url?: string | null
           created_at?: string | null
           delay_days?: number | null
           description?: string | null
+          gifted_emails?: string | null
           id?: string
+          promo_code?: string | null
+          required_rating?: number | null
           required_rating_level?:
             | Database["public"]["Enums"]["rating_level"]
             | null
