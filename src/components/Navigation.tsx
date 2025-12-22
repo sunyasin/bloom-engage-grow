@@ -48,8 +48,8 @@ export const Navigation = ({ user, isSuperuser, onAuthClick }: NavigationProps) 
               <Link to="/classroom" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
                 My Classroom
               </Link>
-              <Link to="/events" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Events
+              <Link to="/my-communities" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
+                Communities
               </Link>
               {user && (
                 <Link to="/profile" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">

@@ -7,13 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal } from 'lucide-react';
+import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal, Calendar } from 'lucide-react';
 import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager';
 import { CommunitySettingsDialog } from '@/components/CommunitySettingsDialog';
 import { User } from '@supabase/supabase-js';
 import { CoursesTab } from '@/components/CoursesTab';
 import { CommunityReplyDialog } from '@/components/CommunityReplyDialog';
 import { PostLikeButton } from '@/components/PostLikeButton';
+import { CommunityEventsTab } from '@/components/CommunityEventsTab';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 
@@ -52,6 +53,7 @@ export default function Community({ user }: CommunityProps) {
   const [community, setCommunity] = useState<CommunityData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isMember, setIsMember] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
   const [posting, setPosting] = useState(false);
@@ -118,12 +120,13 @@ export default function Community({ user }: CommunityProps) {
 
     const { data } = await supabase
       .from('community_members')
-      .select('id')
+      .select('id, role')
       .eq('community_id', id)
       .eq('user_id', user.id)
       .maybeSingle();
 
     setIsMember(!!data);
+    setUserRole(data?.role || null);
   };
 
   useEffect(() => {
@@ -258,6 +261,10 @@ export default function Community({ user }: CommunityProps) {
               <TabsList className="mb-6">
                 <TabsTrigger value="feed">{t('community.feed')}</TabsTrigger>
                 <TabsTrigger value="courses">{t('community.courses')}</TabsTrigger>
+                <TabsTrigger value="events">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'События' : 'Events'}
+                </TabsTrigger>
                 <TabsTrigger value="members">{t('community.members')}</TabsTrigger>
                 <TabsTrigger value="about">{t('community.about')}</TabsTrigger>
               </TabsList>
@@ -347,12 +354,20 @@ export default function Community({ user }: CommunityProps) {
               </TabsContent>
 
               <TabsContent value="courses">
-                <CoursesTab 
-                  communityId={id!} 
-                  isOwner={isOwner} 
+                <CoursesTab
+                  communityId={id!}
+                  isOwner={isOwner}
                   userId={user?.id}
                   language={language}
                   navigate={navigate}
+                />
+              </TabsContent>
+
+              <TabsContent value="events">
+                <CommunityEventsTab
+                  communityId={id!}
+                  userId={user?.id || null}
+                  isOwnerOrModerator={userRole === 'owner' || userRole === 'moderator'}
                 />
               </TabsContent>
 
