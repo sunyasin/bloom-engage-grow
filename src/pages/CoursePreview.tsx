@@ -15,8 +15,26 @@ import {
   Trash2, 
   Settings, 
   Globe,
-  Plus
+  Plus,
+  GripVertical
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,6 +108,79 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [deletingLesson, setDeletingLesson] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [creatingLesson, setCreatingLesson] = useState(false);
+  const [reordering, setReordering] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id || !courseId) return;
+    
+    const oldIndex = lessons.findIndex(l => l.id === active.id);
+    const newIndex = lessons.findIndex(l => l.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) return;
+    
+    const newLessons = arrayMove(lessons, oldIndex, newIndex);
+    setLessons(newLessons);
+    
+    setReordering(true);
+    try {
+      // Update order_index for all affected lessons
+      const updates = newLessons.map((lesson, index) => ({
+        id: lesson.id,
+        order_index: index,
+      }));
+      
+      for (const update of updates) {
+        await supabase
+          .from('lessons')
+          .update({ order_index: update.order_index })
+          .eq('id', update.id);
+      }
+    } catch (error) {
+      console.error('Reorder error:', error);
+      // Refresh to restore original order
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true });
+      
+      if (lessonsData) {
+        const lessonMap = new Map<string, Lesson>();
+        const rootLessons: Lesson[] = [];
+        lessonsData.forEach(lesson => {
+          lessonMap.set(lesson.id, { ...lesson, children: [] });
+        });
+        lessonsData.forEach(lesson => {
+          const lessonWithChildren = lessonMap.get(lesson.id)!;
+          if (lesson.parent_lesson_id) {
+            const parent = lessonMap.get(lesson.parent_lesson_id);
+            if (parent) {
+              parent.children = parent.children || [];
+              parent.children.push(lessonWithChildren);
+            }
+          } else {
+            rootLessons.push(lessonWithChildren);
+          }
+        });
+        setLessons(rootLessons);
+      }
+    } finally {
+      setReordering(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -501,25 +592,51 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     }
   };
 
-  const renderLesson = (lesson: Lesson, depth: number = 0) => {
+  const SortableLessonItem = ({ lesson, depth = 0 }: { lesson: Lesson; depth?: number }) => {
     const hasChildren = lesson.children && lesson.children.length > 0;
     const isExpanded = expandedLessons.has(lesson.id);
     const isSelected = selectedLesson?.id === lesson.id;
 
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: lesson.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
     return (
-      <div key={lesson.id}>
+      <div ref={setNodeRef} style={style}>
         <div
-          className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+          className={`group flex items-center gap-1 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
             isSelected 
               ? 'bg-primary/10 text-primary border border-primary/20' 
               : 'hover:bg-muted/50'
-          }`}
-          style={{ paddingLeft: `${depth * 16 + 12}px` }}
+          } ${isDragging ? 'shadow-lg bg-card z-50' : ''}`}
+          style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
             handleSelectLesson(lesson);
             if (hasChildren) toggleExpand(lesson.id);
           }}
         >
+          {isAuthor && (
+            <button
+              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity"
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-3 w-3 text-muted-foreground" />
+            </button>
+          )}
+          
           {hasChildren ? (
             <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
           ) : (
@@ -534,7 +651,10 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           
           {isAuthor && (
             <button
-              onClick={(e) => handleCreateLesson(lesson.id, e)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCreateLesson(lesson.id, e);
+              }}
               className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
               title={language === 'ru' ? 'Добавить вложенный урок' : 'Add nested lesson'}
             >
@@ -545,7 +665,9 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
         {hasChildren && isExpanded && (
           <div>
-            {lesson.children!.map(child => renderLesson(child, depth + 1))}
+            {lesson.children!.map(child => (
+              <SortableLessonItem key={child.id} lesson={child} depth={depth + 1} />
+            ))}
           </div>
         )}
       </div>
@@ -686,9 +808,22 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 {language === 'ru' ? 'Уроки не добавлены' : 'No lessons'}
               </p>
             ) : (
-              <div className="space-y-1">
-                {lessons.map(lesson => renderLesson(lesson))}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={lessons.map(l => l.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-1">
+                    {lessons.map(lesson => (
+                      <SortableLessonItem key={lesson.id} lesson={lesson} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
             
             {isAuthor && (
