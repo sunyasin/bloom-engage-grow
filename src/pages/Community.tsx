@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Pin, MessageSquare, Send, Loader2, Settings } from 'lucide-react';
+import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal } from 'lucide-react';
 import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager';
+import { CommunitySettingsDialog } from '@/components/CommunitySettingsDialog';
 import { User } from '@supabase/supabase-js';
 import { CoursesTab } from '@/components/CoursesTab';
 import { formatDistanceToNow } from 'date-fns';
@@ -53,6 +54,7 @@ export default function Community({ user }: CommunityProps) {
   const [newPost, setNewPost] = useState('');
   const [posting, setPosting] = useState(false);
   const [subscriptionSettingsOpen, setSubscriptionSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const fetchCommunity = async () => {
     if (!id) return;
@@ -216,30 +218,27 @@ export default function Community({ user }: CommunityProps) {
     );
   }
 
+  const handleCommunityUpdate = (updated: { name: string; description: string | null; cover_image_url: string | null }) => {
+    setCommunity(prev => prev ? { ...prev, ...updated } : null);
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Cover image */}
-      <div className="h-48 md:h-64 bg-muted relative">
-        {community.cover_image_url && (
+      {/* Logo at top if exists */}
+      {community.cover_image_url && (
+        <div className="container mx-auto px-4 pt-6">
           <img 
             src={community.cover_image_url} 
             alt={community.name}
-            className="w-full h-full object-cover"
+            className="h-16 w-auto object-contain"
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col lg:flex-row gap-8 -mt-8 relative">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col lg:flex-row gap-8 relative">
           {/* Main content */}
           <div className="flex-1">
-            {community.cover_image_url && (
-              <img 
-                src={community.cover_image_url} 
-                alt={community.name}
-                className="h-12 w-auto object-contain mb-4"
-              />
-            )}
             <Tabs defaultValue="feed" className="w-full">
               <TabsList className="mb-6">
                 <TabsTrigger value="feed">{t('community.feed')}</TabsTrigger>
@@ -368,19 +367,40 @@ export default function Community({ user }: CommunityProps) {
                 </Button>
               )}
               {isOwner && (
-                <Button 
-                  onClick={() => setSubscriptionSettingsOpen(true)} 
-                  variant="outline" 
-                  className="w-full mt-3"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  {language === 'ru' ? 'Настройки подписок' : 'Subscription Settings'}
-                </Button>
+                <div className="space-y-2 mt-3">
+                  <Button 
+                    onClick={() => setSettingsOpen(true)} 
+                    variant="outline" 
+                    className="w-full"
+                  >
+                    <SlidersHorizontal className="h-4 w-4 mr-2" />
+                    {language === 'ru' ? 'Настройки' : 'Settings'}
+                  </Button>
+                  <Button 
+                    onClick={() => setSubscriptionSettingsOpen(true)} 
+                    variant="outline" 
+                    className="w-full"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    {language === 'ru' ? 'Настройки подписок' : 'Subscription Settings'}
+                  </Button>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Community Settings Dialog */}
+      {community && (
+        <CommunitySettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          community={community}
+          onUpdate={handleCommunityUpdate}
+          language={language}
+        />
+      )}
 
       {/* Subscription Settings Manager */}
       {community && (
