@@ -4,7 +4,18 @@ import { useLanguage } from "@/lib/i18n";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Clock } from "lucide-react";
+import { Plus, MapPin, Clock, Edit, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { EventDialog } from "@/components/EventDialog";
 import { EventsListDialog } from "@/components/EventsListDialog";
 import { DayContentProps } from "react-day-picker";
@@ -18,6 +29,7 @@ interface Event {
   event_time: string | null;
   location: string | null;
   community_id: string;
+  creator_id: string;
 }
 
 interface CommunityEventsTabProps {
@@ -28,11 +40,14 @@ interface CommunityEventsTabProps {
 
 export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: CommunityEventsTabProps) => {
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showEventsListDialog, setShowEventsListDialog] = useState(false);
   const [selectedDateEvents, setSelectedDateEvents] = useState<Event[]>([]);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     if (communityId) {
@@ -55,6 +70,32 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: 
   const getEventsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
     return events.filter(event => event.event_date === dateStr);
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!deletingEvent) return;
+
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', deletingEvent.id);
+
+    if (error) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: language === 'ru' ? 'Успех' : 'Success',
+      description: language === 'ru' ? 'Событие удалено' : 'Event deleted successfully',
+    });
+
+    setDeletingEvent(null);
+    fetchEvents();
   };
 
   const handleDayClick = (date: Date) => {
@@ -131,22 +172,46 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: 
             {dayEvents.length > 0 ? (
               <div className="space-y-4">
                 {dayEvents.map((event) => (
-                  <div key={event.id} className="border-l-4 border-primary pl-4 py-2">
-                    <h3 className="font-semibold text-lg">{event.title}</h3>
-                    {event.description && (
-                      <p className="text-muted-foreground text-sm mt-1">{event.description}</p>
-                    )}
-                    <div className="flex flex-col gap-2 mt-2 text-sm">
-                      {event.event_time && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{event.event_time}</span>
+                  <div key={event.id} className="border-l-4 border-primary pl-4 py-2 relative group">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{event.title}</h3>
+                        {event.description && (
+                          <p className="text-muted-foreground text-sm mt-1">{event.description}</p>
+                        )}
+                        <div className="flex flex-col gap-2 mt-2 text-sm">
+                          {event.event_time && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              <span>{event.event_time}</span>
+                            </div>
+                          )}
+                          {event.location && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <MapPin className="h-4 w-4" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {event.location && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{event.location}</span>
+                      </div>
+                      {userId && event.creator_id === userId && (
+                        <div className="flex gap-1 ml-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => setEditingEvent(event)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => setDeletingEvent(event)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -177,6 +242,44 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: 
           language={language}
         />
       )}
+
+      {editingEvent && userId && (
+        <EventDialog
+          open={!!editingEvent}
+          onOpenChange={(open) => !open && setEditingEvent(null)}
+          communityId={communityId}
+          userId={userId}
+          event={editingEvent}
+          onEventCreated={() => {
+            fetchEvents();
+            setEditingEvent(null);
+          }}
+          language={language}
+        />
+      )}
+
+      <AlertDialog open={!!deletingEvent} onOpenChange={(open) => !open && setDeletingEvent(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {language === 'ru' ? 'Удалить событие?' : 'Delete event?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {language === 'ru'
+                ? 'Вы уверены, что хотите удалить это событие? Это действие нельзя отменить.'
+                : 'Are you sure you want to delete this event? This action cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {language === 'ru' ? 'Отмена' : 'Cancel'}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEvent} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {language === 'ru' ? 'Удалить' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {showEventsListDialog && (
         <EventsListDialog

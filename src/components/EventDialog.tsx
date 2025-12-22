@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   Dialog,
@@ -12,6 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
+interface Event {
+  id: string;
+  title: string;
+  event_date: string;
+  event_time: string | null;
+  description: string | null;
+  community_id: string;
+  creator_id: string;
+}
+
 interface EventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -19,6 +29,7 @@ interface EventDialogProps {
   userId: string;
   onEventCreated?: () => void;
   language?: string;
+  event?: Event | null;
 }
 
 export function EventDialog({
@@ -28,12 +39,27 @@ export function EventDialog({
   userId,
   onEventCreated,
   language = 'en',
+  event = null,
 }: EventDialogProps) {
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const isEditMode = !!event;
+
+  useEffect(() => {
+    if (event) {
+      setTitle(event.title);
+      setEventDate(event.event_date);
+      setEventTime(event.event_time || "");
+    } else {
+      setTitle("");
+      setEventDate("");
+      setEventTime("");
+    }
+  }, [event, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,14 +75,29 @@ export function EventDialog({
 
     setLoading(true);
 
-    const { error } = await supabase.from('events').insert({
-      title,
-      event_date: eventDate,
-      event_time: eventTime || null,
-      community_id: communityId,
-      creator_id: userId,
-      description: '',
-    });
+    let error;
+
+    if (isEditMode && event) {
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({
+          title,
+          event_date: eventDate,
+          event_time: eventTime || null,
+        })
+        .eq('id', event.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase.from('events').insert({
+        title,
+        event_date: eventDate,
+        event_time: eventTime || null,
+        community_id: communityId,
+        creator_id: userId,
+        description: '',
+      });
+      error = insertError;
+    }
 
     setLoading(false);
 
@@ -71,7 +112,9 @@ export function EventDialog({
 
     toast({
       title: language === 'ru' ? 'Успех' : 'Success',
-      description: language === 'ru' ? 'Событие создано' : 'Event created successfully',
+      description: isEditMode
+        ? (language === 'ru' ? 'Событие обновлено' : 'Event updated successfully')
+        : (language === 'ru' ? 'Событие создано' : 'Event created successfully'),
     });
 
     setTitle("");
@@ -86,7 +129,9 @@ export function EventDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {language === 'ru' ? 'Новое событие' : 'New Event'}
+            {isEditMode
+              ? (language === 'ru' ? 'Редактировать событие' : 'Edit Event')
+              : (language === 'ru' ? 'Новое событие' : 'New Event')}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -138,8 +183,12 @@ export function EventDialog({
             </Button>
             <Button type="submit" disabled={loading}>
               {loading
-                ? (language === 'ru' ? 'Создание...' : 'Creating...')
-                : (language === 'ru' ? 'Создать' : 'Create')}
+                ? (isEditMode
+                  ? (language === 'ru' ? 'Сохранение...' : 'Saving...')
+                  : (language === 'ru' ? 'Создание...' : 'Creating...'))
+                : (isEditMode
+                  ? (language === 'ru' ? 'Сохранить' : 'Save')
+                  : (language === 'ru' ? 'Создать' : 'Create'))}
             </Button>
           </DialogFooter>
         </form>
