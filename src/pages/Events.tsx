@@ -9,6 +9,13 @@ import { Plus } from "lucide-react";
 import { EventDialog } from "@/components/EventDialog";
 import { EventsListDialog } from "@/components/EventsListDialog";
 import { DayContentProps } from "react-day-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Event {
   id: string;
@@ -77,7 +84,10 @@ export default function Events() {
       .eq('user_id', userId)
       .eq('is_active', true);
 
-    if (!memberData) return;
+    if (!memberData || memberData.length === 0) {
+      setEvents([]);
+      return;
+    }
 
     const communityIds = memberData.map(m => m.community_id);
 
@@ -136,24 +146,58 @@ export default function Events() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             {language === 'ru' ? 'Календарь событий' : 'Events Calendar'}
           </h1>
-          {ownedCommunities.length > 0 && (
-            <div className="flex gap-2">
-              {ownedCommunities.map(community => (
+          {currentUserId && ownedCommunities.length > 0 && (
+            <div className="flex gap-2 flex-wrap items-center">
+              {ownedCommunities.length === 1 ? (
                 <Button
-                  key={community.id}
                   onClick={() => {
-                    setSelectedCommunityId(community.id);
+                    setSelectedCommunityId(ownedCommunities[0].id);
                     setShowEventDialog(true);
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  {language === 'ru' ? 'Новое событие' : 'New Event'} ({community.name})
+                  {language === 'ru' ? 'Новое событие' : 'New Event'}
                 </Button>
-              ))}
+              ) : (
+                <>
+                  <Select
+                    value={selectedCommunityId || ""}
+                    onValueChange={setSelectedCommunityId}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue
+                        placeholder={
+                          language === 'ru'
+                            ? 'Выберите сообщество'
+                            : 'Select community'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ownedCommunities.map((community) => (
+                        <SelectItem key={community.id} value={community.id}>
+                          {community.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => {
+                      if (selectedCommunityId) {
+                        setShowEventDialog(true);
+                      }
+                    }}
+                    disabled={!selectedCommunityId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {language === 'ru' ? 'Новое событие' : 'New Event'}
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>
