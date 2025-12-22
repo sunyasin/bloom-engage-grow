@@ -62,7 +62,12 @@ export function PostLikeButton({ postId, userId, language = 'en' }: PostLikeButt
 
     setLoading(true);
 
-    if (isLiked) {
+    const wasLiked = isLiked;
+
+    setIsLiked(!isLiked);
+    setLikeCount(prev => wasLiked ? prev - 1 : prev + 1);
+
+    if (wasLiked) {
       const { error } = await supabase
         .from('community_post_likes')
         .delete()
@@ -70,6 +75,8 @@ export function PostLikeButton({ postId, userId, language = 'en' }: PostLikeButt
         .eq('user_id', userId);
 
       if (error) {
+        setIsLiked(wasLiked);
+        setLikeCount(prev => prev + 1);
         toast({
           title: language === 'ru' ? 'Ошибка' : 'Error',
           description: error.message,
@@ -82,6 +89,8 @@ export function PostLikeButton({ postId, userId, language = 'en' }: PostLikeButt
         .insert({ post_id: postId, user_id: userId });
 
       if (error) {
+        setIsLiked(wasLiked);
+        setLikeCount(prev => prev - 1);
         toast({
           title: language === 'ru' ? 'Ошибка' : 'Error',
           description: error.message,
