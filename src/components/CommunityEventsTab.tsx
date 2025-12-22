@@ -164,15 +164,17 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: 
         </div>
       </div>
 
-      {showEventDialog && (
+      {showEventDialog && userId && (
         <EventDialog
           open={showEventDialog}
           onOpenChange={setShowEventDialog}
           communityId={communityId}
+          userId={userId}
           onEventCreated={() => {
             fetchEvents();
             setShowEventDialog(false);
           }}
+          language={language}
         />
       )}
 
