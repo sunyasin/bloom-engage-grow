@@ -122,7 +122,7 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
                 <img src={logoUrl} alt="Logo" className="h-8 w-auto" />
               ) : (
                 <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                  Skool
+                  Univer
                 </span>
               )}
             </Link>
