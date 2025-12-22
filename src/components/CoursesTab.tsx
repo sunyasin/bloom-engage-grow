@@ -49,6 +49,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [userTier, setUserTier] = useState<SubscriptionTier | null>(null);
+  const [allTiers, setAllTiers] = useState<SubscriptionTier[]>([]);
   const [cheapestTier, setCheapestTier] = useState<SubscriptionTier | null>(null);
   const [purchasingCourseId, setPurchasingCourseId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -94,6 +95,23 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         setCourses(coursesWithData);
       }
 
+      // Fetch ALL active tiers for this community
+      const { data: allTiersData } = await supabase
+        .from('subscription_tiers')
+        .select('id, name, price_monthly, is_free, features, selected_course_ids')
+        .eq('community_id', communityId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (allTiersData) {
+        setAllTiers(allTiersData);
+        // Find cheapest paid tier
+        const paidTiers = allTiersData.filter(t => !t.is_free && t.price_monthly && t.price_monthly > 0);
+        if (paidTiers.length > 0) {
+          setCheapestTier(paidTiers.sort((a, b) => (a.price_monthly || 0) - (b.price_monthly || 0))[0]);
+        }
+      }
+
       // Fetch user's membership status and tier details
       if (userId) {
         try {
@@ -115,20 +133,6 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         } catch (error) {
           console.error('Error fetching memberships:', error);
         }
-      }
-
-      // Fetch cheapest paid subscription tier for this community
-      const { data: tiersData } = await supabase
-        .from('subscription_tiers')
-        .select('id, name, price_monthly, is_free, features, selected_course_ids')
-        .eq('community_id', communityId)
-        .eq('is_active', true)
-        .eq('is_free', false)
-        .order('price_monthly', { ascending: true })
-        .limit(1);
-
-      if (tiersData && tiersData.length > 0) {
-        setCheapestTier(tiersData[0]);
       }
 
       setLoading(false);
