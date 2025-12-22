@@ -54,6 +54,7 @@ export default function CourseSettingsDialog({
   // Subscription pricing state
   const [subscriptionPrice, setSubscriptionPrice] = useState<number>(0);
   const [subscriptionPeriod, setSubscriptionPeriod] = useState<SubscriptionPeriod>('monthly');
+  const [paymentUrl, setPaymentUrl] = useState<string>('');
 
   useEffect(() => {
     setTitle(course.title);
@@ -77,9 +78,14 @@ export default function CourseSettingsDialog({
       .single();
     
     if (data?.value) {
-      const value = data.value as { price?: number; period?: SubscriptionPeriod };
+      const value = data.value as { price?: number; period?: SubscriptionPeriod; payment_url?: string };
       setSubscriptionPrice(value.price || 0);
       setSubscriptionPeriod(value.period || 'monthly');
+      setPaymentUrl(value.payment_url || '');
+    } else {
+      setSubscriptionPrice(0);
+      setSubscriptionPeriod('monthly');
+      setPaymentUrl('');
     }
   };
 
@@ -169,10 +175,16 @@ export default function CourseSettingsDialog({
           .eq('rule_type', 'subscription_pricing')
           .single();
         
+        const pricingValue = { 
+          price: subscriptionPrice, 
+          period: subscriptionPeriod,
+          payment_url: paymentUrl.trim() || null
+        };
+        
         if (existingRule) {
           await supabase
             .from('course_access_rules')
-            .update({ value: { price: subscriptionPrice, period: subscriptionPeriod } })
+            .update({ value: pricingValue })
             .eq('id', existingRule.id);
         } else {
           await supabase
@@ -180,7 +192,7 @@ export default function CourseSettingsDialog({
             .insert({
               course_id: course.id,
               rule_type: 'subscription_pricing',
-              value: { price: subscriptionPrice, period: subscriptionPeriod }
+              value: pricingValue
             });
         }
       }
@@ -448,6 +460,24 @@ export default function CourseSettingsDialog({
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                      <Label htmlFor="payment_url" className="text-sm">
+                        {language === 'ru' ? 'Ссылка на оплату (необязательно)' : 'Payment URL (optional)'}
+                      </Label>
+                      <Input
+                        id="payment_url"
+                        type="url"
+                        value={paymentUrl}
+                        onChange={(e) => setPaymentUrl(e.target.value)}
+                        placeholder={language === 'ru' ? 'https://... или оставьте пустым для ЮKassa' : 'https://... or leave empty for YooKassa'}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {language === 'ru' 
+                          ? 'Если указана — откроется в новом окне. Если пустая — оплата через ЮKassa.'
+                          : 'If set — opens in new tab. If empty — uses YooKassa payment.'}
+                      </p>
                     </div>
                   </div>
                 )}

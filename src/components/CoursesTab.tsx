@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 interface CoursePricing {
   price: number;
   period: string;
+  payment_url?: string | null;
 }
 
 interface Course {
@@ -130,7 +131,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
     fetchData();
   }, [communityId, userId]);
 
-  const handlePurchase = async (courseId: string, e: React.MouseEvent) => {
+  const handlePurchase = async (course: Course, e: React.MouseEvent) => {
     e.stopPropagation();
     
     if (!userId) {
@@ -138,13 +139,20 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       return;
     }
 
+    // If course has a custom payment URL, open it in new tab
+    if (course.pricing?.payment_url) {
+      window.open(course.pricing.payment_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Otherwise use YooKassa
     if (!cheapestTier) {
       toast.error(language === 'ru' ? 'Подписка недоступна' : 'Subscription not available');
       return;
     }
 
     try {
-      setPurchasingCourseId(courseId);
+      setPurchasingCourseId(course.id);
       
       const result = await paymentsApi.createSubscription({
         communityId,
@@ -301,7 +309,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                     {showPayButton(course) && (course.pricing || cheapestTier) && (
                       <Button
                         size="sm"
-                        onClick={(e) => handlePurchase(course.id, e)}
+                        onClick={(e) => handlePurchase(course, e)}
                         disabled={isPurchasing}
                         className="bg-primary hover:bg-primary/90"
                       >
