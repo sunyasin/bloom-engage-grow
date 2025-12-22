@@ -20,7 +20,8 @@ interface MyCommunitiesProps {
 
 export default function MyCommunities({ user }: MyCommunitiesProps) {
   const { t } = useI18n();
-  const [communities, setCommunities] = useState<Community[]>([]);
+  const [ownedCommunities, setOwnedCommunities] = useState<Community[]>([]);
+  const [subscribedCommunities, setSubscribedCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchMyCommunities = useCallback(async () => {
@@ -29,28 +30,29 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
       return;
     }
 
-    const { data: memberships, error: memberError } = await supabase
-      .from('community_members')
-      .select('community_id')
-      .eq('user_id', user.id);
-
-    if (memberError || !memberships?.length) {
-      setCommunities([]);
-      setLoading(false);
-      return;
-    }
-
-    const communityIds = memberships.map(m => m.community_id);
-    
-    const { data, error } = await supabase
+    const { data: ownedData, error: ownedError } = await supabase
       .from('communities')
       .select('id, name, description, cover_image_url, member_count')
-      .in('id', communityIds)
+      .eq('creator_id', user.id)
       .order('name');
 
-    if (!error && data) {
-      setCommunities(data);
+    if (!ownedError && ownedData) {
+      setOwnedCommunities(ownedData);
     }
+
+    const { data: memberships, error: memberError } = await supabase
+      .from('community_members')
+      .select('community_id, communities(id, name, description, cover_image_url, member_count, creator_id)')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    if (!memberError && memberships) {
+      const subscribedData = memberships
+        .filter(m => m.communities && m.communities.creator_id !== user.id)
+        .map(m => m.communities as Community);
+      setSubscribedCommunities(subscribedData);
+    }
+
     setLoading(false);
   }, [user]);
 
@@ -74,11 +76,11 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
         </h1>
         <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} />
       </div>
-      
-      {communities.length === 0 ? (
+
+      {ownedCommunities.length === 0 && subscribedCommunities.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-muted-foreground text-lg">{t('home.noCommunities')}</p>
-          <Button 
+          <Button
             className="mt-4 bg-gradient-primary"
             onClick={() => window.location.href = '/discover'}
           >
@@ -86,17 +88,46 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {communities.map((community) => (
-            <CommunityCard
-              key={community.id}
-              id={community.id}
-              name={community.name}
-              description={community.description}
-              coverImageUrl={community.cover_image_url}
-              memberCount={community.member_count}
-            />
-          ))}
+        <div className="space-y-12">
+          {ownedCommunities.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-semibold text-foreground mb-6">
+                {t('lang') === 'ru' ? 'Мои сообщества' : 'My Communities'}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {ownedCommunities.map((community) => (
+                  <CommunityCard
+                    key={community.id}
+                    id={community.id}
+                    name={community.name}
+                    description={community.description}
+                    coverImageUrl={community.cover_image_url}
+                    memberCount={community.member_count}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {subscribedCommunities.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-semibold text-foreground mb-6">
+                {t('lang') === 'ru' ? 'Мои подписки' : 'My Subscriptions'}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {subscribedCommunities.map((community) => (
+                  <CommunityCard
+                    key={community.id}
+                    id={community.id}
+                    name={community.name}
+                    description={community.description}
+                    coverImageUrl={community.cover_image_url}
+                    memberCount={community.member_count}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
