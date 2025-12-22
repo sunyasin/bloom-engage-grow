@@ -33,6 +33,8 @@ interface SubscriptionTier {
   name: string;
   price_monthly: number | null;
   is_free: boolean;
+  features: unknown;
+  selected_course_ids: string[] | null;
 }
 
 interface CoursesTabProps {
@@ -46,7 +48,7 @@ interface CoursesTabProps {
 export function CoursesTab({ communityId, isOwner, userId, language, navigate }: CoursesTabProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasActiveMembership, setHasActiveMembership] = useState(false);
+  const [userTier, setUserTier] = useState<SubscriptionTier | null>(null);
   const [cheapestTier, setCheapestTier] = useState<SubscriptionTier | null>(null);
   const [purchasingCourseId, setPurchasingCourseId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -92,7 +94,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         setCourses(coursesWithData);
       }
 
-      // Fetch user's membership status directly from Supabase
+      // Fetch user's membership status and tier details
       if (userId) {
         try {
           const { data: membershipsData } = await supabase
@@ -102,10 +104,14 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
             .eq('user_id', userId)
             .eq('status', 'active');
           
-          const activePaidMembership = membershipsData?.find(
+          // Find the best tier (paid > free, or highest tier)
+          const activeMembership = membershipsData?.find(
             m => m.subscription_tiers && !m.subscription_tiers.is_free
-          );
-          setHasActiveMembership(!!activePaidMembership);
+          ) || membershipsData?.[0];
+          
+          if (activeMembership?.subscription_tiers) {
+            setUserTier(activeMembership.subscription_tiers);
+          }
         } catch (error) {
           console.error('Error fetching memberships:', error);
         }
@@ -114,7 +120,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       // Fetch cheapest paid subscription tier for this community
       const { data: tiersData } = await supabase
         .from('subscription_tiers')
-        .select('id, name, price_monthly, is_free')
+        .select('id, name, price_monthly, is_free, features, selected_course_ids')
         .eq('community_id', communityId)
         .eq('is_active', true)
         .eq('is_free', false)
@@ -130,6 +136,25 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
 
     fetchData();
   }, [communityId, userId]);
+
+  // Check if user has access to a specific course based on their subscription tier
+  const hasAccessToCourse = (courseId: string): boolean => {
+    if (isOwner) return true;
+    if (!userTier) return false;
+    
+    const features = Array.isArray(userTier.features) ? userTier.features : [];
+    
+    // If tier has access to all courses
+    if (features.includes('courses_all')) return true;
+    
+    // If tier has access to selected courses, check if this course is in the list
+    if (features.includes('courses_selected')) {
+      const selectedCourses = userTier.selected_course_ids || [];
+      return selectedCourses.includes(courseId);
+    }
+    
+    return false;
+  };
 
   const handlePurchase = async (course: Course, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -202,7 +227,11 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
   };
 
   const isPaidCourse = (course: Course) => course.access_type === 'paid_subscription';
-  const isCourseLocked = (course: Course) => isPaidCourse(course) && !hasActiveMembership && !isOwner;
+  const isCourseLocked = (course: Course) => {
+    if (!isPaidCourse(course)) return false;
+    if (isOwner) return false;
+    return !hasAccessToCourse(course.id);
+  };
   // Show pay button for all paid courses, regardless of user role
   const showPayButton = (course: Course) => isPaidCourse(course);
 

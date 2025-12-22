@@ -952,6 +952,7 @@ export type Database = {
           name: string
           price_monthly: number | null
           price_yearly: number | null
+          selected_course_ids: string[] | null
           slug: string
           sort_order: number
           updated_at: string
@@ -968,6 +969,7 @@ export type Database = {
           name: string
           price_monthly?: number | null
           price_yearly?: number | null
+          selected_course_ids?: string[] | null
           slug: string
           sort_order?: number
           updated_at?: string
@@ -984,6 +986,7 @@ export type Database = {
           name?: string
           price_monthly?: number | null
           price_yearly?: number | null
+          selected_course_ids?: string[] | null
           slug?: string
           sort_order?: number
           updated_at?: string
