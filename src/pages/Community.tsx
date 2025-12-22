@@ -61,6 +61,7 @@ export default function Community({ user }: CommunityProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const fetchCommunity = async () => {
     if (!id) return;
@@ -129,10 +130,25 @@ export default function Community({ user }: CommunityProps) {
     setUserRole(data?.role || null);
   };
 
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('rating, subscription_tier')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (data) {
+      setUserProfile(data);
+    }
+  };
+
   useEffect(() => {
     fetchCommunity();
     fetchPosts();
     checkMembership();
+    fetchUserProfile();
 
     // Realtime subscription
     const channel = supabase
@@ -368,6 +384,8 @@ export default function Community({ user }: CommunityProps) {
                   communityId={id!}
                   userId={user?.id || null}
                   isOwnerOrModerator={userRole === 'owner' || userRole === 'moderator'}
+                  userRating={userProfile?.rating || 0}
+                  userTier={userProfile?.subscription_tier || null}
                 />
               </TabsContent>
 

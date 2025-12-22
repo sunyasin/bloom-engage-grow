@@ -5,7 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Link as LinkIcon } from "lucide-react";
 import { EventDialog } from "@/components/EventDialog";
 import { EventsListDialog } from "@/components/EventsListDialog";
 import { DayContentProps } from "react-day-picker";
@@ -20,10 +20,16 @@ import {
 interface Event {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
   event_date: string;
-  event_time: string;
+  event_time: string | null;
   community_id?: string;
+  access: string;
+  min_rating: number | null;
+  required_tier: string | null;
+  link: string | null;
+  send_email: boolean;
+  creator_id: string;
 }
 
 interface Community {
@@ -43,6 +49,8 @@ export default function Events() {
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
   const [showEventsListDialog, setShowEventsListDialog] = useState(false);
   const [selectedDateEvents, setSelectedDateEvents] = useState<Event[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [communityRoles, setCommunityRoles] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     fetchUserData();
@@ -53,8 +61,21 @@ export default function Events() {
 
     if (user) {
       setCurrentUserId(user.id);
+      await fetchUserProfile(user.id);
       await fetchUserCommunities(user.id);
       await fetchEvents(user.id);
+    }
+  };
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('rating, subscription_tier')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (data) {
+      setUserProfile(data);
     }
   };
 
@@ -74,6 +95,12 @@ export default function Events() {
           role: item.role,
         }));
       setUserCommunities(communities);
+
+      const rolesMap = new Map<string, string>();
+      data.forEach(item => {
+        rolesMap.set(item.community_id, item.role);
+      });
+      setCommunityRoles(rolesMap);
     }
   };
 
@@ -102,12 +129,40 @@ export default function Events() {
     }
   };
 
+  const hasAccessToEvent = (event: Event) => {
+    if (!event.community_id) return true;
+
+    const userRole = communityRoles.get(event.community_id);
+    const isOwnerOrModerator = userRole === 'owner' || userRole === 'moderator';
+
+    if (isOwnerOrModerator) return true;
+
+    if (event.access === 'all') return true;
+
+    if (event.access === 'for_rating') {
+      return (userProfile?.rating || 0) >= (event.min_rating || 0);
+    }
+
+    if (event.access === 'for_tier') {
+      const userTier = userProfile?.subscription_tier;
+      if (!userTier) return false;
+      if (event.required_tier === 'vip') {
+        return userTier === 'vip';
+      }
+      if (event.required_tier === 'pro') {
+        return userTier === 'pro' || userTier === 'vip';
+      }
+    }
+
+    return false;
+  };
+
   const getEventsForDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
-    return events.filter(event => event.event_date === dateStr);
+    return events.filter(event => event.event_date === dateStr && hasAccessToEvent(event));
   };
 
   const handleDayClick = (date: Date) => {
@@ -239,9 +294,23 @@ export default function Events() {
                     </p>
                   )}
                   {event.description && (
-                    <p className="text-sm text-foreground/80 line-clamp-2">
+                    <p className="text-sm text-foreground/80 line-clamp-2 mb-2">
                       {event.description}
                     </p>
+                  )}
+                  {event.link && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <LinkIcon className="h-4 w-4" />
+                      <a
+                        href={event.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {language === 'ru' ? 'Перейти' : 'Go to link'}
+                      </a>
+                    </div>
                   )}
                 </Card>
               ))
@@ -276,6 +345,24 @@ export default function Events() {
                     {language === 'ru' ? 'Описание' : 'Description'}
                   </p>
                   <p className="text-foreground/80">{selectedEvent.description}</p>
+                </div>
+              )}
+              {selectedEvent.link && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-2">
+                    {language === 'ru' ? 'Ссылка' : 'Link'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                    <a
+                      href={selectedEvent.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {selectedEvent.link}
+                    </a>
+                  </div>
                 </div>
               )}
             </div>

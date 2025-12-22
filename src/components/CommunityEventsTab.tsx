@@ -4,7 +4,7 @@ import { useLanguage } from "@/lib/i18n";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Clock, Edit, Trash2 } from "lucide-react";
+import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,15 +30,22 @@ interface Event {
   location: string | null;
   community_id: string;
   creator_id: string;
+  access: string;
+  min_rating: number | null;
+  required_tier: string | null;
+  link: string | null;
+  send_email: boolean;
 }
 
 interface CommunityEventsTabProps {
   communityId: string;
   userId: string | null;
   isOwnerOrModerator: boolean;
+  userRating?: number;
+  userTier?: string | null;
 }
 
-export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: CommunityEventsTabProps) => {
+export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, userRating = 0, userTier = null }: CommunityEventsTabProps) => {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
@@ -67,12 +74,34 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: 
     }
   };
 
+  const hasAccessToEvent = (event: Event) => {
+    if (isOwnerOrModerator) return true;
+
+    if (event.access === 'all') return true;
+
+    if (event.access === 'for_rating') {
+      return userRating >= (event.min_rating || 0);
+    }
+
+    if (event.access === 'for_tier') {
+      if (!userTier) return false;
+      if (event.required_tier === 'vip') {
+        return userTier === 'vip';
+      }
+      if (event.required_tier === 'pro') {
+        return userTier === 'pro' || userTier === 'vip';
+      }
+    }
+
+    return false;
+  };
+
   const getEventsForDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
-    return events.filter(event => event.event_date === dateStr);
+    return events.filter(event => event.event_date === dateStr && hasAccessToEvent(event));
   };
 
   const handleDeleteEvent = async () => {
@@ -193,6 +222,19 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator }: 
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <MapPin className="h-4 w-4" />
                               <span>{event.location}</span>
+                            </div>
+                          )}
+                          {event.link && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <LinkIcon className="h-4 w-4" />
+                              <a
+                                href={event.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                {event.link}
+                              </a>
                             </div>
                           )}
                         </div>
