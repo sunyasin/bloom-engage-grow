@@ -354,8 +354,8 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                       </span>
                     </div>
                     
-                    {/* Tier availability info for locked courses */}
-                    {locked && (() => {
+                    {/* Tier availability info for paid courses (show to owner too) */}
+                    {isPaidCourse(course) && (() => {
                       const tierNames = getTierNamesForCourse(course.id);
                       if (tierNames.length > 0) {
                         return (
@@ -368,7 +368,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                       return null;
                     })()}
                     
-                    {/* Buy button for locked paid courses only */}
+                    {/* Buy button for locked paid courses only (not for owner) */}
                     {showPayButton(course) && (
                       <Button
                         size="sm"
