@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Reply as ReplyIcon } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
+import { ReplyLikeButton } from './ReplyLikeButton';
 
 interface Post {
   id: string;
@@ -26,10 +27,12 @@ interface Reply {
   content: string;
   user_id: string;
   created_at: string;
+  parent_reply_id?: string | null;
   user?: {
     real_name: string | null;
     avatar_url: string | null;
   };
+  parentReply?: Reply;
 }
 
 interface CommunityReplyDialogProps {
@@ -45,6 +48,7 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
   const [newReply, setNewReply] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingReplies, setFetchingReplies] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Reply | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -92,6 +96,16 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
         user: profileMap.get(reply.user_id) || null
       }));
 
+      const replyMap = new Map(repliesWithProfiles.map(r => [r.id, r]));
+      repliesWithProfiles.forEach(reply => {
+        if (reply.parent_reply_id) {
+          const parent = replyMap.get(reply.parent_reply_id);
+          if (parent) {
+            reply.parentReply = parent;
+          }
+        }
+      });
+
       setReplies(repliesWithProfiles);
     } else {
       setReplies([]);
@@ -103,9 +117,19 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
     if (!newReply.trim() || !userId || !post) return;
 
     setLoading(true);
+    const replyData: any = {
+      content: newReply.trim(),
+      post_id: post.id,
+      user_id: userId
+    };
+
+    if (replyingTo) {
+      replyData.parent_reply_id = replyingTo.id;
+    }
+
     const { error } = await supabase
       .from('community_post_replies')
-      .insert({ content: newReply.trim(), post_id: post.id, user_id: userId });
+      .insert(replyData);
 
     if (error) {
       toast({
@@ -115,6 +139,7 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
       });
     } else {
       setNewReply("");
+      setReplyingTo(null);
       fetchReplies();
       toast({
         title: language === 'ru' ? 'Успешно' : 'Success',
@@ -122,6 +147,14 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
       });
     }
     setLoading(false);
+  };
+
+  const handleReplyToReply = (reply: Reply) => {
+    setReplyingTo(reply);
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+      textarea.focus();
+    }
   };
 
   return (
@@ -171,7 +204,7 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
                     : (language === 'ru' ? 'ответов' : 'Replies')}
                 </h4>
                 {replies.map((reply) => (
-                  <div key={reply.id} className="p-3 bg-background border rounded-lg">
+                  <div key={reply.id} className={`p-3 bg-background border rounded-lg ${reply.parent_reply_id ? 'ml-8 border-l-2 border-l-primary/30' : ''}`}>
                     <div className="flex items-start gap-3">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={reply.user?.avatar_url || undefined} />
@@ -191,9 +224,35 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
                             })}
                           </span>
                         </div>
+                        {reply.parentReply && (
+                          <div className="text-xs text-muted-foreground mb-1 bg-muted/30 px-2 py-1 rounded">
+                            <ReplyIcon className="h-3 w-3 inline mr-1" />
+                            {language === 'ru' ? 'Ответ на сообщение от' : 'Replying to'} <span className="font-medium">{reply.parentReply.user?.real_name || 'Anonymous'}</span>
+                          </div>
+                        )}
                         <p className="text-sm text-foreground/80 whitespace-pre-wrap">
                           {reply.content}
                         </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <ReplyLikeButton
+                            replyId={reply.id}
+                            userId={userId}
+                            language={language}
+                          />
+                          {userId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleReplyToReply(reply)}
+                              className="h-7 gap-1 text-muted-foreground"
+                            >
+                              <ReplyIcon className="h-3.5 w-3.5" />
+                              <span className="text-xs">
+                                {language === 'ru' ? 'Ответить' : 'Reply'}
+                              </span>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -208,6 +267,22 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
             {/* Reply Input */}
             {userId && (
               <div className="space-y-2 border-t pt-4">
+                {replyingTo && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                    <ReplyIcon className="h-4 w-4" />
+                    <span>
+                      {language === 'ru' ? 'Ответ на сообщение от' : 'Replying to'} {replyingTo.user?.real_name || 'Anonymous'}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReplyingTo(null)}
+                      className="ml-auto h-6 px-2"
+                    >
+                      {language === 'ru' ? 'Отмена' : 'Cancel'}
+                    </Button>
+                  </div>
+                )}
                 <Textarea
                   placeholder={language === 'ru' ? 'Напишите ваш ответ...' : 'Write your reply...'}
                   value={newReply}
