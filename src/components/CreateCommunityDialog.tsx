@@ -54,6 +54,7 @@ export function CreateCommunityDialog({ user, onCommunityCreated }: CreateCommun
           community_id: community.id,
           user_id: user.id,
           role: 'owner',
+          is_active: true,
         });
 
       toast({
