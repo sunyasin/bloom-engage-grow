@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLanguage } from "@/lib/i18n";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { EventDialog } from "@/components/EventDialog";
+import { EventsListDialog } from "@/components/EventsListDialog";
+import { DayContentProps } from "react-day-picker";
 
 interface Event {
   id: string;
@@ -10,21 +16,75 @@ interface Event {
   description: string;
   event_date: string;
   event_time: string;
+  community_id?: string;
+}
+
+interface Community {
+  id: string;
+  name: string;
+  role: string;
 }
 
 export default function Events() {
+  const { language } = useLanguage();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [userCommunities, setUserCommunities] = useState<Community[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  const [showEventsListDialog, setShowEventsListDialog] = useState(false);
+  const [selectedDateEvents, setSelectedDateEvents] = useState<Event[]>([]);
 
   useEffect(() => {
-    fetchEvents();
+    fetchUserData();
   }, []);
 
-  const fetchEvents = async () => {
+  const fetchUserData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      setCurrentUserId(user.id);
+      await fetchUserCommunities(user.id);
+      await fetchEvents(user.id);
+    }
+  };
+
+  const fetchUserCommunities = async (userId: string) => {
+    const { data } = await supabase
+      .from('community_members')
+      .select('community_id, role, communities(id, name)')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (data) {
+      const communities = data
+        .filter(item => item.communities)
+        .map(item => ({
+          id: item.communities.id,
+          name: item.communities.name,
+          role: item.role,
+        }));
+      setUserCommunities(communities);
+    }
+  };
+
+  const fetchEvents = async (userId: string) => {
+    const { data: memberData } = await supabase
+      .from('community_members')
+      .select('community_id')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (!memberData) return;
+
+    const communityIds = memberData.map(m => m.community_id);
+
     const { data } = await supabase
       .from('events')
       .select('*')
+      .in('community_id', communityIds)
       .order('event_date');
 
     if (data) {
@@ -37,29 +97,85 @@ export default function Events() {
     return events.filter(event => event.event_date === dateStr);
   };
 
+  const handleDayClick = (date: Date) => {
+    const eventsForDay = getEventsForDate(date);
+    if (eventsForDay.length > 1) {
+      setSelectedDateEvents(eventsForDay);
+      setShowEventsListDialog(true);
+    }
+    setSelectedDate(date);
+  };
+
+  const renderDayContent = (props: DayContentProps) => {
+    const eventsForDay = getEventsForDate(props.date);
+
+    if (eventsForDay.length > 1) {
+      return (
+        <div className="relative w-full h-full flex items-center justify-center">
+          <span>{props.date.getDate()}</span>
+          <span
+            className="absolute bottom-0 right-0 text-[10px] bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedDateEvents(eventsForDay);
+              setShowEventsListDialog(true);
+            }}
+          >
+            {eventsForDay.length}
+          </span>
+        </div>
+      );
+    }
+
+    return <span>{props.date.getDate()}</span>;
+  };
+
   const dayEvents = selectedDate ? getEventsForDate(selectedDate) : [];
+  const ownedCommunities = userCommunities.filter(c => c.role === 'owner' || c.role === 'moderator');
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 bg-gradient-primary bg-clip-text text-transparent">
-          Events Calendar
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            {language === 'ru' ? 'Календарь событий' : 'Events Calendar'}
+          </h1>
+          {ownedCommunities.length > 0 && (
+            <div className="flex gap-2">
+              {ownedCommunities.map(community => (
+                <Button
+                  key={community.id}
+                  onClick={() => {
+                    setSelectedCommunityId(community.id);
+                    setShowEventDialog(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Новое событие' : 'New Event'} ({community.name})
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="flex justify-center">
             <Calendar
               mode="single"
               selected={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(date) => date && handleDayClick(date)}
               className="rounded-lg border shadow-medium"
+              components={{
+                DayContent: renderDayContent,
+              }}
             />
           </div>
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold">
-              {selectedDate?.toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric' 
+              {selectedDate?.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
               })}
             </h2>
             {dayEvents.length > 0 ? (
@@ -72,16 +188,20 @@ export default function Events() {
                   <h3 className="font-semibold mb-2">{event.title}</h3>
                   {event.event_time && (
                     <p className="text-sm text-muted-foreground mb-2">
-                      Time: {event.event_time}
+                      {language === 'ru' ? 'Время' : 'Time'}: {event.event_time}
                     </p>
                   )}
-                  <p className="text-sm text-foreground/80 line-clamp-2">
-                    {event.description}
-                  </p>
+                  {event.description && (
+                    <p className="text-sm text-foreground/80 line-clamp-2">
+                      {event.description}
+                    </p>
+                  )}
                 </Card>
               ))
             ) : (
-              <p className="text-muted-foreground">No events scheduled for this day</p>
+              <p className="text-muted-foreground">
+                {language === 'ru' ? 'Нет событий на эту дату' : 'No events scheduled for this day'}
+              </p>
             )}
           </div>
         </div>
@@ -95,20 +215,45 @@ export default function Events() {
           {selectedEvent && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-semibold text-muted-foreground">Date & Time</p>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {language === 'ru' ? 'Дата и время' : 'Date & Time'}
+                </p>
                 <p>
-                  {new Date(selectedEvent.event_date).toLocaleDateString()} 
-                  {selectedEvent.event_time && ` at ${selectedEvent.event_time}`}
+                  {new Date(selectedEvent.event_date).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US')}
+                  {selectedEvent.event_time && ` ${language === 'ru' ? 'в' : 'at'} ${selectedEvent.event_time}`}
                 </p>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground mb-2">Description</p>
-                <p className="text-foreground/80">{selectedEvent.description}</p>
-              </div>
+              {selectedEvent.description && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-2">
+                    {language === 'ru' ? 'Описание' : 'Description'}
+                  </p>
+                  <p className="text-foreground/80">{selectedEvent.description}</p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {currentUserId && selectedCommunityId && (
+        <EventDialog
+          open={showEventDialog}
+          onOpenChange={setShowEventDialog}
+          communityId={selectedCommunityId}
+          userId={currentUserId}
+          onEventCreated={() => currentUserId && fetchEvents(currentUserId)}
+          language={language}
+        />
+      )}
+
+      <EventsListDialog
+        open={showEventsListDialog}
+        onOpenChange={setShowEventsListDialog}
+        events={selectedDateEvents}
+        date={selectedDate || new Date()}
+        language={language}
+      />
     </div>
   );
 }
