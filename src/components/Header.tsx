@@ -43,54 +43,33 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
     <>
       {!user ? (
         <>
-          <Link 
-            to="/discover" 
+          <Link
+            to="/discover"
             className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
             onClick={() => setMobileMenuOpen(false)}
           >
             {t('nav.communities')}
           </Link>
-          <Link 
-            to="/map" 
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {t('nav.map')}
-          </Link>
         </>
       ) : (
         <>
-          <Link 
-            to="/my-communities" 
+          <Link
+            to="/my-communities"
             className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
             onClick={() => setMobileMenuOpen(false)}
           >
             {t('nav.myCommunities')}
           </Link>
-          <Link 
-            to="/events" 
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {t('nav.events')}
-          </Link>
-          <Link 
-            to="/map" 
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {t('nav.map')}
-          </Link>
-          <Link 
-            to="/profile" 
+          <Link
+            to="/profile"
             className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
             onClick={() => setMobileMenuOpen(false)}
           >
             {t('nav.profile')}
           </Link>
           {(isAuthor || isSuperuser) && (
-            <Link 
-              to="/my-courses" 
+            <Link
+              to="/my-courses"
               className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -98,8 +77,8 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
             </Link>
           )}
           {isSuperuser && (
-            <Link 
-              to="/admin" 
+            <Link
+              to="/admin"
               className="text-sm font-medium text-accent hover:text-accent/80 transition-smooth"
               onClick={() => setMobileMenuOpen(false)}
             >
