@@ -950,6 +950,7 @@ export type Database = {
           is_active: boolean
           is_free: boolean
           name: string
+          payment_url: string | null
           price_monthly: number | null
           price_yearly: number | null
           selected_course_ids: string[] | null
@@ -967,6 +968,7 @@ export type Database = {
           is_active?: boolean
           is_free?: boolean
           name: string
+          payment_url?: string | null
           price_monthly?: number | null
           price_yearly?: number | null
           selected_course_ids?: string[] | null
@@ -984,6 +986,7 @@ export type Database = {
           is_active?: boolean
           is_free?: boolean
           name?: string
+          payment_url?: string | null
           price_monthly?: number | null
           price_yearly?: number | null
           selected_course_ids?: string[] | null

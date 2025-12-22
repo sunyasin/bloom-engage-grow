@@ -11,12 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
-interface CoursePricing {
-  price: number;
-  period: string;
-  payment_url?: string | null;
-}
-
 interface Course {
   id: string;
   title: string;
@@ -25,7 +19,6 @@ interface Course {
   status: string;
   lesson_count: number;
   access_type: string | null;
-  pricing?: CoursePricing | null;
 }
 
 interface SubscriptionTier {
@@ -35,6 +28,7 @@ interface SubscriptionTier {
   is_free: boolean;
   features: unknown;
   selected_course_ids: string[] | null;
+  payment_url: string | null;
 }
 
 interface CoursesTabProps {
@@ -66,28 +60,17 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         .order('created_at', { ascending: false });
 
       if (coursesData) {
-        // Fetch lesson counts and pricing for each course
+        // Fetch lesson counts for each course
         const coursesWithData = await Promise.all(
           coursesData.map(async (course) => {
-            const [lessonsResult, pricingResult] = await Promise.all([
-              supabase
-                .from('lessons')
-                .select('*', { count: 'exact', head: true })
-                .eq('course_id', course.id),
-              supabase
-                .from('course_access_rules')
-                .select('value')
-                .eq('course_id', course.id)
-                .eq('rule_type', 'subscription_pricing')
-                .maybeSingle()
-            ]);
-
-            const pricing = pricingResult.data?.value as unknown as CoursePricing | null;
+            const lessonsResult = await supabase
+              .from('lessons')
+              .select('*', { count: 'exact', head: true })
+              .eq('course_id', course.id);
 
             return {
               ...course,
               lesson_count: lessonsResult.count || 0,
-              pricing
             };
           })
         );
@@ -98,7 +81,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       // Fetch ALL active tiers for this community
       const { data: allTiersData } = await supabase
         .from('subscription_tiers')
-        .select('id, name, price_monthly, is_free, features, selected_course_ids')
+        .select('id, name, price_monthly, is_free, features, selected_course_ids, payment_url')
         .eq('community_id', communityId)
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
@@ -176,6 +159,19 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       .map(tier => tier.name);
   };
 
+  // Get the first tier with payment_url that gives access to a course
+  const getTierWithPaymentUrlForCourse = (courseId: string): SubscriptionTier | null => {
+    return allTiers.find(tier => {
+      if (tier.is_free || !tier.price_monthly || tier.price_monthly <= 0) return false;
+      const features = Array.isArray(tier.features) ? tier.features : [];
+      if (features.includes('courses_all')) return true;
+      if (features.includes('courses_selected')) {
+        return (tier.selected_course_ids || []).includes(courseId);
+      }
+      return false;
+    }) || null;
+  };
+
   const handlePurchase = async (course: Course, e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -184,14 +180,18 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       return;
     }
 
-    // If course has a custom payment URL, open it in new tab
-    if (course.pricing?.payment_url) {
-      window.open(course.pricing.payment_url, '_blank', 'noopener,noreferrer');
+    // Find the tier that gives access to this course
+    const tier = getTierWithPaymentUrlForCourse(course.id);
+    
+    // If tier has a custom payment URL, open it
+    if (tier?.payment_url) {
+      window.open(tier.payment_url, '_blank', 'noopener,noreferrer');
       return;
     }
 
-    // Otherwise use YooKassa
-    if (!cheapestTier) {
+    // Otherwise use YooKassa with the tier
+    const targetTier = tier || cheapestTier;
+    if (!targetTier) {
       toast.error(language === 'ru' ? 'Подписка недоступна' : 'Subscription not available');
       return;
     }
@@ -201,7 +201,7 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       
       const result = await paymentsApi.createSubscription({
         communityId,
-        subscriptionTierId: cheapestTier.id,
+        subscriptionTierId: targetTier.id,
         returnUrl: `${window.location.origin}/payment/callback?transactionId={transactionId}`
       });
 
