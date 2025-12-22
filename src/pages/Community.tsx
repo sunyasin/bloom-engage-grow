@@ -13,6 +13,7 @@ import { CommunitySettingsDialog } from '@/components/CommunitySettingsDialog';
 import { User } from '@supabase/supabase-js';
 import { CoursesTab } from '@/components/CoursesTab';
 import { CommunityReplyDialog } from '@/components/CommunityReplyDialog';
+import { PostLikeButton } from '@/components/PostLikeButton';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 
@@ -313,6 +314,11 @@ export default function Community({ user }: CommunityProps) {
                           </div>
                           <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
                           <div className="flex items-center gap-4 mt-3">
+                            <PostLikeButton
+                              postId={post.id}
+                              userId={user?.id || null}
+                              language={language}
+                            />
                             <button
                               onClick={() => handleOpenReplyDialog(post)}
                               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
@@ -324,7 +330,7 @@ export default function Community({ user }: CommunityProps) {
                               )}
                             </button>
                             {isOwner && (
-                              <button 
+                              <button
                                 onClick={() => handlePin(post.id, post.is_pinned)}
                                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
                               >
