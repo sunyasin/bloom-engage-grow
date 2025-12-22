@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
@@ -21,6 +22,11 @@ interface Course {
   cover_image_url: string | null;
   access_type: AccessType | null;
   status: CourseStatus | null;
+  delay_days?: number | null;
+  required_rating?: number | null;
+  promo_code?: string | null;
+  gifted_emails?: string | null;
+  access_types?: string[] | null;
 }
 
 interface CourseSettingsDialogProps {
@@ -43,18 +49,38 @@ export default function CourseSettingsDialog({
   const [title, setTitle] = useState(course.title);
   const [description, setDescription] = useState(course.description || '');
   const [coverUrl, setCoverUrl] = useState(course.cover_image_url || '');
-  const [accessType, setAccessType] = useState<AccessType>(course.access_type || 'open');
   const [status, setStatus] = useState<CourseStatus>(course.status || 'draft');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Multi-select access types
+  const [selectedAccessTypes, setSelectedAccessTypes] = useState<AccessType[]>([]);
+  
+  // Access type specific fields
+  const [delayDays, setDelayDays] = useState<number | null>(null);
+  const [requiredRating, setRequiredRating] = useState<number | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [giftedEmails, setGiftedEmails] = useState('');
+
   useEffect(() => {
     setTitle(course.title);
     setDescription(course.description || '');
     setCoverUrl(course.cover_image_url || '');
-    setAccessType(course.access_type || 'open');
     setStatus(course.status || 'draft');
+    setDelayDays(course.delay_days ?? null);
+    setRequiredRating(course.required_rating ?? null);
+    setPromoCode(course.promo_code || '');
+    setGiftedEmails(course.gifted_emails || '');
+    
+    // Load access_types or fallback to single access_type
+    if (course.access_types && course.access_types.length > 0) {
+      setSelectedAccessTypes(course.access_types as AccessType[]);
+    } else if (course.access_type) {
+      setSelectedAccessTypes([course.access_type]);
+    } else {
+      setSelectedAccessTypes(['open']);
+    }
   }, [course]);
 
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,6 +133,17 @@ export default function CourseSettingsDialog({
     setCoverUrl('');
   };
 
+  const toggleAccessType = (type: AccessType) => {
+    setSelectedAccessTypes(prev => {
+      if (prev.includes(type)) {
+        // Don't allow empty selection
+        if (prev.length === 1) return prev;
+        return prev.filter(t => t !== type);
+      }
+      return [...prev, type];
+    });
+  };
+
   const handleSave = async () => {
     if (!title.trim()) {
       toast({
@@ -120,14 +157,22 @@ export default function CourseSettingsDialog({
     setSaving(true);
 
     try {
+      // Determine primary access_type (first selected or 'open')
+      const primaryAccessType = selectedAccessTypes[0] || 'open';
+
       const { error } = await supabase
         .from('courses')
         .update({
           title: title.trim(),
           description: description.trim() || null,
           cover_image_url: coverUrl || null,
-          access_type: accessType,
+          access_type: primaryAccessType,
+          access_types: selectedAccessTypes,
           status: status,
+          delay_days: selectedAccessTypes.includes('delayed') ? delayDays : null,
+          required_rating: selectedAccessTypes.includes('by_rating_level') ? requiredRating : null,
+          promo_code: selectedAccessTypes.includes('promo_code') ? promoCode.trim() || null : null,
+          gifted_emails: selectedAccessTypes.includes('gifted') ? giftedEmails.trim() || null : null,
         })
         .eq('id', course.id);
 
@@ -138,8 +183,13 @@ export default function CourseSettingsDialog({
         title: title.trim(),
         description: description.trim() || null,
         cover_image_url: coverUrl || null,
-        access_type: accessType,
+        access_type: primaryAccessType,
+        access_types: selectedAccessTypes,
         status: status,
+        delay_days: selectedAccessTypes.includes('delayed') ? delayDays : null,
+        required_rating: selectedAccessTypes.includes('by_rating_level') ? requiredRating : null,
+        promo_code: selectedAccessTypes.includes('promo_code') ? promoCode.trim() || null : null,
+        gifted_emails: selectedAccessTypes.includes('gifted') ? giftedEmails.trim() || null : null,
       });
 
       toast({
@@ -174,13 +224,37 @@ export default function CourseSettingsDialog({
       value: 'paid_subscription', 
       label: language === 'ru' ? 'По подписке на сообщество' : 'Community subscription',
       desc: language === 'ru' 
-        ? 'Курс доступен участникам с оплаченной подпиской, если в настройках уровня выбраны "все курсы" или этот курс явно'
-        : 'Course available to members with paid subscription if tier includes "all courses" or this course explicitly'
+        ? 'Доступен участникам с оплаченной подпиской'
+        : 'Available to members with paid subscription'
     },
-    { value: 'by_rating_level', label: language === 'ru' ? 'По уровню рейтинга' : 'By rating level' },
-    { value: 'delayed', label: language === 'ru' ? 'С отложенным доступом' : 'Delayed access' },
-    { value: 'promo_code', label: language === 'ru' ? 'По промокоду' : 'By promo code' },
-    { value: 'gifted', label: language === 'ru' ? 'Подарочный' : 'Gifted' },
+    { 
+      value: 'by_rating_level', 
+      label: language === 'ru' ? 'По уровню рейтинга' : 'By rating level',
+      desc: language === 'ru' 
+        ? 'Доступен при достижении порога рейтинга'
+        : 'Available when rating threshold is reached'
+    },
+    { 
+      value: 'delayed', 
+      label: language === 'ru' ? 'С отложенным доступом' : 'Delayed access',
+      desc: language === 'ru' 
+        ? 'Доступен через N дней после подписки на сообщество'
+        : 'Available N days after community subscription'
+    },
+    { 
+      value: 'promo_code', 
+      label: language === 'ru' ? 'По промокоду' : 'By promo code',
+      desc: language === 'ru' 
+        ? 'Доступен при вводе промокода'
+        : 'Available with promo code'
+    },
+    { 
+      value: 'gifted', 
+      label: language === 'ru' ? 'Подарочный' : 'Gifted',
+      desc: language === 'ru' 
+        ? 'Доступен для указанных email адресов'
+        : 'Available for specified email addresses'
+    },
   ];
 
   const statusOptions: { value: CourseStatus; label: string; desc: string }[] = [
@@ -229,7 +303,7 @@ export default function CourseSettingsDialog({
           </div>
 
           {/* Right content */}
-          <div className="flex-1">
+          <div className="flex-1 overflow-y-auto max-h-[400px]">
             {activeTab === 'title' && (
               <div className="space-y-4">
                 <Label htmlFor="title">
@@ -326,24 +400,106 @@ export default function CourseSettingsDialog({
 
             {activeTab === 'access' && (
               <div className="space-y-4">
-                <Label>
-                  {language === 'ru' ? 'Тип доступа' : 'Access Type'}
-                </Label>
-                <RadioGroup value={accessType} onValueChange={(v) => setAccessType(v as AccessType)}>
+                <div>
+                  <Label>
+                    {language === 'ru' ? 'Условия доступа' : 'Access Conditions'}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {language === 'ru' 
+                      ? 'Курс доступен, если выполнено хотя бы одно условие'
+                      : 'Course is accessible if at least one condition is met'}
+                  </p>
+                </div>
+                
+                <div className="space-y-3">
                   {accessOptions.map(option => (
-                    <div key={option.value} className="flex items-start space-x-2 py-1">
-                      <RadioGroupItem value={option.value} id={option.value} className="mt-0.5" />
-                      <div>
-                        <Label htmlFor={option.value} className="font-normal cursor-pointer">
-                          {option.label}
-                        </Label>
-                        {option.desc && (
-                          <p className="text-xs text-muted-foreground">{option.desc}</p>
-                        )}
+                    <div key={option.value} className="space-y-2">
+                      <div className="flex items-start space-x-2">
+                        <Checkbox
+                          id={option.value}
+                          checked={selectedAccessTypes.includes(option.value)}
+                          onCheckedChange={() => toggleAccessType(option.value)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <Label htmlFor={option.value} className="font-normal cursor-pointer">
+                            {option.label}
+                          </Label>
+                          {option.desc && (
+                            <p className="text-xs text-muted-foreground">{option.desc}</p>
+                          )}
+                        </div>
                       </div>
+                      
+                      {/* Conditional fields based on access type */}
+                      {option.value === 'by_rating_level' && selectedAccessTypes.includes('by_rating_level') && (
+                        <div className="ml-6 mt-2">
+                          <Label htmlFor="required-rating" className="text-sm">
+                            {language === 'ru' ? 'Минимальный рейтинг' : 'Minimum rating'}
+                          </Label>
+                          <Input
+                            id="required-rating"
+                            type="number"
+                            min={0}
+                            value={requiredRating ?? ''}
+                            onChange={(e) => setRequiredRating(e.target.value ? parseInt(e.target.value) : null)}
+                            placeholder={language === 'ru' ? 'Введите число' : 'Enter number'}
+                            className="mt-1 max-w-[200px]"
+                          />
+                        </div>
+                      )}
+                      
+                      {option.value === 'delayed' && selectedAccessTypes.includes('delayed') && (
+                        <div className="ml-6 mt-2">
+                          <Label htmlFor="delay-days" className="text-sm">
+                            {language === 'ru' ? 'Дней с момента подписки' : 'Days since subscription'}
+                          </Label>
+                          <Input
+                            id="delay-days"
+                            type="number"
+                            min={1}
+                            value={delayDays ?? ''}
+                            onChange={(e) => setDelayDays(e.target.value ? parseInt(e.target.value) : null)}
+                            placeholder={language === 'ru' ? 'Введите число дней' : 'Enter number of days'}
+                            className="mt-1 max-w-[200px]"
+                          />
+                        </div>
+                      )}
+                      
+                      {option.value === 'promo_code' && selectedAccessTypes.includes('promo_code') && (
+                        <div className="ml-6 mt-2">
+                          <Label htmlFor="promo-code" className="text-sm">
+                            {language === 'ru' ? 'Промокод' : 'Promo code'}
+                          </Label>
+                          <Input
+                            id="promo-code"
+                            type="text"
+                            value={promoCode}
+                            onChange={(e) => setPromoCode(e.target.value)}
+                            placeholder={language === 'ru' ? 'Введите промокод' : 'Enter promo code'}
+                            className="mt-1 max-w-[250px]"
+                          />
+                        </div>
+                      )}
+                      
+                      {option.value === 'gifted' && selectedAccessTypes.includes('gifted') && (
+                        <div className="ml-6 mt-2">
+                          <Label htmlFor="gifted-emails" className="text-sm">
+                            {language === 'ru' ? 'Email адреса (через запятую)' : 'Email addresses (comma-separated)'}
+                          </Label>
+                          <Textarea
+                            id="gifted-emails"
+                            value={giftedEmails}
+                            onChange={(e) => setGiftedEmails(e.target.value)}
+                            placeholder="user1@example.com, user2@example.com"
+                            className="mt-1"
+                            rows={3}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
-                </RadioGroup>
+                </div>
               </div>
             )}
 
