@@ -617,25 +617,24 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                     className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
-                    {language === 'ru' ? 'Удалить' : 'Delete'}
+                    {language === 'ru' ? 'Курс' : 'Course'}
                   </Button>
                   
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handlePublish}
-                    disabled={publishing}
-                  >
-                    {publishing ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Globe className="h-4 w-4 mr-1" />
-                    )}
-                    {course.status === 'published' 
-                      ? (language === 'ru' ? 'Снять с публикации' : 'Unpublish')
-                      : (language === 'ru' ? 'Опубликовать' : 'Publish')
-                    }
-                  </Button>
+                  {course.status !== 'published' && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handlePublish}
+                      disabled={publishing}
+                    >
+                      {publishing ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Globe className="h-4 w-4 mr-1" />
+                      )}
+                      {language === 'ru' ? 'Опубликовать' : 'Publish'}
+                    </Button>
+                  )}
                   
                   <Button 
                     variant="outline" 
@@ -656,14 +655,15 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                     onClick={() => setShowDeleteLessonDialog(true)}
                     className="text-destructive hover:text-destructive"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {language === 'ru' ? 'Урок' : 'Lesson'}
                   </Button>
                   <Button 
                     onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
                     className="bg-gradient-primary"
+                    size="icon"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    {language === 'ru' ? 'Редактировать урок' : 'Edit Lesson'}
+                    <Edit className="h-4 w-4" />
                   </Button>
                 </>
               )}
