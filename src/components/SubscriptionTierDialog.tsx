@@ -9,8 +9,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, BookOpen } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+
+interface Course {
+  id: string;
+  title: string;
+}
 
 interface SubscriptionTier {
   id?: string;
@@ -25,6 +30,7 @@ interface SubscriptionTier {
   is_active: boolean;
   sort_order: number;
   features: string[];
+  selected_course_ids?: string[];
 }
 
 interface SubscriptionTierDialogProps {
@@ -59,6 +65,8 @@ export function SubscriptionTierDialog({
   const { language } = useI18n();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
   
   const [formData, setFormData] = useState<SubscriptionTier>({
     community_id: communityId,
@@ -72,13 +80,31 @@ export function SubscriptionTierDialog({
     is_active: true,
     sort_order: maxSortOrder + 1,
     features: [],
+    selected_course_ids: [],
   });
+
+  // Fetch community courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!open) return;
+      setLoadingCourses(true);
+      const { data } = await supabase
+        .from('courses')
+        .select('id, title')
+        .eq('community_id', communityId)
+        .order('title');
+      setCourses(data || []);
+      setLoadingCourses(false);
+    };
+    fetchCourses();
+  }, [communityId, open]);
 
   useEffect(() => {
     if (tier) {
       setFormData({
         ...tier,
         features: Array.isArray(tier.features) ? tier.features : [],
+        selected_course_ids: Array.isArray(tier.selected_course_ids) ? tier.selected_course_ids : [],
       });
     } else {
       setFormData({
@@ -93,6 +119,7 @@ export function SubscriptionTierDialog({
         is_active: true,
         sort_order: maxSortOrder + 1,
         features: [],
+        selected_course_ids: [],
       });
     }
   }, [tier, communityId, maxSortOrder]);
@@ -120,6 +147,15 @@ export function SubscriptionTierDialog({
       features: prev.features.includes(featureKey)
         ? prev.features.filter(f => f !== featureKey)
         : [...prev.features, featureKey],
+    }));
+  };
+
+  const handleCourseToggle = (courseId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selected_course_ids: (prev.selected_course_ids || []).includes(courseId)
+        ? (prev.selected_course_ids || []).filter(id => id !== courseId)
+        : [...(prev.selected_course_ids || []), courseId],
     }));
   };
 
@@ -156,6 +192,7 @@ export function SubscriptionTierDialog({
       is_active: formData.is_active,
       sort_order: formData.sort_order,
       features: formData.features,
+      selected_course_ids: formData.features.includes('courses_selected') ? formData.selected_course_ids : [],
     };
 
     let error;
@@ -294,18 +331,53 @@ export function SubscriptionTierDialog({
             <Label>{language === 'ru' ? 'Что входит в уровень' : 'Features included'}</Label>
             <div className="space-y-2 border border-border rounded-lg p-3">
               {FEATURE_OPTIONS.map(feature => (
-                <div key={feature.key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={feature.key}
-                    checked={formData.features.includes(feature.key)}
-                    onCheckedChange={() => handleFeatureToggle(feature.key)}
-                  />
-                  <label
-                    htmlFor={feature.key}
-                    className="text-sm cursor-pointer"
-                  >
-                    {language === 'ru' ? feature.labelRu : feature.labelEn}
-                  </label>
+                <div key={feature.key}>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={feature.key}
+                      checked={formData.features.includes(feature.key)}
+                      onCheckedChange={() => handleFeatureToggle(feature.key)}
+                    />
+                    <label
+                      htmlFor={feature.key}
+                      className="text-sm cursor-pointer"
+                    >
+                      {language === 'ru' ? feature.labelRu : feature.labelEn}
+                    </label>
+                  </div>
+                  
+                  {/* Show course selection when courses_selected is checked */}
+                  {feature.key === 'courses_selected' && formData.features.includes('courses_selected') && (
+                    <div className="ml-6 mt-2 pl-3 border-l-2 border-border space-y-2">
+                      {loadingCourses ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {language === 'ru' ? 'Загрузка курсов...' : 'Loading courses...'}
+                        </div>
+                      ) : courses.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          {language === 'ru' ? 'Нет курсов в сообществе' : 'No courses in community'}
+                        </p>
+                      ) : (
+                        courses.map(course => (
+                          <div key={course.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`course-${course.id}`}
+                              checked={(formData.selected_course_ids || []).includes(course.id)}
+                              onCheckedChange={() => handleCourseToggle(course.id)}
+                            />
+                            <label
+                              htmlFor={`course-${course.id}`}
+                              className="text-sm cursor-pointer flex items-center gap-1"
+                            >
+                              <BookOpen className="h-3 w-3 text-muted-foreground" />
+                              {course.title}
+                            </label>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
