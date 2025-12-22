@@ -31,6 +31,7 @@ interface SubscriptionTier {
   sort_order: number;
   features: string[];
   selected_course_ids?: string[];
+  payment_url?: string | null;
 }
 
 interface SubscriptionTierDialogProps {
@@ -81,6 +82,7 @@ export function SubscriptionTierDialog({
     sort_order: maxSortOrder + 1,
     features: [],
     selected_course_ids: [],
+    payment_url: '',
   });
 
   // Fetch community courses
@@ -105,6 +107,7 @@ export function SubscriptionTierDialog({
         ...tier,
         features: Array.isArray(tier.features) ? tier.features : [],
         selected_course_ids: Array.isArray(tier.selected_course_ids) ? tier.selected_course_ids : [],
+        payment_url: tier.payment_url || '',
       });
     } else {
       setFormData({
@@ -120,6 +123,7 @@ export function SubscriptionTierDialog({
         sort_order: maxSortOrder + 1,
         features: [],
         selected_course_ids: [],
+        payment_url: '',
       });
     }
   }, [tier, communityId, maxSortOrder]);
@@ -193,6 +197,7 @@ export function SubscriptionTierDialog({
       sort_order: formData.sort_order,
       features: formData.features,
       selected_course_ids: formData.features.includes('courses_selected') ? formData.selected_course_ids : [],
+      payment_url: formData.is_free ? null : (formData.payment_url?.trim() || null),
     };
 
     let error;
@@ -325,6 +330,27 @@ export function SubscriptionTierDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Payment URL - only for paid tiers */}
+          {!formData.is_free && (formData.price_monthly || 0) > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="payment_url">
+                {language === 'ru' ? 'Ссылка на оплату (необязательно)' : 'Payment URL (optional)'}
+              </Label>
+              <Input
+                id="payment_url"
+                type="url"
+                value={formData.payment_url || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, payment_url: e.target.value }))}
+                placeholder={language === 'ru' ? 'https://...' : 'https://...'}
+              />
+              <p className="text-xs text-muted-foreground">
+                {language === 'ru' 
+                  ? 'Если указана — откроется по кнопке "Оплатить". Если пустая — оплата через ЮKassa.'
+                  : 'If set — opens on "Pay" button click. If empty — uses YooKassa payment.'}
+              </p>
+            </div>
+          )}
 
           {/* Features */}
           <div className="space-y-2">

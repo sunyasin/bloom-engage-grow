@@ -7,14 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type AccessType = Database['public']['Enums']['access_type'];
 type CourseStatus = Database['public']['Enums']['course_status'];
-type SubscriptionPeriod = 'lifetime' | 'monthly' | 'yearly';
 
 interface Course {
   id: string;
@@ -50,11 +48,6 @@ export default function CourseSettingsDialog({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Subscription pricing state
-  const [subscriptionPrice, setSubscriptionPrice] = useState<number>(0);
-  const [subscriptionPeriod, setSubscriptionPeriod] = useState<SubscriptionPeriod>('monthly');
-  const [paymentUrl, setPaymentUrl] = useState<string>('');
 
   useEffect(() => {
     setTitle(course.title);
@@ -62,32 +55,7 @@ export default function CourseSettingsDialog({
     setCoverUrl(course.cover_image_url || '');
     setAccessType(course.access_type || 'open');
     setStatus(course.status || 'draft');
-    
-    // Load subscription pricing from course_access_rules
-    if (course.id) {
-      loadAccessRules();
-    }
   }, [course]);
-  
-  const loadAccessRules = async () => {
-    const { data } = await supabase
-      .from('course_access_rules')
-      .select('*')
-      .eq('course_id', course.id)
-      .eq('rule_type', 'subscription_pricing')
-      .single();
-    
-    if (data?.value) {
-      const value = data.value as { price?: number; period?: SubscriptionPeriod; payment_url?: string };
-      setSubscriptionPrice(value.price || 0);
-      setSubscriptionPeriod(value.period || 'monthly');
-      setPaymentUrl(value.payment_url || '');
-    } else {
-      setSubscriptionPrice(0);
-      setSubscriptionPeriod('monthly');
-      setPaymentUrl('');
-    }
-  };
 
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -164,38 +132,6 @@ export default function CourseSettingsDialog({
         .eq('id', course.id);
 
       if (error) throw error;
-      
-      // Save subscription pricing if paid_subscription
-      if (accessType === 'paid_subscription') {
-        // Upsert the access rule
-        const { data: existingRule } = await supabase
-          .from('course_access_rules')
-          .select('id')
-          .eq('course_id', course.id)
-          .eq('rule_type', 'subscription_pricing')
-          .single();
-        
-        const pricingValue = { 
-          price: subscriptionPrice, 
-          period: subscriptionPeriod,
-          payment_url: paymentUrl.trim() || null
-        };
-        
-        if (existingRule) {
-          await supabase
-            .from('course_access_rules')
-            .update({ value: pricingValue })
-            .eq('id', existingRule.id);
-        } else {
-          await supabase
-            .from('course_access_rules')
-            .insert({
-              course_id: course.id,
-              rule_type: 'subscription_pricing',
-              value: pricingValue
-            });
-        }
-      }
 
       onSave({
         ...course,
@@ -232,27 +168,15 @@ export default function CourseSettingsDialog({
     { id: 'status', label: language === 'ru' ? 'Статус' : 'Status' },
   ];
 
-  const periodOptions: { value: SubscriptionPeriod; label: string }[] = [
-    { value: 'lifetime', label: language === 'ru' ? 'Навсегда' : 'Lifetime' },
-    { value: 'monthly', label: language === 'ru' ? 'Раз в месяц' : 'Monthly' },
-    { value: 'yearly', label: language === 'ru' ? 'Раз в год' : 'Yearly' },
-  ];
-  
-  const getPeriodLabel = (period: SubscriptionPeriod) => {
-    return periodOptions.find(p => p.value === period)?.label || period;
-  };
-  
-  const formatPriceDisplay = () => {
-    if (subscriptionPrice <= 0) return '';
-    const periodLabel = subscriptionPeriod === 'lifetime' 
-      ? '' 
-      : ` / ${subscriptionPeriod === 'monthly' ? (language === 'ru' ? 'мес' : 'mo') : (language === 'ru' ? 'год' : 'yr')}`;
-    return `${subscriptionPrice} ₽${periodLabel}`;
-  };
-
-  const accessOptions: { value: AccessType; label: string }[] = [
+  const accessOptions: { value: AccessType; label: string; desc?: string }[] = [
     { value: 'open', label: language === 'ru' ? 'Открыто для всех' : 'Open to all' },
-    { value: 'paid_subscription', label: language === 'ru' ? 'По подписке' : 'Paid subscription' },
+    { 
+      value: 'paid_subscription', 
+      label: language === 'ru' ? 'По подписке на сообщество' : 'Community subscription',
+      desc: language === 'ru' 
+        ? 'Курс доступен участникам с оплаченной подпиской, если в настройках уровня выбраны "все курсы" или этот курс явно'
+        : 'Course available to members with paid subscription if tier includes "all courses" or this course explicitly'
+    },
     { value: 'by_rating_level', label: language === 'ru' ? 'По уровню рейтинга' : 'By rating level' },
     { value: 'delayed', label: language === 'ru' ? 'С отложенным доступом' : 'Delayed access' },
     { value: 'promo_code', label: language === 'ru' ? 'По промокоду' : 'By promo code' },
@@ -407,80 +331,19 @@ export default function CourseSettingsDialog({
                 </Label>
                 <RadioGroup value={accessType} onValueChange={(v) => setAccessType(v as AccessType)}>
                   {accessOptions.map(option => (
-                    <div key={option.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={option.value} id={option.value} />
-                      <Label htmlFor={option.value} className="font-normal cursor-pointer flex items-center gap-2">
-                        {option.label}
-                        {option.value === 'paid_subscription' && accessType === 'paid_subscription' && subscriptionPrice > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            ({formatPriceDisplay()})
-                          </span>
+                    <div key={option.value} className="flex items-start space-x-2 py-1">
+                      <RadioGroupItem value={option.value} id={option.value} className="mt-0.5" />
+                      <div>
+                        <Label htmlFor={option.value} className="font-normal cursor-pointer">
+                          {option.label}
+                        </Label>
+                        {option.desc && (
+                          <p className="text-xs text-muted-foreground">{option.desc}</p>
                         )}
-                      </Label>
+                      </div>
                     </div>
                   ))}
                 </RadioGroup>
-                
-                {/* Subscription pricing fields */}
-                {accessType === 'paid_subscription' && (
-                  <div className="mt-4 p-4 border border-border rounded-lg space-y-4 bg-muted/30">
-                    <h4 className="font-medium text-sm">
-                      {language === 'ru' ? 'Настройки подписки' : 'Subscription Settings'}
-                    </h4>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="price" className="text-sm">
-                          {language === 'ru' ? 'Цена (₽)' : 'Price (₽)'}
-                        </Label>
-                        <Input
-                          id="price"
-                          type="number"
-                          min="0"
-                          value={subscriptionPrice}
-                          onChange={(e) => setSubscriptionPrice(Number(e.target.value))}
-                          placeholder="0"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label className="text-sm">
-                          {language === 'ru' ? 'Период' : 'Period'}
-                        </Label>
-                        <Select value={subscriptionPeriod} onValueChange={(v) => setSubscriptionPeriod(v as SubscriptionPeriod)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {periodOptions.map(option => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4">
-                      <Label htmlFor="payment_url" className="text-sm">
-                        {language === 'ru' ? 'Ссылка на оплату (необязательно)' : 'Payment URL (optional)'}
-                      </Label>
-                      <Input
-                        id="payment_url"
-                        type="url"
-                        value={paymentUrl}
-                        onChange={(e) => setPaymentUrl(e.target.value)}
-                        placeholder={language === 'ru' ? 'https://... или оставьте пустым для ЮKassa' : 'https://... or leave empty for YooKassa'}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {language === 'ru' 
-                          ? 'Если указана — откроется в новом окне. Если пустая — оплата через ЮKassa.'
-                          : 'If set — opens in new tab. If empty — uses YooKassa payment.'}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
