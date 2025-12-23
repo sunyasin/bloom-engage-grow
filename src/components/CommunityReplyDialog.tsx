@@ -97,16 +97,17 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
       }));
 
       const replyMap = new Map(repliesWithProfiles.map(r => [r.id, r]));
-      repliesWithProfiles.forEach(reply => {
+      const repliesWithParents = repliesWithProfiles.map(reply => {
         if (reply.parent_reply_id) {
           const parent = replyMap.get(reply.parent_reply_id);
           if (parent) {
-            reply.parentReply = parent;
+            return { ...reply, parentReply: parent as Reply };
           }
         }
+        return reply;
       });
 
-      setReplies(repliesWithProfiles);
+      setReplies(repliesWithParents as Reply[]);
     } else {
       setReplies([]);
     }
