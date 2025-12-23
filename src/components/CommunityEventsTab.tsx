@@ -331,7 +331,8 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
           open={showEventsListDialog}
           onOpenChange={setShowEventsListDialog}
           events={selectedDateEvents}
-          onClose={() => setShowEventsListDialog(false)}
+          date={selectedDate || new Date()}
+          language={language}
         />
       )}
     </div>

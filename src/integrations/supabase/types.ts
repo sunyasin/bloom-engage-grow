@@ -217,11 +217,41 @@ export type Database = {
           },
         ]
       }
+      community_post_likes: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_post_replies: {
         Row: {
           content: string
           created_at: string
           id: string
+          parent_reply_id: string | null
           post_id: string
           updated_at: string
           user_id: string
@@ -230,6 +260,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          parent_reply_id?: string | null
           post_id: string
           updated_at?: string
           user_id: string
@@ -238,11 +269,19 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          parent_reply_id?: string | null
           post_id?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "community_post_replies_parent_reply_id_fkey"
+            columns: ["parent_reply_id"]
+            isOneToOne: false
+            referencedRelation: "community_post_replies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "community_post_replies_post_id_fkey"
             columns: ["post_id"]
@@ -296,6 +335,35 @@ export type Database = {
             columns: ["parent_message_id"]
             isOneToOne: false
             referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_reply_likes: {
+        Row: {
+          created_at: string | null
+          id: string
+          reply_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          reply_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          reply_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_reply_likes_reply_id_fkey"
+            columns: ["reply_id"]
+            isOneToOne: false
+            referencedRelation: "community_post_replies"
             referencedColumns: ["id"]
           },
         ]
@@ -459,33 +527,65 @@ export type Database = {
       }
       events: {
         Row: {
+          access: string | null
+          community_id: string | null
           created_at: string | null
+          creator_id: string | null
           description: string | null
           event_date: string
           event_time: string | null
           id: string
+          link: string | null
+          location: string | null
+          min_rating: number | null
+          required_tier: string | null
+          send_email: boolean | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          access?: string | null
+          community_id?: string | null
           created_at?: string | null
+          creator_id?: string | null
           description?: string | null
           event_date: string
           event_time?: string | null
           id?: string
+          link?: string | null
+          location?: string | null
+          min_rating?: number | null
+          required_tier?: string | null
+          send_email?: boolean | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          access?: string | null
+          community_id?: string | null
           created_at?: string | null
+          creator_id?: string | null
           description?: string | null
           event_date?: string
           event_time?: string | null
           id?: string
+          link?: string | null
+          location?: string | null
+          min_rating?: number | null
+          required_tier?: string | null
+          send_email?: boolean | null
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       help_sections: {
         Row: {
