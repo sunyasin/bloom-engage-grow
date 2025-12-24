@@ -192,7 +192,7 @@ export default function CreateCommunity() {
         description: language === 'ru' ? 'Сообщество успешно создано' : 'Community created successfully',
       });
 
-      navigate(`/community/${community.id}/lessons`);
+      navigate(`/community/${community.id}`);
     } catch (error: any) {
       console.error('Error creating community:', error);
       toast({
