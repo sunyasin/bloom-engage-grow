@@ -131,7 +131,7 @@ const App = () => {
                 />
                 <Route 
                   path="/course/:courseId/lessons" 
-                  element={(isAuthor || isSuperuser) ? <CourseEditor /> : <Navigate to="/" />} 
+                  element={user ? <CourseEditor /> : <Navigate to="/" />} 
                 />
                 <Route 
                   path="/course/:courseId/lesson/:lessonId" 
