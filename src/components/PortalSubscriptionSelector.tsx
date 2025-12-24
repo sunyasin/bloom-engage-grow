@@ -134,9 +134,10 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
               </div>
               <CardTitle className="text-xl">{subscription.name}</CardTitle>
               {subscription.description && (
-                <CardDescription className="mt-2">
-                  {subscription.description}
-                </CardDescription>
+                <CardDescription
+                  className="mt-2"
+                  dangerouslySetInnerHTML={{ __html: subscription.description }}
+                />
               )}
             </CardHeader>
             <CardContent>
