@@ -39,6 +39,20 @@ export interface GetMembershipsResponse {
   memberships: Membership[];
 }
 
+export interface CreatePortalPaymentRequest {
+  portalSubscriptionId: string;
+  returnUrl?: string;
+}
+
+export interface CreatePortalPaymentResponse {
+  confirmationUrl?: string;
+  transactionId?: string;
+  paymentId?: string;
+  success?: boolean;
+  isFree?: boolean;
+  message?: string;
+}
+
 export const paymentsApi = {
   async createSubscription(data: CreateSubscriptionRequest): Promise<CreateSubscriptionResponse> {
     const token = await getAuthToken();
@@ -86,6 +100,34 @@ export const paymentsApi = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to fetch memberships');
+    }
+
+    return await response.json();
+  },
+
+  async createPortalPayment(data: CreatePortalPaymentRequest): Promise<CreatePortalPaymentResponse> {
+    const token = await getAuthToken();
+
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/create-portal-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': supabaseAnonKey,
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create portal payment');
     }
 
     return await response.json();

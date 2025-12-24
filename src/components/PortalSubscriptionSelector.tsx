@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n';
 import { Loader2, Check } from 'lucide-react';
+import { paymentsApi } from '@/lib/paymentsApi';
 
 interface PortalSubscription {
   id: string;
@@ -30,6 +31,7 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
   const [subscriptions, setSubscriptions] = useState<PortalSubscription[]>([]);
   const [currentSubscriptionId, setCurrentSubscriptionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSubscriptions();
@@ -74,11 +76,44 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
     }
   };
 
-  const handleCreateCommunity = (subscription: PortalSubscription) => {
-    if (subscription.payment_url) {
-      window.open(subscription.payment_url, '_blank');
+  const handleCreateCommunity = async (subscription: PortalSubscription) => {
+    if (!userId) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Необходимо авторизоваться' : 'Authentication required',
+        variant: 'destructive',
+      });
+      return;
     }
-    onSubscriptionSelected?.();
+
+    setProcessingId(subscription.id);
+
+    try {
+      const returnUrl = `${window.location.origin}/my-profile`;
+      const result = await paymentsApi.createPortalPayment({
+        portalSubscriptionId: subscription.id,
+        returnUrl,
+      });
+
+      if (result.isFree) {
+        toast({
+          title: language === 'ru' ? 'Успех' : 'Success',
+          description: language === 'ru' ? 'Бесплатная подписка активирована' : 'Free subscription activated',
+        });
+        await loadCurrentSubscription();
+        onSubscriptionSelected?.();
+      } else if (result.confirmationUrl) {
+        window.location.href = result.confirmationUrl;
+      }
+    } catch (error: any) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const formatPrice = (subscription: PortalSubscription) => {
@@ -148,11 +183,18 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
             <CardFooter>
               <Button
                 onClick={() => handleCreateCommunity(subscription)}
-                disabled={isCurrentSubscription}
+                disabled={isCurrentSubscription || processingId === subscription.id}
                 className="w-full"
                 variant={isFree ? 'outline' : 'default'}
               >
-                {language === 'ru' ? 'Создать сообщество' : 'Create Community'}
+                {processingId === subscription.id ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {language === 'ru' ? 'Обработка...' : 'Processing...'}
+                  </>
+                ) : (
+                  language === 'ru' ? 'Создать сообщество' : 'Create Community'
+                )}
               </Button>
             </CardFooter>
           </Card>

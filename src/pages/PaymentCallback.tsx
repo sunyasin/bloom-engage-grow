@@ -46,6 +46,17 @@ export default function PaymentCallback() {
 
       if (data.status === 'paid') {
         setStatus('success');
+
+        const metadata = data.metadata as any;
+        if (metadata?.type === 'portal_subscription' && metadata?.portal_subscription_id) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase
+              .from('profiles')
+              .update({ portal_subscription_id: metadata.portal_subscription_id })
+              .eq('id', user.id);
+          }
+        }
       } else if (data.status === 'failed') {
         setStatus('failed');
       }
@@ -56,7 +67,10 @@ export default function PaymentCallback() {
   };
 
   const handleGoToCommunity = () => {
-    if (transaction?.community?.slug) {
+    const metadata = transaction?.metadata as any;
+    if (metadata?.type === 'portal_subscription') {
+      navigate('/my-profile');
+    } else if (transaction?.community?.slug) {
       navigate(`/community/${transaction.community.slug}`);
     } else {
       navigate('/');
@@ -90,16 +104,31 @@ export default function PaymentCallback() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {transaction && (
+{transaction && (
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Community:</span>
-                <span className="font-medium">{transaction.community?.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Plan:</span>
-                <span className="font-medium">{transaction.subscription_tier?.name}</span>
-              </div>
+              {(transaction.metadata as any)?.type === 'portal_subscription' ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Type:</span>
+                    <span className="font-medium">Portal Subscription</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Description:</span>
+                    <span className="font-medium">{transaction.description}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Community:</span>
+                    <span className="font-medium">{transaction.community?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Plan:</span>
+                    <span className="font-medium">{transaction.subscription_tier?.name}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
                 <span className="font-medium">{transaction.amount} {transaction.currency}</span>
@@ -111,10 +140,12 @@ export default function PaymentCallback() {
             </div>
           )}
 
-          <div className="pt-4 space-y-2">
+<div className="pt-4 space-y-2">
             {status === 'success' && (
               <Button onClick={handleGoToCommunity} className="w-full">
-                Go to Community
+                {(transaction?.metadata as any)?.type === 'portal_subscription'
+                  ? 'Go to Profile'
+                  : 'Go to Community'}
               </Button>
             )}
             {status === 'failed' && (
