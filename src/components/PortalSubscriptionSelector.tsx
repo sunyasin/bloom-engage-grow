@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/lib/i18n';
@@ -28,10 +30,12 @@ interface PortalSubscriptionSelectorProps {
 export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: PortalSubscriptionSelectorProps) {
   const { toast } = useToast();
   const { language } = useI18n();
+  const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState<PortalSubscription[]>([]);
   const [currentSubscriptionId, setCurrentSubscriptionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [paidConfirmations, setPaidConfirmations] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     loadSubscriptions();
@@ -61,7 +65,7 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
     }
   };
 
-  const loadCurrentSubscription = async () => {
+const loadCurrentSubscription = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -70,19 +74,29 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
         .maybeSingle();
 
       if (error) throw error;
-      setCurrentSubscriptionId(data?.portal_subscription_id || null);
+      const subscriptionId = data?.portal_subscription_id || null;
+      setCurrentSubscriptionId(subscriptionId);
+
+      if (subscriptionId) {
+        setPaidConfirmations({ ...paidConfirmations, [subscriptionId]: true });
+      }
     } catch (error: any) {
       console.error('Error loading current subscription:', error);
     }
   };
 
-  const handleCreateCommunity = async (subscription: PortalSubscription) => {
+  const handlePayment = async (subscription: PortalSubscription) => {
     if (!userId) {
       toast({
         title: language === 'ru' ? 'Ошибка' : 'Error',
         description: language === 'ru' ? 'Необходимо авторизоваться' : 'Authentication required',
         variant: 'destructive',
       });
+      return;
+    }
+
+    if (subscription.payment_url) {
+      window.open(subscription.payment_url, '_blank');
       return;
     }
 
@@ -101,7 +115,7 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
           description: language === 'ru' ? 'Бесплатная подписка активирована' : 'Free subscription activated',
         });
         await loadCurrentSubscription();
-        onSubscriptionSelected?.();
+        setPaidConfirmations({ ...paidConfirmations, [subscription.id]: true });
       } else if (result.confirmationUrl) {
         window.location.href = result.confirmationUrl;
       }
@@ -114,6 +128,28 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleCreateCommunity = async (subscription: PortalSubscription) => {
+    if (!userId) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Необходимо авторизоваться' : 'Authentication required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!paidConfirmations[subscription.id]) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Подтвердите оплату перед созданием сообщества' : 'Please confirm payment before creating community',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    navigate('/create-community');
   };
 
   const formatPrice = (subscription: PortalSubscription) => {
@@ -175,17 +211,17 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
                 />
               )}
             </CardHeader>
-            <CardContent>
+<CardContent>
               <div className="text-3xl font-bold text-primary mb-4">
                 {formatPrice(subscription)}
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-3">
               <Button
-                onClick={() => handleCreateCommunity(subscription)}
+                onClick={() => handlePayment(subscription)}
                 disabled={isCurrentSubscription || processingId === subscription.id}
                 className="w-full"
-                variant={isFree ? 'outline' : 'default'}
+                variant="default"
               >
                 {processingId === subscription.id ? (
                   <>
@@ -193,8 +229,37 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
                     {language === 'ru' ? 'Обработка...' : 'Processing...'}
                   </>
                 ) : (
-                  language === 'ru' ? 'Создать сообщество' : 'Create Community'
+                  language === 'ru' ? 'Оплатить' : 'Pay'
                 )}
+              </Button>
+
+              <div className="flex items-center space-x-2 w-full py-2">
+                <Checkbox
+                  id={`paid-${subscription.id}`}
+                  checked={paidConfirmations[subscription.id] || false}
+                  onCheckedChange={(checked) => {
+                    setPaidConfirmations({
+                      ...paidConfirmations,
+                      [subscription.id]: checked as boolean
+                    });
+                  }}
+                  disabled={isCurrentSubscription}
+                />
+                <label
+                  htmlFor={`paid-${subscription.id}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  {language === 'ru' ? 'Я оплатил' : 'I paid'}
+                </label>
+              </div>
+
+              <Button
+                onClick={() => handleCreateCommunity(subscription)}
+                disabled={isCurrentSubscription || !paidConfirmations[subscription.id]}
+                className="w-full"
+                variant={isFree ? 'outline' : 'default'}
+              >
+                {language === 'ru' ? 'Создать сообщество' : 'Create Community'}
               </Button>
             </CardFooter>
           </Card>
