@@ -816,6 +816,48 @@ export type Database = {
           },
         ]
       }
+      portal_subscriptions: {
+        Row: {
+          badge_text: string
+          billing_period: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          payment_url: string | null
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          badge_text?: string
+          billing_period?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          payment_url?: string | null
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          badge_text?: string
+          billing_period?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          payment_url?: string | null
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       post_reactions: {
         Row: {
           created_at: string | null
@@ -933,6 +975,7 @@ export type Database = {
           last_login_ip: string | null
           level: number | null
           payplan: number | null
+          portal_subscription_id: string | null
           rating: number | null
           real_name: string | null
           state: string | null
@@ -951,6 +994,7 @@ export type Database = {
           last_login_ip?: string | null
           level?: number | null
           payplan?: number | null
+          portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
           state?: string | null
@@ -969,13 +1013,22 @@ export type Database = {
           last_login_ip?: string | null
           level?: number | null
           payplan?: number | null
+          portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
           state?: string | null
           telegram_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_portal_subscription_id_fkey"
+            columns: ["portal_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "portal_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
@@ -1211,8 +1264,14 @@ export type Database = {
           currency: string | null
           description: string | null
           id: string
+          idempotency_key: string | null
+          metadata: Json | null
           payment_method: string | null
+          provider: string | null
+          provider_payment_id: string | null
           status: Database["public"]["Enums"]["payment_status"] | null
+          subscription_tier_id: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -1223,8 +1282,14 @@ export type Database = {
           currency?: string | null
           description?: string | null
           id?: string
+          idempotency_key?: string | null
+          metadata?: Json | null
           payment_method?: string | null
+          provider?: string | null
+          provider_payment_id?: string | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          subscription_tier_id?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -1235,8 +1300,14 @@ export type Database = {
           currency?: string | null
           description?: string | null
           id?: string
+          idempotency_key?: string | null
+          metadata?: Json | null
           payment_method?: string | null
+          provider?: string | null
+          provider_payment_id?: string | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          subscription_tier_id?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1252,6 +1323,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_subscription_tier_id_fkey"
+            columns: ["subscription_tier_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_tiers"
             referencedColumns: ["id"]
           },
         ]
