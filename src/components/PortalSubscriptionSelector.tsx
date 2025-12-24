@@ -130,7 +130,7 @@ const loadCurrentSubscription = async () => {
     }
   };
 
-  const handleCreateCommunity = async (subscription: PortalSubscription) => {
+const handleCreateCommunity = async (subscription: PortalSubscription) => {
     if (!userId) {
       toast({
         title: language === 'ru' ? 'Ошибка' : 'Error',
@@ -149,7 +149,27 @@ const loadCurrentSubscription = async () => {
       return;
     }
 
-    navigate('/create-community');
+    setProcessingId(subscription.id);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ portal_subscription_id: subscription.id })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setCurrentSubscriptionId(subscription.id);
+      navigate('/create-community');
+    } catch (error: any) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const formatPrice = (subscription: PortalSubscription) => {
