@@ -1,10 +1,11 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Youtube from '@tiptap/extension-youtube';
 import Video from './tiptap/VideoExtension';
+import { ResizableImage } from './tiptap/ResizableImageExtension';
+import { Audio } from './tiptap/AudioExtension';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,7 +26,8 @@ import {
   Play,
   Minus,
   Undo,
-  Redo
+  Redo,
+  Volume2
 } from 'lucide-react';
 import { useCallback, useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
@@ -42,9 +44,11 @@ interface RichTextEditorProps {
 export default function RichTextEditor({ content, onChange, language, placeholder, lessonId }: RichTextEditorProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [audioDialogOpen, setAudioDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
 
   const editor = useEditor({
@@ -56,7 +60,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
           levels: [1, 2, 3, 4],
         },
       }),
-      Image.configure({
+      ResizableImage.configure({
         HTMLAttributes: {
           class: 'max-w-full rounded-lg',
         },
@@ -75,6 +79,12 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       Video.configure({
         HTMLAttributes: {
           class: 'w-full rounded-lg my-4',
+          controls: true,
+        },
+      }),
+      Audio.configure({
+        HTMLAttributes: {
+          class: 'w-full',
           controls: true,
         },
       }),
@@ -118,7 +128,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
 
   const insertImage = useCallback((url: string) => {
     if (url && editor) {
-      editor.chain().focus().setImage({ src: url }).run();
+      editor.chain().focus().setResizableImage({ src: url }).run();
       setImageDialogOpen(false);
       setImageUrl('');
     }
@@ -135,6 +145,14 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       }
       setVideoDialogOpen(false);
       setVideoUrl('');
+    }
+  }, [editor]);
+
+  const insertAudio = useCallback((url: string) => {
+    if (url && editor) {
+      editor.chain().focus().setAudio({ src: url }).run();
+      setAudioDialogOpen(false);
+      setAudioUrl('');
     }
   }, [editor]);
 
@@ -451,6 +469,22 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                 <p>{language === 'ru' ? 'Видео' : 'Video'}</p>
               </TooltipContent>
             </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80"
+                  onClick={() => setAudioDialogOpen(true)}
+                >
+                  <Volume2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{language === 'ru' ? 'Аудио' : 'Audio'}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -563,6 +597,39 @@ export default function RichTextEditor({ content, onChange, language, placeholde
               </Button>
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audio Dialog */}
+      <Dialog open={audioDialogOpen} onOpenChange={setAudioDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'ru' ? 'Вставить аудио' : 'Insert Audio'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{language === 'ru' ? 'URL аудио' : 'Audio URL'}</Label>
+              <Input
+                value={audioUrl}
+                onChange={(e) => setAudioUrl(e.target.value)}
+                placeholder="https://example.com/audio.mp3"
+              />
+              <p className="text-xs text-muted-foreground">
+                {language === 'ru' 
+                  ? 'Поддерживаются MP3, WAV, OGG и другие аудио форматы' 
+                  : 'Supports MP3, WAV, OGG and other audio formats'}
+              </p>
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={() => insertAudio(audioUrl)}
+              disabled={!audioUrl}
+            >
+              {language === 'ru' ? 'Вставить' : 'Insert'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

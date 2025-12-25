@@ -1,47 +1,46 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
-import VideoPlayer from "@/components/VideoPlayer";
-import { Trash2, Move } from "lucide-react";
+import { Trash2, Move, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
-export interface VideoOptions {
+export interface AudioOptions {
   HTMLAttributes: Record<string, any>;
 }
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
-    video: {
-      setVideo: (options: { src: string }) => ReturnType;
+    audio: {
+      setAudio: (options: { src: string }) => ReturnType;
     };
   }
 }
 
-const normalizeLessonVideoSrc = (src: string) => {
-  const marker = "/storage/v1/object/public/lesson-videos/";
-  const idx = src.indexOf(marker);
-  if (idx !== -1) return src.slice(idx + marker.length);
-  return src;
-};
-
-const VideoNodeView = (props: any) => {
+const AudioNodeView = (props: any) => {
   const { node, deleteNode, selected } = props;
-  const rawSrc = node?.attrs?.src as string | null;
-  const src = rawSrc ? normalizeLessonVideoSrc(rawSrc) : null;
+  const src = node.attrs.src;
   
   const [isHovered, setIsHovered] = useState(false);
 
-  if (!src) return null;
-
   return (
-    <NodeViewWrapper className="not-prose relative my-4">
+    <NodeViewWrapper className="relative my-4">
       <div
         className={`relative group ${selected ? "ring-2 ring-primary rounded-lg" : ""}`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         draggable
       >
-        <VideoPlayer src={src} />
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+          <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+            <Volume2 className="h-5 w-5 text-primary" />
+          </div>
+          <audio
+            src={src}
+            controls
+            className="flex-1 h-10"
+            style={{ minWidth: 0 }}
+          />
+        </div>
         
         {/* Controls overlay */}
         {(isHovered || selected) && (
@@ -72,8 +71,8 @@ const VideoNodeView = (props: any) => {
   );
 };
 
-export const Video = Node.create<VideoOptions>({
-  name: "video",
+export const Audio = Node.create<AudioOptions>({
+  name: "audio",
   group: "block",
   atom: true,
   draggable: true,
@@ -81,7 +80,7 @@ export const Video = Node.create<VideoOptions>({
   addOptions() {
     return {
       HTMLAttributes: {
-        class: "w-full rounded-lg",
+        class: "w-full",
         controls: true,
       },
     };
@@ -91,13 +90,6 @@ export const Video = Node.create<VideoOptions>({
     return {
       src: {
         default: null,
-        parseHTML: (element) => {
-          const directSrc = element.getAttribute("src");
-          if (directSrc) return directSrc;
-
-          const source = element.querySelector("source");
-          return source?.getAttribute("src") || null;
-        },
       },
     };
   },
@@ -105,29 +97,30 @@ export const Video = Node.create<VideoOptions>({
   parseHTML() {
     return [
       {
-        tag: "video",
+        tag: "audio[src]",
+      },
+      {
+        tag: "audio",
+        getAttrs: (element) => {
+          const source = element.querySelector("source");
+          return source ? { src: source.getAttribute("src") } : false;
+        },
       },
     ];
   },
 
   renderHTML({ HTMLAttributes }) {
-    // Keep a valid HTML representation for storage/preview; runtime rendering uses NodeView.
-    const attrs = mergeAttributes(this.options.HTMLAttributes, {
-      controls: true,
-      playsinline: "true",
-      class: this.options.HTMLAttributes.class,
-    });
-
-    return ["video", attrs, ["source", { src: HTMLAttributes.src, type: "video/mp4" }]];
+    const attrs = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes);
+    return ["audio", attrs, ["source", { src: HTMLAttributes.src, type: "audio/mpeg" }]];
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(VideoNodeView);
+    return ReactNodeViewRenderer(AudioNodeView);
   },
 
   addCommands() {
     return {
-      setVideo:
+      setAudio:
         (options) =>
         ({ commands }) => {
           return commands.insertContent({
@@ -139,4 +132,4 @@ export const Video = Node.create<VideoOptions>({
   },
 });
 
-export default Video;
+export default Audio;
