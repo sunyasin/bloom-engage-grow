@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
@@ -16,8 +17,9 @@ interface CommunitySettingsDialogProps {
     name: string;
     description: string | null;
     cover_image_url: string | null;
+    visibility?: string;
   };
-  onUpdate: (updated: { name: string; description: string | null; cover_image_url: string | null }) => void;
+  onUpdate: (updated: { name: string; description: string | null; cover_image_url: string | null; visibility: string }) => void;
   language: string;
 }
 
@@ -34,6 +36,7 @@ export function CommunitySettingsDialog({
   const [name, setName] = useState(community.name);
   const [description, setDescription] = useState(community.description || '');
   const [logoUrl, setLogoUrl] = useState(community.cover_image_url || '');
+  const [visibility, setVisibility] = useState(community.visibility || 'public');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -114,7 +117,8 @@ export function CommunitySettingsDialog({
         .update({
           name: name.trim(),
           description: description.trim() || null,
-          cover_image_url: logoUrl || null
+          cover_image_url: logoUrl || null,
+          visibility
         })
         .eq('id', community.id);
 
@@ -123,7 +127,8 @@ export function CommunitySettingsDialog({
       onUpdate({
         name: name.trim(),
         description: description.trim() || null,
-        cover_image_url: logoUrl || null
+        cover_image_url: logoUrl || null,
+        visibility
       });
       
       toast({
@@ -224,6 +229,25 @@ export function CommunitySettingsDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder={language === 'ru' ? 'Описание сообщества' : 'Community description'}
               rows={4}
+            />
+          </div>
+
+          {/* Visibility */}
+          <div className="flex items-center justify-between py-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="visibility">
+                {language === 'ru' ? 'Видимость для всех' : 'Visible to everyone'}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {language === 'ru' 
+                  ? 'Вы всегда будете видеть сообщество как автор' 
+                  : 'You will always see the community as the author'}
+              </p>
+            </div>
+            <Switch
+              id="visibility"
+              checked={visibility === 'public'}
+              onCheckedChange={(checked) => setVisibility(checked ? 'public' : 'private')}
             />
           </div>
         </div>
