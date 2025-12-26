@@ -8,6 +8,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { checkIfSuperuser } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
+import { CommunityTabsProvider } from "@/contexts/CommunityTabsContext";
 import { Header } from "@/components/Header";
 import { AuthModal } from "@/components/AuthModal";
 import Home from "./pages/Home";
@@ -93,69 +94,71 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <div className="min-h-screen bg-background">
-              <Header 
-                user={user} 
-                isSuperuser={isSuperuser} 
-                isAuthor={isAuthor}
-                onAuthClick={handleAuthClick} 
-              />
-              <AuthModal 
-                open={authModalOpen} 
-                mode={authMode} 
-                onClose={() => setAuthModalOpen(false)} 
-              />
-              <Routes>
-                <Route path="/" element={<Home user={user} />} />
-                <Route path="/discover" element={<Discover user={user} />} />
-                <Route path="/my-communities" element={user ? <MyCommunities user={user} /> : <Navigate to="/" />} />
-                <Route path="/community/:id" element={<Community user={user} />} />
-                <Route path="/events" element={<Events />} />
-                <Route path="/map" element={<div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Map coming soon...</div>} />
-                <Route path="/help" element={<Help />} />
-                <Route 
-                  path="/profile" 
-                  element={user ? <MyProfile /> : <Navigate to="/" />} 
+        <CommunityTabsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <div className="min-h-screen bg-background">
+                <Header 
+                  user={user} 
+                  isSuperuser={isSuperuser} 
+                  isAuthor={isAuthor}
+                  onAuthClick={handleAuthClick} 
                 />
-                <Route 
-                  path="/admin" 
-                  element={isSuperuser ? <Admin /> : <Navigate to="/" />} 
+                <AuthModal 
+                  open={authModalOpen} 
+                  mode={authMode} 
+                  onClose={() => setAuthModalOpen(false)} 
                 />
-                <Route 
-                  path="/my-courses" 
-                  element={(isAuthor || isSuperuser) ? <MyCourses /> : <Navigate to="/" />} 
-                />
-                <Route 
-                  path="/course/:courseId/lessons" 
-                  element={user ? <CourseEditor /> : <Navigate to="/" />} 
-                />
-                <Route 
-                  path="/course/:courseId/lesson/:lessonId" 
-                  element={user ? <LessonEditor /> : <Navigate to="/" />} 
-                />
-                <Route 
-                  path="/community/:communityId/lessons" 
-                  element={user ? <CommunityLessonBuilder user={user} /> : <Navigate to="/" />} 
-                />
-                <Route 
-                  path="/course/:courseId/preview" 
-                  element={<CoursePreview user={user} />} 
-                />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/payment/callback" element={<PaymentCallback />} />
-                <Route
-                  path="/create-community"
-                  element={user ? <CreateCommunity /> : <Navigate to="/" />}
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-          </BrowserRouter>
-        </TooltipProvider>
+                <Routes>
+                  <Route path="/" element={<Home user={user} />} />
+                  <Route path="/discover" element={<Discover user={user} />} />
+                  <Route path="/my-communities" element={user ? <MyCommunities user={user} /> : <Navigate to="/" />} />
+                  <Route path="/community/:id" element={<Community user={user} />} />
+                  <Route path="/events" element={<Events />} />
+                  <Route path="/map" element={<div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Map coming soon...</div>} />
+                  <Route path="/help" element={<Help />} />
+                  <Route 
+                    path="/profile" 
+                    element={user ? <MyProfile /> : <Navigate to="/" />} 
+                  />
+                  <Route 
+                    path="/admin" 
+                    element={isSuperuser ? <Admin /> : <Navigate to="/" />} 
+                  />
+                  <Route 
+                    path="/my-courses" 
+                    element={(isAuthor || isSuperuser) ? <MyCourses /> : <Navigate to="/" />} 
+                  />
+                  <Route 
+                    path="/course/:courseId/lessons" 
+                    element={user ? <CourseEditor /> : <Navigate to="/" />} 
+                  />
+                  <Route 
+                    path="/course/:courseId/lesson/:lessonId" 
+                    element={user ? <LessonEditor /> : <Navigate to="/" />} 
+                  />
+                  <Route 
+                    path="/community/:communityId/lessons" 
+                    element={user ? <CommunityLessonBuilder user={user} /> : <Navigate to="/" />} 
+                  />
+                  <Route 
+                    path="/course/:courseId/preview" 
+                    element={<CoursePreview user={user} />} 
+                  />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/payment/callback" element={<PaymentCallback />} />
+                  <Route
+                    path="/create-community"
+                    element={user ? <CreateCommunity /> : <Navigate to="/" />}
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </div>
+            </BrowserRouter>
+          </TooltipProvider>
+        </CommunityTabsProvider>
       </I18nProvider>
     </QueryClientProvider>
   );
