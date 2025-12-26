@@ -3,8 +3,6 @@ import { Button } from "./ui/button";
 import { User } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { useI18n } from "@/lib/i18n";
-import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HelpCircle, Menu, X } from "lucide-react";
 import { useState } from "react";
 
@@ -19,21 +17,20 @@ interface HeaderProps {
 export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: HeaderProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { t } = useI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     const { error } = await signOut();
     if (error) {
       toast({
-        title: "Error",
+        title: "Ошибка",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Success",
-        description: "Signed out successfully",
+        title: "Успешно",
+        description: "Вы вышли из системы",
       });
       navigate("/");
     }
@@ -41,39 +38,24 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
 
   const NavLinks = () => (
     <>
-      {!user ? (
+      {/* Сообщества - первый пункт слева */}
+      <Link
+        to={user ? "/my-communities" : "/discover"}
+        className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        Сообщества
+      </Link>
+      
+      {user && (
         <>
-          <Link
-            to="/discover"
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {t('nav.communities')}
-          </Link>
-        </>
-      ) : (
-        <>
-          <Link
-            to="/my-communities"
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {t('nav.myCommunities')}
-          </Link>
-          <Link
-            to="/profile"
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {t('nav.profile')}
-          </Link>
           {(isAuthor || isSuperuser) && (
             <Link
               to="/my-courses"
               className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
               onClick={() => setMobileMenuOpen(false)}
             >
-              {t('nav.myCourses')}
+              Мои курсы
             </Link>
           )}
           {isSuperuser && (
@@ -82,9 +64,17 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
               className="text-sm font-medium text-accent hover:text-accent/80 transition-smooth"
               onClick={() => setMobileMenuOpen(false)}
             >
-              {t('nav.admin')}
+              Админ
             </Link>
           )}
+          {/* Кабинет - последний пункт */}
+          <Link
+            to="/profile"
+            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Кабинет
+          </Link>
         </>
       )}
     </>
@@ -112,7 +102,6 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
 
           {/* Right side */}
           <div className="flex items-center gap-4">
-            <LanguageSwitcher />
             <Link 
               to="/help" 
               className="text-muted-foreground hover:text-foreground transition-smooth"
@@ -125,15 +114,15 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
               {!user ? (
                 <>
                   <Button variant="ghost" onClick={() => onAuthClick('signin')}>
-                    {t('nav.signIn')}
+                    Войти
                   </Button>
                   <Button onClick={() => onAuthClick('register')} className="bg-gradient-primary">
-                    {t('nav.register')}
+                    Регистрация
                   </Button>
                 </>
               ) : (
                 <Button variant="ghost" onClick={handleSignOut}>
-                  {t('nav.signOut')}
+                  Выйти
                 </Button>
               )}
             </div>
@@ -156,15 +145,15 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
               {!user ? (
                 <div className="flex flex-col gap-2 pt-4 border-t border-border">
                   <Button variant="ghost" onClick={() => { onAuthClick('signin'); setMobileMenuOpen(false); }}>
-                    {t('nav.signIn')}
+                    Войти
                   </Button>
                   <Button onClick={() => { onAuthClick('register'); setMobileMenuOpen(false); }} className="bg-gradient-primary">
-                    {t('nav.register')}
+                    Регистрация
                   </Button>
                 </div>
               ) : (
                 <Button variant="ghost" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }} className="mt-4">
-                  {t('nav.signOut')}
+                  Выйти
                 </Button>
               )}
             </nav>
