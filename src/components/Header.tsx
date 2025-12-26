@@ -1,10 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { User } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { HelpCircle, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useCommunityTabs } from "@/contexts/CommunityTabsContext";
 
 interface HeaderProps {
   user: User | null;
@@ -16,8 +17,14 @@ interface HeaderProps {
 
 export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: HeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  const { tabs, activeTab, setActiveTab, communityId } = useCommunityTabs();
+  
+  // Check if we're on a community page
+  const isCommunityPage = location.pathname.startsWith('/community/') && communityId;
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -47,7 +54,25 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
         Сообщества
       </Link>
       
-      {user && (
+      {/* Community tabs when on community page */}
+      {isCommunityPage && tabs.map((tab) => (
+        <button
+          key={tab.value}
+          onClick={() => {
+            setActiveTab(tab.value);
+            setMobileMenuOpen(false);
+          }}
+          className={`text-sm font-medium transition-smooth ${
+            activeTab === tab.value 
+              ? 'text-primary' 
+              : 'text-foreground/80 hover:text-foreground'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+      
+      {user && !isCommunityPage && (
         <>
           {(isAuthor || isSuperuser) && (
             <Link
@@ -67,15 +92,18 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
               Админ
             </Link>
           )}
-          {/* Кабинет - последний пункт */}
-          <Link
-            to="/profile"
-            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Кабинет
-          </Link>
         </>
+      )}
+      
+      {/* Кабинет - последний пункт */}
+      {user && (
+        <Link
+          to="/profile"
+          className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          Кабинет
+        </Link>
       )}
     </>
   );

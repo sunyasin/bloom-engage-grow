@@ -5,9 +5,8 @@ import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal, Calendar } from 'lucide-react';
+import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal } from 'lucide-react';
 import { SubscriptionTiersManager } from '@/components/SubscriptionTiersManager';
 import { CommunitySettingsDialog } from '@/components/CommunitySettingsDialog';
 import { User } from '@supabase/supabase-js';
@@ -17,6 +16,7 @@ import { PostLikeButton } from '@/components/PostLikeButton';
 import { CommunityEventsTab } from '@/components/CommunityEventsTab';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
+import { useCommunityTabs } from '@/contexts/CommunityTabsContext';
 
 interface CommunityData {
   id: string;
@@ -49,6 +49,7 @@ export default function Community({ user }: CommunityProps) {
   const navigate = useNavigate();
   const { t, language } = useI18n();
   const { toast } = useToast();
+  const { activeTab, setActiveTab, setCommunityId, setTabs } = useCommunityTabs();
   
   const [community, setCommunity] = useState<CommunityData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -62,6 +63,26 @@ export default function Community({ user }: CommunityProps) {
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Set up community tabs in header
+  useEffect(() => {
+    if (id) {
+      setCommunityId(id);
+      setTabs([
+        { value: 'feed', label: language === 'ru' ? 'Лента' : 'Feed' },
+        { value: 'courses', label: language === 'ru' ? 'Курсы' : 'Courses' },
+        { value: 'events', label: language === 'ru' ? 'События' : 'Events' },
+        { value: 'members', label: language === 'ru' ? 'Участники' : 'Members' },
+        { value: 'about', label: language === 'ru' ? 'О сообществе' : 'About' },
+      ]);
+      setActiveTab('feed');
+    }
+    
+    return () => {
+      setCommunityId(null);
+      setTabs([]);
+    };
+  }, [id, language, setCommunityId, setTabs, setActiveTab]);
 
   const fetchCommunity = async () => {
     if (!id) return;
@@ -273,19 +294,9 @@ export default function Community({ user }: CommunityProps) {
         <div className="flex flex-col lg:flex-row gap-8 relative">
           {/* Main content */}
           <div className="flex-1">
-            <Tabs defaultValue="feed" className="w-full">
-              <TabsList className="mb-6">
-                <TabsTrigger value="feed">{t('community.feed')}</TabsTrigger>
-                <TabsTrigger value="courses">{t('community.courses')}</TabsTrigger>
-                <TabsTrigger value="events">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  {language === 'ru' ? 'События' : 'Events'}
-                </TabsTrigger>
-                <TabsTrigger value="members">{t('community.members')}</TabsTrigger>
-                <TabsTrigger value="about">{t('community.about')}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="feed">
+            {/* Feed Tab */}
+            {activeTab === 'feed' && (
+              <>
                 {/* New post form */}
                 {isMember && (
                   <div className="bg-card rounded-xl p-4 border border-border mb-6">
@@ -367,41 +378,45 @@ export default function Community({ user }: CommunityProps) {
                     </div>
                   ))}
                 </div>
-              </TabsContent>
+              </>
+            )}
 
-              <TabsContent value="courses">
-                <CoursesTab
-                  communityId={id!}
-                  isOwner={isOwner}
-                  userId={user?.id}
-                  language={language}
-                  navigate={navigate}
-                />
-              </TabsContent>
+            {/* Courses Tab */}
+            {activeTab === 'courses' && (
+              <CoursesTab
+                communityId={id!}
+                isOwner={isOwner}
+                userId={user?.id}
+                language={language}
+                navigate={navigate}
+              />
+            )}
 
-              <TabsContent value="events">
-                <CommunityEventsTab
-                  communityId={id!}
-                  userId={user?.id || null}
-                  isOwnerOrModerator={userRole === 'owner' || userRole === 'moderator'}
-                  userRating={userProfile?.rating || 0}
-                  userTier={userProfile?.subscription_tier || null}
-                />
-              </TabsContent>
+            {/* Events Tab */}
+            {activeTab === 'events' && (
+              <CommunityEventsTab
+                communityId={id!}
+                userId={user?.id || null}
+                isOwnerOrModerator={userRole === 'owner' || userRole === 'moderator'}
+                userRating={userProfile?.rating || 0}
+                userTier={userProfile?.subscription_tier || null}
+              />
+            )}
 
-              <TabsContent value="members">
-                <div className="text-center py-16 text-muted-foreground">
-                  Members list coming soon...
-                </div>
-              </TabsContent>
+            {/* Members Tab */}
+            {activeTab === 'members' && (
+              <div className="text-center py-16 text-muted-foreground">
+                Members list coming soon...
+              </div>
+            )}
 
-              <TabsContent value="about">
-                <div className="bg-card rounded-xl p-6 border border-border">
-                  <h2 className="text-xl font-semibold mb-4">{community.name}</h2>
-                  <p className="text-muted-foreground">{community.description || 'No description'}</p>
-                </div>
-              </TabsContent>
-            </Tabs>
+            {/* About Tab */}
+            {activeTab === 'about' && (
+              <div className="bg-card rounded-xl p-6 border border-border">
+                <h2 className="text-xl font-semibold mb-4">{community.name}</h2>
+                <p className="text-muted-foreground">{community.description || 'No description'}</p>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
