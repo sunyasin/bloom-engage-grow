@@ -704,7 +704,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => navigate('/my-courses')}
+                onClick={() => navigate(`/community/${course.community_id}?tab=courses`)}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 {language === 'ru' ? 'Курсы' : 'Courses'}

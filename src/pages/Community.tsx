@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -64,6 +64,8 @@ export default function Community({ user }: CommunityProps) {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
 
+  const [searchParams] = useSearchParams();
+
   // Set up community tabs in header
   useEffect(() => {
     if (id) {
@@ -75,14 +77,15 @@ export default function Community({ user }: CommunityProps) {
         { value: 'members', label: language === 'ru' ? 'Участники' : 'Members' },
         { value: 'about', label: language === 'ru' ? 'О сообществе' : 'About' },
       ]);
-      setActiveTab('feed');
+      const tabParam = searchParams.get('tab');
+      setActiveTab(tabParam && ['feed', 'courses', 'events', 'members', 'about'].includes(tabParam) ? tabParam : 'feed');
     }
     
     return () => {
       setCommunityId(null);
       setTabs([]);
     };
-  }, [id, language, setCommunityId, setTabs, setActiveTab]);
+  }, [id, language, setCommunityId, setTabs, setActiveTab, searchParams]);
 
   const fetchCommunity = async () => {
     if (!id) return;
