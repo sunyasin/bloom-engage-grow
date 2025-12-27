@@ -74,15 +74,13 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
       
       {user && !isCommunityPage && (
         <>
-          {(isAuthor || isSuperuser) && (
-            <Link
-              to="/my-courses"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Мои курсы
-            </Link>
-          )}
+          <Link
+            to="/my-courses"
+            className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Мои курсы
+          </Link>
           {isSuperuser && (
             <Link
               to="/admin"
