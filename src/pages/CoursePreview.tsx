@@ -16,7 +16,8 @@ import {
   Settings, 
   Globe,
   Plus,
-  GripVertical
+  GripVertical,
+  Lock
 } from 'lucide-react';
 import {
   DndContext,
@@ -113,6 +114,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [publishing, setPublishing] = useState(false);
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [courseStartDate, setCourseStartDate] = useState<Date | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -236,11 +238,25 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         }
       }
 
+      // Fetch course start date for current user
+      if (user) {
+        const { data: courseStart } = await supabase
+          .from('course_starts')
+          .select('started_at')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .maybeSingle();
+        
+        if (courseStart) {
+          setCourseStartDate(new Date(courseStart.started_at));
+        }
+      }
+
       setLoading(false);
     };
 
     fetchData();
-  }, [courseId]);
+  }, [courseId, user]);
 
   const toggleExpand = (lessonId: string) => {
     setExpandedLessons(prev => {
@@ -265,9 +281,68 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     }
   };
 
+  const isAuthor = user?.id === course?.author_id;
+
+  // Check if lesson is available based on delay_days and course start date
+  const isLessonAvailable = (lesson: Lesson): boolean => {
+    // Authors can always access all lessons
+    if (isAuthor) return true;
+    
+    // If no delay, lesson is available
+    const delayDays = lesson.delay_days ?? 0;
+    if (delayDays === 0) return true;
+    
+    // If no course start date yet, lesson with delay is not available
+    if (!courseStartDate) return false;
+    
+    // Calculate if enough days have passed
+    const now = new Date();
+    const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysSinceStart >= delayDays;
+  };
+
+  // Get days remaining until lesson unlocks
+  const getDaysRemaining = (lesson: Lesson): number => {
+    const delayDays = lesson.delay_days ?? 0;
+    if (delayDays === 0 || !courseStartDate) return delayDays;
+    
+    const now = new Date();
+    const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, delayDays - daysSinceStart);
+  };
+
   const handleSelectLesson = async (lesson: Lesson) => {
+    // Check if lesson is available
+    if (!isLessonAvailable(lesson)) {
+      const remaining = getDaysRemaining(lesson);
+      toast({
+        title: language === 'ru' ? 'Урок недоступен' : 'Lesson unavailable',
+        description: language === 'ru' 
+          ? `Этот урок откроется через ${remaining} ${remaining === 1 ? 'день' : 'дней'}`
+          : `This lesson will unlock in ${remaining} day${remaining === 1 ? '' : 's'}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const fullLesson = allLessons.find(l => l.id === lesson.id);
     setSelectedLesson(fullLesson || lesson);
+    
+    // Record course start if this is the first lesson view
+    if (user && courseId && !courseStartDate) {
+      const { data: newStart } = await supabase
+        .from('course_starts')
+        .upsert({
+          user_id: user.id,
+          course_id: courseId,
+        }, { onConflict: 'user_id,course_id' })
+        .select('started_at')
+        .single();
+      
+      if (newStart) {
+        setCourseStartDate(new Date(newStart.started_at));
+      }
+    }
     
     // Fetch lesson blocks
     const { data: blocksData } = await supabase
@@ -600,6 +675,9 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const hasChildren = lesson.children && lesson.children.length > 0;
     const isExpanded = expandedLessons.has(lesson.id);
     const isSelected = selectedLesson?.id === lesson.id;
+    const available = isLessonAvailable(lesson);
+    const daysRemaining = getDaysRemaining(lesson);
+    const hasDelay = (lesson.delay_days ?? 0) > 0;
 
     const {
       attributes,
@@ -613,7 +691,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      opacity: isDragging ? 0.5 : 1,
+      opacity: isDragging ? 0.5 : (available ? 1 : 0.6),
     };
 
     return (
@@ -622,7 +700,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           className={`group flex items-center gap-1 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
             isSelected 
               ? 'bg-primary/10 text-primary border border-primary/20' 
-              : 'hover:bg-muted/50'
+              : available ? 'hover:bg-muted/50' : 'hover:bg-muted/30'
           } ${isDragging ? 'shadow-lg bg-card z-50' : ''}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
@@ -647,11 +725,29 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
             <div className="w-4" />
           )}
           
-          {getTypeIcon(lesson.type)}
+          {!available ? (
+            <Lock className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            getTypeIcon(lesson.type)
+          )}
           
-          <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''}`}>
+          <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''} ${!available ? 'text-muted-foreground' : ''}`}>
             {lesson.title}
           </span>
+          
+          {/* Show days remaining for locked lessons */}
+          {!available && daysRemaining > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {language === 'ru' ? `через ${daysRemaining} дн.` : `in ${daysRemaining}d`}
+            </span>
+          )}
+          
+          {/* Show delay indicator for authors */}
+          {isAuthor && hasDelay && available && (
+            <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100">
+              {lesson.delay_days}д
+            </span>
+          )}
           
           {isAuthor && (
             <>
@@ -691,7 +787,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     );
   };
 
-  const isAuthor = user?.id === course?.author_id;
 
   if (loading) {
     return (
