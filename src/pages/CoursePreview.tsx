@@ -48,6 +48,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 import CourseSettingsDialog from '@/components/CourseSettingsDialog';
+import LessonSettingsDialog from '@/components/LessonSettingsDialog';
 import VideoPlayer from '@/components/VideoPlayer';
 import LessonContentRenderer from '@/components/LessonContentRenderer';
 import type { Database } from '@/integrations/supabase/types';
@@ -82,6 +83,7 @@ interface Lesson {
   parent_lesson_id: string | null;
   content_html: string | null;
   video_url: string | null;
+  delay_days?: number;
   children?: Lesson[];
 }
 
@@ -104,6 +106,8 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showDeleteLessonDialog, setShowDeleteLessonDialog] = useState(false);
+  const [showLessonSettingsDialog, setShowLessonSettingsDialog] = useState(false);
+  const [lessonToEdit, setLessonToEdit] = useState<Lesson | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deletingLesson, setDeletingLesson] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -650,16 +654,29 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           </span>
           
           {isAuthor && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCreateLesson(lesson.id, e);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
-              title={language === 'ru' ? 'Добавить вложенный урок' : 'Add nested lesson'}
-            >
-              <Plus className="h-3 w-3" />
-            </button>
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLessonToEdit(lesson);
+                  setShowLessonSettingsDialog(true);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
+                title={language === 'ru' ? 'Настройки урока' : 'Lesson settings'}
+              >
+                <Settings className="h-3 w-3" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCreateLesson(lesson.id, e);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
+                title={language === 'ru' ? 'Добавить вложенный урок' : 'Add nested lesson'}
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </>
           )}
         </div>
 
@@ -987,13 +1004,58 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Settings dialog */}
+      {/* Course Settings dialog */}
       {course && (
         <CourseSettingsDialog
           open={showSettingsDialog}
           onOpenChange={setShowSettingsDialog}
           course={course}
           onSave={handleSettingsSave}
+        />
+      )}
+
+      {/* Lesson Settings dialog */}
+      {lessonToEdit && (
+        <LessonSettingsDialog
+          open={showLessonSettingsDialog}
+          onOpenChange={setShowLessonSettingsDialog}
+          lessonId={lessonToEdit.id}
+          lessonTitle={lessonToEdit.title}
+          initialDelayDays={lessonToEdit.delay_days ?? 0}
+          language={language}
+          onSave={() => {
+            // Refresh lessons to get updated delay_days
+            if (courseId) {
+              supabase
+                .from('lessons')
+                .select('*')
+                .eq('course_id', courseId)
+                .order('order_index', { ascending: true })
+                .then(({ data }) => {
+                  if (data) {
+                    setAllLessons(data);
+                    const lessonMap = new Map<string, Lesson>();
+                    const rootLessons: Lesson[] = [];
+                    data.forEach(lesson => {
+                      lessonMap.set(lesson.id, { ...lesson, children: [] });
+                    });
+                    data.forEach(lesson => {
+                      const lessonWithChildren = lessonMap.get(lesson.id)!;
+                      if (lesson.parent_lesson_id) {
+                        const parent = lessonMap.get(lesson.parent_lesson_id);
+                        if (parent) {
+                          parent.children = parent.children || [];
+                          parent.children.push(lessonWithChildren);
+                        }
+                      } else {
+                        rootLessons.push(lessonWithChildren);
+                      }
+                    });
+                    setLessons(rootLessons);
+                  }
+                });
+            }
+          }}
         />
       )}
     </div>

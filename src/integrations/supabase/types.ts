@@ -710,6 +710,7 @@ export type Database = {
           content_html: string | null
           course_id: string
           created_at: string | null
+          delay_days: number | null
           id: string
           order_index: number | null
           parent_lesson_id: string | null
@@ -722,6 +723,7 @@ export type Database = {
           content_html?: string | null
           course_id: string
           created_at?: string | null
+          delay_days?: number | null
           id?: string
           order_index?: number | null
           parent_lesson_id?: string | null
@@ -734,6 +736,7 @@ export type Database = {
           content_html?: string | null
           course_id?: string
           created_at?: string | null
+          delay_days?: number | null
           id?: string
           order_index?: number | null
           parent_lesson_id?: string | null
