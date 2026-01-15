@@ -246,6 +246,7 @@ export function CommunitySettingsDialog({
                 onChange={setContentHtml}
                 placeholder={language === 'ru' ? 'Добавьте контент для страницы About...' : 'Add content for About page...'}
                 language={language}
+                communityId={community.id}
               />
             </div>
           </div>

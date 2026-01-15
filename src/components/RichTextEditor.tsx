@@ -40,6 +40,7 @@ import {
 import { useCallback, useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
 import VideoUploader from './VideoUploader';
+import CommunityMediaUploader from './CommunityMediaUploader';
 
 interface RichTextEditorProps {
   content: string;
@@ -47,9 +48,10 @@ interface RichTextEditorProps {
   language: string;
   placeholder?: string;
   lessonId?: string;
+  communityId?: string;
 }
 
-export default function RichTextEditor({ content, onChange, language, placeholder, lessonId }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, language, placeholder, lessonId, communityId }: RichTextEditorProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [videoDialogOpen, setVideoDialogOpen] = useState(false);
   const [audioDialogOpen, setAudioDialogOpen] = useState(false);
@@ -637,9 +639,9 @@ export default function RichTextEditor({ content, onChange, language, placeholde
               {language === 'ru' ? 'Вставить изображение' : 'Insert Image'}
             </DialogTitle>
           </DialogHeader>
-          <Tabs defaultValue={lessonId ? "upload" : "url"} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              {lessonId && (
+          <Tabs defaultValue={(lessonId || communityId) ? "upload" : "url"} className="w-full">
+            <TabsList className={`grid w-full ${(lessonId || communityId) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {(lessonId || communityId) && (
                 <TabsTrigger value="upload">
                   {language === 'ru' ? 'Загрузить' : 'Upload'}
                 </TabsTrigger>
@@ -652,6 +654,18 @@ export default function RichTextEditor({ content, onChange, language, placeholde
               <TabsContent value="upload" className="mt-4">
                 <ImageUploader
                   lessonId={lessonId}
+                  onUploadComplete={(url) => {
+                    if (url) insertImage(url);
+                  }}
+                />
+              </TabsContent>
+            )}
+            {communityId && !lessonId && (
+              <TabsContent value="upload" className="mt-4">
+                <CommunityMediaUploader
+                  communityId={communityId}
+                  type="image"
+                  language={language}
                   onUploadComplete={(url) => {
                     if (url) insertImage(url);
                   }}
@@ -687,9 +701,9 @@ export default function RichTextEditor({ content, onChange, language, placeholde
               {language === 'ru' ? 'Вставить видео' : 'Insert Video'}
             </DialogTitle>
           </DialogHeader>
-          <Tabs defaultValue={lessonId ? "upload" : "url"} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              {lessonId && (
+          <Tabs defaultValue={(lessonId || communityId) ? "upload" : "url"} className="w-full">
+            <TabsList className={`grid w-full ${(lessonId || communityId) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {(lessonId || communityId) && (
                 <TabsTrigger value="upload">
                   {language === 'ru' ? 'Загрузить' : 'Upload'}
                 </TabsTrigger>
@@ -707,6 +721,18 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                       // Store only the storage path (bucket is private; VideoPlayer will request a signed URL)
                       insertVideo(path);
                     }
+                  }}
+                />
+              </TabsContent>
+            )}
+            {communityId && !lessonId && (
+              <TabsContent value="upload" className="mt-4">
+                <CommunityMediaUploader
+                  communityId={communityId}
+                  type="video"
+                  language={language}
+                  onUploadComplete={(url) => {
+                    if (url) insertVideo(url);
                   }}
                 />
               </TabsContent>
