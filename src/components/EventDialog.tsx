@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Video, Youtube } from "lucide-react";
 
 interface Event {
   id: string;
@@ -35,6 +36,14 @@ interface Event {
   required_tier: string | null;
   link: string | null;
   send_email: boolean;
+  zoom_link?: string | null;
+  is_zoom_stream?: boolean;
+  youtube_stream_url?: string | null;
+  youtube_embed_url?: string | null;
+  is_youtube_stream?: boolean;
+  stream_status?: string;
+  stream_start_time?: string | null;
+  stream_end_time?: string | null;
 }
 
 interface EventDialogProps {
@@ -66,9 +75,39 @@ export function EventDialog({
   const [requiredTier, setRequiredTier] = useState<string>("");
   const [sendEmail, setSendEmail] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Streaming fields
+  const [isZoomStream, setIsZoomStream] = useState(false);
+  const [zoomLink, setZoomLink] = useState("");
+  const [isYoutubeStream, setIsYoutubeStream] = useState(false);
+  const [youtubeStreamUrl, setYoutubeStreamUrl] = useState("");
+  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState("");
+  const [streamStartTime, setStreamStartTime] = useState("");
+  const [streamEndTime, setStreamEndTime] = useState("");
+  
   const { toast } = useToast();
 
   const isEditMode = !!event;
+
+  // Auto-detect Zoom link
+  useEffect(() => {
+    if (zoomLink) {
+      const isZoom = zoomLink.includes('zoom.us') || zoomLink.includes('zoom.com');
+      if (isZoom && !isZoomStream) {
+        setIsZoomStream(true);
+      }
+    }
+  }, [zoomLink]);
+
+  // Extract YouTube embed URL from stream URL
+  useEffect(() => {
+    if (youtubeStreamUrl) {
+      const videoIdMatch = youtubeStreamUrl.match(/(?:youtube\.com\/(?:watch\?v=|live\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+      if (videoIdMatch && videoIdMatch[1]) {
+        setYoutubeEmbedUrl(`https://www.youtube.com/embed/${videoIdMatch[1]}?autoplay=1`);
+      }
+    }
+  }, [youtubeStreamUrl]);
 
   useEffect(() => {
     if (event) {
@@ -81,18 +120,36 @@ export function EventDialog({
       setMinRating(event.min_rating ? event.min_rating.toString() : "");
       setRequiredTier(event.required_tier || "");
       setSendEmail(event.send_email || false);
+      setIsZoomStream(event.is_zoom_stream || false);
+      setZoomLink(event.zoom_link || "");
+      setIsYoutubeStream(event.is_youtube_stream || false);
+      setYoutubeStreamUrl(event.youtube_stream_url || "");
+      setYoutubeEmbedUrl(event.youtube_embed_url || "");
+      setStreamStartTime(event.stream_start_time ? event.stream_start_time.slice(0, 16) : "");
+      setStreamEndTime(event.stream_end_time ? event.stream_end_time.slice(0, 16) : "");
     } else {
-      setTitle("");
-      setEventDate("");
-      setEventTime("");
-      setDescription("");
-      setLink("");
-      setAccess("all");
-      setMinRating("");
-      setRequiredTier("");
-      setSendEmail(false);
+      resetForm();
     }
   }, [event, open]);
+
+  const resetForm = () => {
+    setTitle("");
+    setEventDate("");
+    setEventTime("");
+    setDescription("");
+    setLink("");
+    setAccess("all");
+    setMinRating("");
+    setRequiredTier("");
+    setSendEmail(false);
+    setIsZoomStream(false);
+    setZoomLink("");
+    setIsYoutubeStream(false);
+    setYoutubeStreamUrl("");
+    setYoutubeEmbedUrl("");
+    setStreamStartTime("");
+    setStreamEndTime("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +193,14 @@ export function EventDialog({
       min_rating: access === 'for_rating' && minRating ? parseInt(minRating) : null,
       required_tier: access === 'for_tier' ? requiredTier : null,
       send_email: sendEmail,
+      is_zoom_stream: isZoomStream,
+      zoom_link: isZoomStream ? zoomLink : null,
+      is_youtube_stream: isYoutubeStream,
+      youtube_stream_url: isYoutubeStream ? youtubeStreamUrl : null,
+      youtube_embed_url: isYoutubeStream ? youtubeEmbedUrl : null,
+      stream_status: (isZoomStream || isYoutubeStream) ? 'scheduled' : null,
+      stream_start_time: (isZoomStream || isYoutubeStream) && streamStartTime ? new Date(streamStartTime).toISOString() : null,
+      stream_end_time: (isZoomStream || isYoutubeStream) && streamEndTime ? new Date(streamEndTime).toISOString() : null,
     };
 
     let error;
@@ -173,22 +238,14 @@ export function EventDialog({
         : (language === 'ru' ? 'Событие создано' : 'Event created successfully'),
     });
 
-    setTitle("");
-    setEventDate("");
-    setEventTime("");
-    setDescription("");
-    setLink("");
-    setAccess("all");
-    setMinRating("");
-    setRequiredTier("");
-    setSendEmail(false);
+    resetForm();
     onOpenChange(false);
     onEventCreated?.();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isEditMode
@@ -210,28 +267,30 @@ export function EventDialog({
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="date">
-                {language === 'ru' ? 'Дата' : 'Date'} *
-              </Label>
-              <Input
-                id="date"
-                type="date"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="time">
-                {language === 'ru' ? 'Время' : 'Time'}
-              </Label>
-              <Input
-                id="time"
-                type="time"
-                value={eventTime}
-                onChange={(e) => setEventTime(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date">
+                  {language === 'ru' ? 'Дата' : 'Date'} *
+                </Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="time">
+                  {language === 'ru' ? 'Время' : 'Time'}
+                </Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="description">
@@ -253,9 +312,104 @@ export function EventDialog({
                 id="link"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
-                placeholder={language === 'ru' ? 'https://example.com' : 'https://example.com'}
+                placeholder="https://example.com"
               />
             </div>
+
+            {/* Streaming options */}
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <h4 className="font-medium flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                {language === 'ru' ? 'Трансляция' : 'Streaming'}
+              </h4>
+
+              {/* Zoom streaming */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="isZoomStream"
+                    checked={isZoomStream}
+                    onCheckedChange={(checked) => {
+                      setIsZoomStream(checked === true);
+                      if (checked) setIsYoutubeStream(false);
+                    }}
+                  />
+                  <Label htmlFor="isZoomStream" className="flex items-center gap-2 cursor-pointer">
+                    <Video className="w-4 h-4 text-blue-500" />
+                    {language === 'ru' ? 'Zoom трансляция по ссылке' : 'Zoom broadcast by link'}
+                  </Label>
+                </div>
+                {isZoomStream && (
+                  <Input
+                    value={zoomLink}
+                    onChange={(e) => setZoomLink(e.target.value)}
+                    placeholder="https://zoom.us/j/..."
+                    className="ml-6"
+                  />
+                )}
+              </div>
+
+              {/* YouTube streaming */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="isYoutubeStream"
+                    checked={isYoutubeStream}
+                    onCheckedChange={(checked) => {
+                      setIsYoutubeStream(checked === true);
+                      if (checked) setIsZoomStream(false);
+                    }}
+                  />
+                  <Label htmlFor="isYoutubeStream" className="flex items-center gap-2 cursor-pointer">
+                    <Youtube className="w-4 h-4 text-red-500" />
+                    {language === 'ru' ? 'YouTube трансляция' : 'YouTube broadcast'}
+                  </Label>
+                </div>
+                {isYoutubeStream && (
+                  <div className="space-y-2 ml-6">
+                    <Input
+                      value={youtubeStreamUrl}
+                      onChange={(e) => setYoutubeStreamUrl(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=... или https://youtube.com/live/..."
+                    />
+                    {youtubeEmbedUrl && (
+                      <p className="text-xs text-muted-foreground">
+                        Embed URL: {youtubeEmbedUrl}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Stream timing */}
+              {(isZoomStream || isYoutubeStream) && (
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  <div>
+                    <Label htmlFor="streamStartTime" className="text-xs">
+                      {language === 'ru' ? 'Начало трансляции' : 'Stream start'}
+                    </Label>
+                    <Input
+                      id="streamStartTime"
+                      type="datetime-local"
+                      value={streamStartTime}
+                      onChange={(e) => setStreamStartTime(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="streamEndTime" className="text-xs">
+                      {language === 'ru' ? 'Окончание' : 'Stream end'}
+                    </Label>
+                    <Input
+                      id="streamEndTime"
+                      type="datetime-local"
+                      value={streamEndTime}
+                      onChange={(e) => setStreamEndTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
               <Label>
                 {language === 'ru' ? 'Уровень доступа' : 'Access Level'}
