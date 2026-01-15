@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
   Plus, ArrowLeft, GripVertical, Pencil, Trash2, 
-  FileText, Video, ClipboardCheck, ChevronRight, ChevronDown
+  FileText, Video, ClipboardCheck, ChevronRight, ChevronDown, ClipboardList
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -319,10 +319,16 @@ export default function CourseEditor() {
             {language === 'ru' ? 'Редактор уроков' : 'Lesson Editor'}
           </p>
         </div>
-        <Button onClick={() => handleCreate(null)}>
-          <Plus className="w-4 h-4 mr-2" />
-          {language === 'ru' ? 'Добавить урок' : 'Add Lesson'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/homework-moderation')}>
+            <ClipboardList className="w-4 h-4 mr-2" />
+            {language === 'ru' ? 'Модерация ДЗ' : 'Homework Moderation'}
+          </Button>
+          <Button onClick={() => handleCreate(null)}>
+            <Plus className="w-4 h-4 mr-2" />
+            {language === 'ru' ? 'Добавить урок' : 'Add Lesson'}
+          </Button>
+        </div>
       </div>
 
       {lessons.length === 0 ? (
