@@ -74,11 +74,8 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
           <h1 className="text-3xl font-bold text-foreground">
             {t('nav.myCommunities')}
           </h1>
-           {ownedCommunities.length > 0 ? (
-          <p></p>
-          <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} /> 
-          ):(
-      
+          {ownedCommunities.length > 0 && (
+            <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} />
           )}
         </div>
 
