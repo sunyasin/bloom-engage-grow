@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, ChevronRight, ChevronDown, BookOpen, 
   FileText, Check, X, Clock, User, Calendar,
-  MessageSquare
+  MessageSquare, History
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -56,6 +56,7 @@ export default function HomeworkModeration() {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<HomeworkSubmission | null>(null);
   const [moderatorMessage, setModeratorMessage] = useState('');
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchCoursesWithHomework();
@@ -198,8 +199,59 @@ export default function HomeworkModeration() {
     setSelectedLessonId(lessonId);
     const lessonSubs = allSubmissions.filter(s => s.lesson_id === lessonId);
     setSubmissions(lessonSubs);
-    setSelectedSubmission(lessonSubs.length > 0 ? lessonSubs[0] : null);
+    // Select the first user's latest submission
+    const grouped = getGroupedSubmissions(lessonSubs);
+    const firstGroup = grouped[0];
+    setSelectedSubmission(firstGroup?.latest || null);
     setModeratorMessage('');
+    setExpandedUsers(new Set());
+  };
+
+  // Group submissions by user, showing latest first
+  const getGroupedSubmissions = (subs: HomeworkSubmission[]) => {
+    const userMap = new Map<string, HomeworkSubmission[]>();
+    
+    subs.forEach(sub => {
+      if (!userMap.has(sub.user_id)) {
+        userMap.set(sub.user_id, []);
+      }
+      userMap.get(sub.user_id)!.push(sub);
+    });
+    
+    // Sort each user's submissions by date (newest first)
+    const groups: { userId: string; userName: string; latest: HomeworkSubmission; history: HomeworkSubmission[] }[] = [];
+    
+    userMap.forEach((userSubs, userId) => {
+      const sorted = [...userSubs].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      groups.push({
+        userId,
+        userName: sorted[0].user_name || 'Участник',
+        latest: sorted[0],
+        history: sorted.slice(1)
+      });
+    });
+    
+    // Sort groups by latest submission date (newest first)
+    groups.sort((a, b) => 
+      new Date(b.latest.created_at).getTime() - new Date(a.latest.created_at).getTime()
+    );
+    
+    return groups;
+  };
+
+  const toggleUserExpand = (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
   };
 
   const selectSubmission = (sub: HomeworkSubmission) => {
@@ -395,35 +447,75 @@ export default function HomeworkModeration() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-300px)]">
-                  {/* Submissions list */}
+                  {/* Submissions list - grouped by user */}
                   <div className="border-r">
                     <div className="p-3 border-b bg-muted/30">
                       <h3 className="font-medium">
-                        {language === 'ru' ? 'Ответы' : 'Submissions'} ({submissions.length})
+                        {language === 'ru' ? 'Ответы' : 'Submissions'} ({getGroupedSubmissions(submissions).length} {language === 'ru' ? 'уч.' : 'users'})
                       </h3>
                     </div>
                     <ScrollArea className="h-[calc(100vh-360px)]">
                       <div className="p-2 space-y-2">
-                        {submissions.map(sub => (
-                          <button
-                            key={sub.id}
-                            onClick={() => selectSubmission(sub)}
-                            className={`w-full p-3 rounded-lg text-left transition-colors ${
-                              selectedSubmission?.id === sub.id 
-                                ? 'bg-primary/10 border border-primary' 
-                                : 'hover:bg-accent border border-transparent'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <User className="w-3 h-3 text-muted-foreground" />
-                              <span className="font-medium text-sm">{sub.user_name}</span>
-                              {getStatusBadge(sub.status)}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(sub.created_at)}
-                            </div>
-                          </button>
+                        {getGroupedSubmissions(submissions).map(group => (
+                          <div key={group.userId} className="space-y-1">
+                            {/* Latest submission */}
+                            <button
+                              onClick={() => selectSubmission(group.latest)}
+                              className={`w-full p-3 rounded-lg text-left transition-colors ${
+                                selectedSubmission?.id === group.latest.id 
+                                  ? 'bg-primary/10 border border-primary' 
+                                  : 'hover:bg-accent border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <User className="w-3 h-3 text-muted-foreground" />
+                                <span className="font-medium text-sm">{group.userName}</span>
+                                {getStatusBadge(group.latest.status)}
+                                {group.history.length > 0 && (
+                                  <button
+                                    onClick={(e) => toggleUserExpand(group.userId, e)}
+                                    className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    <History className="w-3 h-3" />
+                                    {group.history.length}
+                                    {expandedUsers.has(group.userId) ? (
+                                      <ChevronDown className="w-3 h-3" />
+                                    ) : (
+                                      <ChevronRight className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(group.latest.created_at)}
+                              </div>
+                            </button>
+                            
+                            {/* History (expanded) */}
+                            {expandedUsers.has(group.userId) && group.history.length > 0 && (
+                              <div className="ml-4 space-y-1 border-l-2 border-muted pl-2">
+                                {group.history.map(histSub => (
+                                  <button
+                                    key={histSub.id}
+                                    onClick={() => selectSubmission(histSub)}
+                                    className={`w-full p-2 rounded-md text-left text-sm transition-colors ${
+                                      selectedSubmission?.id === histSub.id 
+                                        ? 'bg-primary/10 border border-primary' 
+                                        : 'hover:bg-accent/50 border border-transparent'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {getStatusBadge(histSub.status)}
+                                      <span className="text-xs text-muted-foreground">
+                                        {formatDate(histSub.created_at)}
+                                      </span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </ScrollArea>
