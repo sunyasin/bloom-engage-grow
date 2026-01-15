@@ -7,10 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 interface PostLikeButtonProps {
   postId: string;
   userId: string | null;
+  postAuthorId: string;
   language?: string;
 }
 
-export function PostLikeButton({ postId, userId, language = 'en' }: PostLikeButtonProps) {
+export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }: PostLikeButtonProps) {
+  const isOwnPost = userId === postAuthorId;
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -55,6 +57,15 @@ export function PostLikeButton({ postId, userId, language = 'en' }: PostLikeButt
       toast({
         title: language === 'ru' ? 'Ошибка' : 'Error',
         description: language === 'ru' ? 'Необходимо войти в систему' : 'You must be logged in',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (isOwnPost) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own posts',
         variant: 'destructive',
       });
       return;
@@ -105,12 +116,15 @@ export function PostLikeButton({ postId, userId, language = 'en' }: PostLikeButt
   return (
     <button
       onClick={handleToggleLike}
-      disabled={loading}
+      disabled={loading || isOwnPost}
       className={`flex items-center gap-1 text-sm transition-smooth ${
-        isLiked
-          ? 'text-red-500 hover:text-red-600'
-          : 'text-muted-foreground hover:text-foreground'
+        isOwnPost
+          ? 'text-muted-foreground/50 cursor-not-allowed'
+          : isLiked
+            ? 'text-red-500 hover:text-red-600'
+            : 'text-muted-foreground hover:text-foreground'
       }`}
+      title={isOwnPost ? (language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own posts') : undefined}
     >
       <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
       <span>{language === 'ru' ? 'Нравится' : 'Like'}</span>
