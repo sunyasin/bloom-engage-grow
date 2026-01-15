@@ -238,6 +238,7 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
                           <ReplyLikeButton
                             replyId={reply.id}
                             userId={userId}
+                            replyAuthorId={reply.user_id}
                             language={language}
                           />
                           {userId && (
