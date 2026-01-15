@@ -354,6 +354,7 @@ export default function Community({ user }: CommunityProps) {
                             <PostLikeButton
                               postId={post.id}
                               userId={user?.id || null}
+                              postAuthorId={post.user_id}
                               language={language}
                             />
                             <button
