@@ -5,7 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon, Video, Youtube, Play } from "lucide-react";
+import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon, Video, Youtube, Play, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,7 @@ interface Event {
   is_zoom_stream?: boolean;
   youtube_stream_url?: string | null;
   youtube_embed_url?: string | null;
+  youtube_watch_url?: string | null;
   is_youtube_stream?: boolean;
   stream_status?: string;
   stream_start_time?: string | null;
@@ -161,6 +162,32 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
     if (isFuture(start)) return 'scheduled';
     if (end && isPast(end)) return 'ended';
     return 'live';
+  };
+
+  const handleOpenStream = (event: Event) => {
+    // For YouTube streams, open in new window
+    if (event.is_youtube_stream) {
+      const youtubeUrl = event.youtube_watch_url || event.youtube_stream_url || event.youtube_embed_url;
+      if (youtubeUrl) {
+        let urlToOpen = youtubeUrl;
+        
+        // If it's an embed URL, convert to watch URL
+        if (youtubeUrl.includes('/embed/')) {
+          const videoId = youtubeUrl.split('/embed/')[1]?.split('?')[0];
+          if (videoId) {
+            urlToOpen = `https://www.youtube.com/watch?v=${videoId}`;
+          }
+        }
+        
+        window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    
+    // For Zoom streams, open the modal
+    if (event.is_zoom_stream && event.zoom_link) {
+      setStreamingEvent(event);
+    }
   };
 
   const DayContent = (props: DayContentProps) => {
@@ -312,9 +339,10 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
                                   ? 'bg-green-600 hover:bg-green-700' 
                                   : 'bg-primary'
                               }`}
-                              onClick={() => setStreamingEvent(event)}
+                              onClick={() => handleOpenStream(event)}
                             >
                               <Play className="w-4 h-4" />
+                              {event.is_youtube_stream && <ExternalLink className="w-3 h-3" />}
                               {streamStatus === 'live'
                                 ? (language === 'ru' ? 'Присоединиться к трансляции' : 'Join Live Broadcast')
                                 : (language === 'ru' ? 'Открыть трансляцию' : 'Open Broadcast')}
@@ -325,9 +353,9 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
                             <Button
                               variant="secondary"
                               className="mt-3 gap-2"
-                              onClick={() => setStreamingEvent(event)}
+                              onClick={() => handleOpenStream(event)}
                             >
-                              <Play className="w-4 h-4" />
+                              <ExternalLink className="w-4 h-4" />
                               {language === 'ru' ? 'Смотреть запись' : 'Watch Replay'}
                             </Button>
                           )}
@@ -430,14 +458,13 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
         />
       )}
 
-      {/* Stream viewer modal */}
-      {streamingEvent && (
+      {/* Stream viewer modal - Only for Zoom */}
+      {streamingEvent && streamingEvent.is_zoom_stream && (
         <StreamViewerModal
           open={!!streamingEvent}
           onOpenChange={(open) => !open && setStreamingEvent(null)}
-          streamType={streamingEvent.is_zoom_stream ? 'zoom' : 'youtube'}
+          streamType="zoom"
           zoomLink={streamingEvent.zoom_link || undefined}
-          youtubeEmbedUrl={streamingEvent.youtube_embed_url || undefined}
           streamStatus={getStreamStatus(streamingEvent)}
           streamStartTime={streamingEvent.stream_start_time || undefined}
           streamEndTime={streamingEvent.stream_end_time || undefined}
