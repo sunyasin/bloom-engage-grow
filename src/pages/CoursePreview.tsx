@@ -17,7 +17,8 @@ import {
   Globe,
   Plus,
   GripVertical,
-  Lock
+  Lock,
+  ClipboardList
 } from 'lucide-react';
 import {
   DndContext,
@@ -871,6 +872,15 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                       {language === 'ru' ? 'Опубликовать' : 'Publish'}
                     </Button>
                   )}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate('/homework-moderation')}
+                  >
+                    <ClipboardList className="h-4 w-4 mr-1" />
+                    {language === 'ru' ? 'Модерация ДЗ' : 'Homework'}
+                  </Button>
                   
                   <Button 
                     variant="outline" 
