@@ -142,6 +142,7 @@ export type Database = {
       }
       communities: {
         Row: {
+          content_html: string | null
           cover_image_url: string | null
           created_at: string
           creator_id: string
@@ -155,6 +156,7 @@ export type Database = {
           visibility: string
         }
         Insert: {
+          content_html?: string | null
           cover_image_url?: string | null
           created_at?: string
           creator_id: string
@@ -168,6 +170,7 @@ export type Database = {
           visibility?: string
         }
         Update: {
+          content_html?: string | null
           cover_image_url?: string | null
           created_at?: string
           creator_id?: string

@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
+import RichTextEditor from '@/components/RichTextEditor';
 
 interface CommunitySettingsDialogProps {
   open: boolean;
@@ -18,8 +19,9 @@ interface CommunitySettingsDialogProps {
     description: string | null;
     cover_image_url: string | null;
     visibility?: string;
+    content_html?: string | null;
   };
-  onUpdate: (updated: { name: string; description: string | null; cover_image_url: string | null; visibility: string }) => void;
+  onUpdate: (updated: { name: string; description: string | null; cover_image_url: string | null; visibility: string; content_html: string | null }) => void;
   language: string;
 }
 
@@ -37,6 +39,7 @@ export function CommunitySettingsDialog({
   const [description, setDescription] = useState(community.description || '');
   const [logoUrl, setLogoUrl] = useState(community.cover_image_url || '');
   const [visibility, setVisibility] = useState(community.visibility || 'public');
+  const [contentHtml, setContentHtml] = useState(community.content_html || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -118,7 +121,8 @@ export function CommunitySettingsDialog({
           name: name.trim(),
           description: description.trim() || null,
           cover_image_url: logoUrl || null,
-          visibility
+          visibility,
+          content_html: contentHtml || null
         })
         .eq('id', community.id);
 
@@ -128,7 +132,8 @@ export function CommunitySettingsDialog({
         name: name.trim(),
         description: description.trim() || null,
         cover_image_url: logoUrl || null,
-        visibility
+        visibility,
+        content_html: contentHtml || null
       });
       
       toast({
@@ -149,7 +154,7 @@ export function CommunitySettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {language === 'ru' ? 'Настройки сообщества' : 'Community Settings'}
@@ -230,6 +235,19 @@ export function CommunitySettingsDialog({
               placeholder={language === 'ru' ? 'Описание сообщества' : 'Community description'}
               rows={4}
             />
+          </div>
+
+          {/* Rich Text Content */}
+          <div className="space-y-2">
+            <Label>{language === 'ru' ? 'Контент страницы' : 'Page content'}</Label>
+            <div className="border border-border rounded-lg overflow-hidden">
+              <RichTextEditor
+                content={contentHtml}
+                onChange={setContentHtml}
+                placeholder={language === 'ru' ? 'Добавьте контент для страницы About...' : 'Add content for About page...'}
+                language={language}
+              />
+            </div>
           </div>
 
           {/* Visibility */}
