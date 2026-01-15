@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
-import { Users } from 'lucide-react';
-import { useI18n } from '@/lib/i18n';
+import { useNavigate } from "react-router-dom";
+import { Users } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface CommunityCardProps {
   id: string;
@@ -16,13 +16,13 @@ export const CommunityCard = ({ id, name, description, coverImageUrl, memberCoun
 
   return (
     <div
-      onClick={() => navigate(`/community/${id}`)}
+      onClick={() => navigate(`/community/${id}?tab=about`)}
       className="group cursor-pointer rounded-xl overflow-hidden bg-card border border-border shadow-soft hover:shadow-medium transition-smooth"
     >
       <div className="aspect-video bg-muted relative overflow-hidden">
         {coverImageUrl ? (
-          <img 
-            src={coverImageUrl} 
+          <img
+            src={coverImageUrl}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -34,14 +34,12 @@ export const CommunityCard = ({ id, name, description, coverImageUrl, memberCoun
         <h3 className="font-semibold text-foreground group-hover:text-primary transition-smooth line-clamp-1">
           {name}
         </h3>
-        {description && (
-          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-            {description}
-          </p>
-        )}
+        {description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{description}</p>}
         <div className="flex items-center gap-1 mt-3 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span>{memberCount.toLocaleString()} {t('home.members')}</span>
+          <span>
+            {memberCount.toLocaleString()} {t("home.members")}
+          </span>
         </div>
       </div>
     </div>
