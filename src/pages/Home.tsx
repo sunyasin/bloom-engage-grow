@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { useI18n } from '@/lib/i18n';
-import { CommunityCard } from '@/components/CommunityCard';
-import { Loader2 } from 'lucide-react';
-import { User } from '@supabase/supabase-js';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { useI18n } from "@/lib/i18n";
+import { CommunityCard } from "@/components/CommunityCard";
+import { Loader2 } from "lucide-react";
+import { User } from "@supabase/supabase-js";
 
 interface Community {
   id: string;
@@ -25,10 +25,10 @@ export default function Home({ user }: HomeProps) {
   useEffect(() => {
     const fetchCommunities = async () => {
       const { data, error } = await supabase
-        .from('communities')
-        .select('id, name, description, cover_image_url, member_count')
-        .eq('visibility', 'public')
-        .order('member_count', { ascending: false })
+        .from("communities")
+        .select("id, name, description, cover_image_url, member_count")
+        .eq("visibility", "public")
+        .order("member_count", { ascending: false })
         .limit(12);
 
       if (!error && data) {
@@ -54,11 +54,11 @@ export default function Home({ user }: HomeProps) {
       <section className="py-16 md:py-24 bg-gradient-subtle">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
-            {t('home.popularCommunities')}
+            {t("home.popularCommunities")}
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+          {/* <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
             {user ? t('nav.myCommunities') : t('nav.communities')}
-          </p>
+          </p> */}
         </div>
       </section>
 
@@ -67,7 +67,7 @@ export default function Home({ user }: HomeProps) {
         <div className="container mx-auto px-4">
           {communities.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-muted-foreground text-lg">{t('home.noCommunities')}</p>
+              <p className="text-muted-foreground text-lg">{t("home.noCommunities")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
