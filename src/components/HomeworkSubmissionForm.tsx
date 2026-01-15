@@ -40,16 +40,22 @@ export default function HomeworkSubmissionForm({
         return;
       }
 
+      // Fetch the most recent submission for this user and lesson
       const { data } = await supabase
         .from('homework_submissions')
         .select('*')
         .eq('lesson_id', lessonId)
         .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (data) {
         setSubmission(data as HomeworkSubmission);
-        setContent(data.content);
+        // Only prefill content if rejected (for resubmission)
+        if (data.status === 'reject') {
+          setContent(data.content);
+        }
       }
       setLoading(false);
     };
@@ -62,37 +68,19 @@ export default function HomeworkSubmissionForm({
 
     setSubmitting(true);
     try {
-      if (submission) {
-        // Update existing submission
-        const { data, error } = await supabase
-          .from('homework_submissions')
-          .update({
-            content: content.trim(),
-            status: 'ready',
-            moderator_message: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', submission.id)
-          .select()
-          .single();
+      // Always create new submission to preserve history
+      const { data, error } = await supabase
+        .from('homework_submissions')
+        .insert({
+          lesson_id: lessonId,
+          user_id: user.id,
+          content: content.trim(),
+        })
+        .select()
+        .single();
 
-        if (error) throw error;
-        setSubmission(data as HomeworkSubmission);
-      } else {
-        // Create new submission
-        const { data, error } = await supabase
-          .from('homework_submissions')
-          .insert({
-            lesson_id: lessonId,
-            user_id: user.id,
-            content: content.trim(),
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        setSubmission(data as HomeworkSubmission);
-      }
+      if (error) throw error;
+      setSubmission(data as HomeworkSubmission);
 
       toast.success(
         language === 'ru' ? 'Домашнее задание отправлено' : 'Homework submitted'
