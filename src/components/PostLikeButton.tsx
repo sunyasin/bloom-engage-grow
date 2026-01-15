@@ -93,6 +93,9 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
           description: error.message,
           variant: 'destructive',
         });
+      } else {
+        // Decrease author's rating
+        await supabase.rpc('decrement_rating', { user_id_param: postAuthorId });
       }
     } else {
       const { error } = await supabase
@@ -107,6 +110,9 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
           description: error.message,
           variant: 'destructive',
         });
+      } else {
+        // Increase author's rating
+        await supabase.rpc('increment_rating', { user_id_param: postAuthorId });
       }
     }
 

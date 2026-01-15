@@ -1478,6 +1478,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_rating: { Args: { user_id_param: string }; Returns: undefined }
       get_public_profile: {
         Args: { profile_id: string }
         Returns: {
@@ -1505,6 +1506,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_rating: { Args: { user_id_param: string }; Returns: undefined }
       is_community_owner: {
         Args: { _community_id: string; _user_id: string }
         Returns: boolean
