@@ -47,12 +47,23 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
     <>
       {/* Сообщества - первый пункт слева */}
       <Link
-        to={user ? "/my-communities" : "/discover"}
+        to="/discover"
         className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
         onClick={() => setMobileMenuOpen(false)}
       >
         Сообщества
       </Link>
+      
+      {/* Мои сообщества - только для залогиненных */}
+      {user && !isCommunityPage && (
+        <Link
+          to="/my-communities"
+          className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          Мои сообщества
+        </Link>
+      )}
       
       {/* Community tabs when on community page */}
       {isCommunityPage && tabs.map((tab) => (
