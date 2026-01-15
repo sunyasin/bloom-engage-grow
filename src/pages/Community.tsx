@@ -455,9 +455,43 @@ export default function Community({ user }: CommunityProps) {
 
             {/* About Tab */}
             {activeTab === 'about' && (
-              <div className="bg-card rounded-xl p-6 border border-border">
-                <h2 className="text-xl font-semibold mb-4">{community.name}</h2>
-                <p className="text-muted-foreground">{community.description || 'No description'}</p>
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                {/* Full-width logo */}
+                {community.cover_image_url && (
+                  <div className="w-full">
+                    <img 
+                      src={community.cover_image_url} 
+                      alt={community.name}
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+                )}
+                
+                {/* Name with settings buttons */}
+                <div className="p-6">
+                  <div className="flex items-center gap-3 flex-wrap mb-4">
+                    <h2 className="text-2xl font-semibold text-foreground">{community.name}</h2>
+                    {isOwner && (
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          onClick={() => setSettingsOpen(true)} 
+                          size="sm"
+                          variant="outline"
+                        >
+                          <SlidersHorizontal className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          onClick={() => setSubscriptionSettingsOpen(true)} 
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground">{community.description || 'No description'}</p>
+                </div>
               </div>
             )}
         </div>
