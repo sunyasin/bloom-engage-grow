@@ -23,6 +23,7 @@ import MyCourses from "./pages/MyCourses";
 import CourseEditor from "./pages/CourseEditor";
 import CoursePreview from "./pages/CoursePreview";
 import LessonEditor from "./pages/LessonEditor";
+import HomeworkModeration from "./pages/HomeworkModeration";
 import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
 import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
@@ -146,6 +147,10 @@ const App = () => {
                   <Route 
                     path="/course/:courseId/preview" 
                     element={<CoursePreview user={user} />} 
+                  />
+                  <Route 
+                    path="/homework-moderation" 
+                    element={(isAuthor || isSuperuser) ? <HomeworkModeration /> : <Navigate to="/" />} 
                   />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/payment/callback" element={<PaymentCallback />} />
