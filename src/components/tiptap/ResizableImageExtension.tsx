@@ -23,21 +23,10 @@ const ResizableImageNodeView = (props: any) => {
   const width = node.attrs.width;
   
   const [isHovered, setIsHovered] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
-
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", props.node.type.name);
-    setIsDragging(true);
-  };
-
-  const handleDragEnd = () => {
-    setIsDragging(false);
-  };
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -63,16 +52,13 @@ const ResizableImageNodeView = (props: any) => {
   };
 
   return (
-    <NodeViewWrapper className="relative inline-block my-2">
+    <NodeViewWrapper className="relative inline-block my-2" draggable data-drag-handle>
       <div
         ref={containerRef}
-        className={`relative group inline-block ${isDragging ? "opacity-50" : ""} ${selected ? "ring-2 ring-primary rounded-lg" : ""}`}
+        className={`relative group inline-block ${selected ? "ring-2 ring-primary rounded-lg" : ""}`}
         style={{ width: width ? `${width}px` : "auto", maxWidth: "100%" }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        draggable
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
       >
         <img
           src={src}
@@ -84,14 +70,12 @@ const ResizableImageNodeView = (props: any) => {
         {/* Controls overlay */}
         {(isHovered || selected) && !isResizing && (
           <div className="absolute top-2 right-2 flex gap-1 z-10">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8 bg-background/90 hover:bg-background shadow-md cursor-grab active:cursor-grabbing"
-              onMouseDown={(e) => e.stopPropagation()}
+            <div
+              className="h-8 w-8 bg-background/90 hover:bg-background shadow-md cursor-grab active:cursor-grabbing rounded-md flex items-center justify-center"
+              data-drag-handle
             >
               <Move className="h-4 w-4" />
-            </Button>
+            </div>
             <Button
               variant="destructive"
               size="icon"
