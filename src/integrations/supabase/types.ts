@@ -657,6 +657,47 @@ export type Database = {
           },
         ]
       }
+      homework_submissions: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          lesson_id: string
+          moderator_message: string | null
+          status: Database["public"]["Enums"]["homework_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          lesson_id: string
+          moderator_message?: string | null
+          status?: Database["public"]["Enums"]["homework_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          moderator_message?: string | null
+          status?: Database["public"]["Enums"]["homework_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_submissions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_blocks: {
         Row: {
           block_type: Database["public"]["Enums"]["block_type"]
@@ -743,6 +784,7 @@ export type Database = {
           course_id: string
           created_at: string | null
           delay_days: number | null
+          has_homework: boolean | null
           id: string
           order_index: number | null
           parent_lesson_id: string | null
@@ -756,6 +798,7 @@ export type Database = {
           course_id: string
           created_at?: string | null
           delay_days?: number | null
+          has_homework?: boolean | null
           id?: string
           order_index?: number | null
           parent_lesson_id?: string | null
@@ -769,6 +812,7 @@ export type Database = {
           course_id?: string
           created_at?: string | null
           delay_days?: number | null
+          has_homework?: boolean | null
           id?: string
           order_index?: number | null
           parent_lesson_id?: string | null
@@ -1449,6 +1493,7 @@ export type Database = {
       community_role: "owner" | "moderator" | "member"
       course_status: "draft" | "published" | "archived"
       discount_type: "percent" | "fixed"
+      homework_status: "ready" | "ok" | "reject"
       lesson_type: "lesson" | "test" | "assignment"
       membership_status: "active" | "canceled" | "expired" | "trial"
       payment_status: "pending" | "paid" | "failed" | "refunded"
@@ -1607,6 +1652,7 @@ export const Constants = {
       community_role: ["owner", "moderator", "member"],
       course_status: ["draft", "published", "archived"],
       discount_type: ["percent", "fixed"],
+      homework_status: ["ready", "ok", "reject"],
       lesson_type: ["lesson", "test", "assignment"],
       membership_status: ["active", "canceled", "expired", "trial"],
       payment_status: ["pending", "paid", "failed", "refunded"],
