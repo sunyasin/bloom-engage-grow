@@ -88,6 +88,7 @@ interface Lesson {
   video_url: string | null;
   delay_days?: number;
   has_homework?: boolean;
+  homework_blocks_next?: boolean;
   children?: Lesson[];
 }
 
@@ -118,6 +119,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [courseStartDate, setCourseStartDate] = useState<Date | null>(null);
+  const [homeworkStatuses, setHomeworkStatuses] = useState<Map<string, 'ready' | 'ok' | 'reject' | null>>(new Map());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -253,6 +255,27 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         if (courseStart) {
           setCourseStartDate(new Date(courseStart.started_at));
         }
+
+        // Fetch homework statuses for lessons with blocking homework
+        const lessonsWithBlockingHw = lessonsData?.filter(l => l.homework_blocks_next && l.has_homework) || [];
+        if (lessonsWithBlockingHw.length > 0 && user) {
+          const lessonIds = lessonsWithBlockingHw.map(l => l.id);
+          const { data: hwSubs } = await supabase
+            .from('homework_submissions')
+            .select('lesson_id, status, created_at')
+            .eq('user_id', user.id)
+            .in('lesson_id', lessonIds)
+            .order('created_at', { ascending: false });
+          
+          // Get latest status per lesson
+          const statusMap = new Map<string, 'ready' | 'ok' | 'reject' | null>();
+          hwSubs?.forEach(sub => {
+            if (!statusMap.has(sub.lesson_id)) {
+              statusMap.set(sub.lesson_id, sub.status as 'ready' | 'ok' | 'reject');
+            }
+          });
+          setHomeworkStatuses(statusMap);
+        }
       }
 
       setLoading(false);
@@ -291,17 +314,42 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     // Authors can always access all lessons
     if (isAuthor) return true;
     
-    // If no delay, lesson is available
+    // If no delay, lesson is available (delay check)
     const delayDays = lesson.delay_days ?? 0;
-    if (delayDays === 0) return true;
+    if (delayDays > 0) {
+      // If no course start date yet, lesson with delay is not available
+      if (!courseStartDate) return false;
+      
+      // Calculate if enough days have passed
+      const now = new Date();
+      const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceStart < delayDays) return false;
+    }
     
-    // If no course start date yet, lesson with delay is not available
-    if (!courseStartDate) return false;
+    return true;
+  };
+
+  // Check if lesson is blocked by incomplete homework from previous lessons
+  const isBlockedByHomework = (lesson: Lesson): boolean => {
+    if (isAuthor) return false;
     
-    // Calculate if enough days have passed
-    const now = new Date();
-    const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
-    return daysSinceStart >= delayDays;
+    // Find previous lessons that have homework_blocks_next enabled
+    const lessonIndex = allLessons.findIndex(l => l.id === lesson.id);
+    if (lessonIndex <= 0) return false;
+    
+    // Check all previous lessons
+    for (let i = 0; i < lessonIndex; i++) {
+      const prevLesson = allLessons[i];
+      if (prevLesson.has_homework && prevLesson.homework_blocks_next) {
+        const hwStatus = homeworkStatuses.get(prevLesson.id);
+        // If no submission or not approved, block this lesson
+        if (!hwStatus || hwStatus !== 'ok') {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   };
 
   // Get days remaining until lesson unlocks
@@ -315,7 +363,19 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   };
 
   const handleSelectLesson = async (lesson: Lesson) => {
-    // Check if lesson is available
+    // Check if lesson is blocked by homework
+    if (isBlockedByHomework(lesson)) {
+      toast({
+        title: language === 'ru' ? 'Урок заблокирован' : 'Lesson blocked',
+        description: language === 'ru' 
+          ? 'Чтобы открыть урок, выполните все ДЗ предыдущих уроков'
+          : 'Complete all homework from previous lessons to unlock',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if lesson is available (delay check)
     if (!isLessonAvailable(lesson)) {
       const remaining = getDaysRemaining(lesson);
       toast({
@@ -679,8 +739,10 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const isExpanded = expandedLessons.has(lesson.id);
     const isSelected = selectedLesson?.id === lesson.id;
     const available = isLessonAvailable(lesson);
+    const blockedByHw = isBlockedByHomework(lesson);
     const daysRemaining = getDaysRemaining(lesson);
     const hasDelay = (lesson.delay_days ?? 0) > 0;
+    const isLocked = !available || blockedByHw;
 
     const {
       attributes,
@@ -694,7 +756,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      opacity: isDragging ? 0.5 : (available ? 1 : 0.6),
+      opacity: isDragging ? 0.5 : (isLocked && !isAuthor ? 0.6 : 1),
     };
 
     return (
@@ -703,7 +765,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           className={`group flex items-center gap-1 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
             isSelected 
               ? 'bg-primary/10 text-primary border border-primary/20' 
-              : available ? 'hover:bg-muted/50' : 'hover:bg-muted/30'
+              : !isLocked || isAuthor ? 'hover:bg-muted/50' : 'hover:bg-muted/30'
           } ${isDragging ? 'shadow-lg bg-card z-50' : ''}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
@@ -728,25 +790,32 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
             <div className="w-4" />
           )}
           
-          {!available ? (
+          {isLocked && !isAuthor ? (
             <Lock className="h-4 w-4 text-muted-foreground" />
           ) : (
             getTypeIcon(lesson.type)
           )}
           
-          <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''} ${!available ? 'text-muted-foreground' : ''}`}>
+          <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''} ${isLocked && !isAuthor ? 'text-muted-foreground' : ''}`}>
             {lesson.title}
           </span>
           
-          {/* Show days remaining for locked lessons */}
-          {!available && daysRemaining > 0 && (
+          {/* Show days remaining for delay-locked lessons */}
+          {!available && !isAuthor && daysRemaining > 0 && (
             <span className="text-xs text-muted-foreground">
               {language === 'ru' ? `через ${daysRemaining} дн.` : `in ${daysRemaining}d`}
             </span>
           )}
           
+          {/* Show homework block indicator */}
+          {blockedByHw && !isAuthor && available && (
+            <span className="text-xs text-orange-500">
+              {language === 'ru' ? 'ДЗ' : 'HW'}
+            </span>
+          )}
+          
           {/* Show delay indicator for authors */}
-          {isAuthor && hasDelay && available && (
+          {isAuthor && hasDelay && (
             <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100">
               {lesson.delay_days}д
             </span>
@@ -1152,6 +1221,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           lessonTitle={lessonToEdit.title}
           initialDelayDays={lessonToEdit.delay_days ?? 0}
           initialHasHomework={lessonToEdit.has_homework ?? false}
+          initialHomeworkBlocksNext={lessonToEdit.homework_blocks_next ?? false}
           language={language}
           onSave={() => {
             // Refresh lessons to get updated delay_days

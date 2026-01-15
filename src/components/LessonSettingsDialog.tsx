@@ -20,6 +20,7 @@ interface LessonSettingsDialogProps {
   lessonTitle: string;
   initialDelayDays: number;
   initialHasHomework?: boolean;
+  initialHomeworkBlocksNext?: boolean;
   language: string;
   onSave?: () => void;
 }
@@ -31,17 +32,20 @@ export default function LessonSettingsDialog({
   lessonTitle,
   initialDelayDays,
   initialHasHomework = false,
+  initialHomeworkBlocksNext = false,
   language,
   onSave,
 }: LessonSettingsDialogProps) {
   const [delayDays, setDelayDays] = useState(initialDelayDays);
   const [hasHomework, setHasHomework] = useState(initialHasHomework);
+  const [homeworkBlocksNext, setHomeworkBlocksNext] = useState(initialHomeworkBlocksNext);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDelayDays(initialDelayDays);
     setHasHomework(initialHasHomework);
-  }, [initialDelayDays, initialHasHomework, open]);
+    setHomeworkBlocksNext(initialHomeworkBlocksNext);
+  }, [initialDelayDays, initialHasHomework, initialHomeworkBlocksNext, open]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -51,6 +55,7 @@ export default function LessonSettingsDialog({
         .update({ 
           delay_days: delayDays,
           has_homework: hasHomework,
+          homework_blocks_next: hasHomework ? homeworkBlocksNext : false,
         })
         .eq('id', lessonId);
 
@@ -112,6 +117,19 @@ export default function LessonSettingsDialog({
               {language === 'ru' ? 'Есть домашнее задание' : 'Has homework'}
             </Label>
           </div>
+
+          {hasHomework && (
+            <div className="flex items-center space-x-3 ml-6">
+              <Checkbox
+                id="homework_blocks_next"
+                checked={homeworkBlocksNext}
+                onCheckedChange={(checked) => setHomeworkBlocksNext(checked === true)}
+              />
+              <Label htmlFor="homework_blocks_next" className="cursor-pointer text-sm">
+                {language === 'ru' ? 'ДЗ блокирует следующий урок' : 'Homework blocks next lesson'}
+              </Label>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

@@ -785,6 +785,7 @@ export type Database = {
           created_at: string | null
           delay_days: number | null
           has_homework: boolean | null
+          homework_blocks_next: boolean | null
           id: string
           order_index: number | null
           parent_lesson_id: string | null
@@ -799,6 +800,7 @@ export type Database = {
           created_at?: string | null
           delay_days?: number | null
           has_homework?: boolean | null
+          homework_blocks_next?: boolean | null
           id?: string
           order_index?: number | null
           parent_lesson_id?: string | null
@@ -813,6 +815,7 @@ export type Database = {
           created_at?: string | null
           delay_days?: number | null
           has_homework?: boolean | null
+          homework_blocks_next?: boolean | null
           id?: string
           order_index?: number | null
           parent_lesson_id?: string | null
