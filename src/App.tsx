@@ -150,7 +150,7 @@ const App = () => {
                   />
                   <Route 
                     path="/homework-moderation" 
-                    element={(isAuthor || isSuperuser) ? <HomeworkModeration /> : <Navigate to="/" />} 
+                    element={user ? <HomeworkModeration /> : <Navigate to="/" />} 
                   />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/payment/callback" element={<PaymentCallback />} />
