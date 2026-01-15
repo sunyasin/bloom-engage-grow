@@ -34,6 +34,11 @@ export default function HomeworkSubmissionForm({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // Reset state when lesson changes
+    setSubmission(null);
+    setContent('');
+    setLoading(true);
+
     const fetchSubmission = async () => {
       if (!user) {
         setLoading(false);
