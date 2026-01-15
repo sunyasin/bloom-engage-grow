@@ -11,7 +11,7 @@ interface ReplyLikeButtonProps {
   language?: string;
 }
 
-export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = 'en' }: ReplyLikeButtonProps) {
+export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = "en" }: ReplyLikeButtonProps) {
   const isOwnReply = userId === replyAuthorId;
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -23,14 +23,18 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = 'en
 
     const channel = supabase
       .channel(`reply-likes-${replyId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'community_reply_likes',
-        filter: `reply_id=eq.${replyId}`
-      }, () => {
-        fetchLikes();
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "community_reply_likes",
+          filter: `reply_id=eq.${replyId}`,
+        },
+        () => {
+          fetchLikes();
+        },
+      )
       .subscribe();
 
     return () => {
@@ -39,15 +43,12 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = 'en
   }, [replyId, userId]);
 
   const fetchLikes = async () => {
-    const { data: likes } = await supabase
-      .from('community_reply_likes')
-      .select('id, user_id')
-      .eq('reply_id', replyId);
+    const { data: likes } = await supabase.from("community_reply_likes").select("id, user_id").eq("reply_id", replyId);
 
     if (likes) {
       setLikeCount(likes.length);
       if (userId) {
-        setIsLiked(likes.some(like => like.user_id === userId));
+        setIsLiked(likes.some((like) => like.user_id === userId));
       }
     }
   };
@@ -55,18 +56,18 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = 'en
   const handleToggleLike = async () => {
     if (!userId) {
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Необходимо войти в систему' : 'You must be logged in',
-        variant: 'destructive',
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Необходимо войти в систему" : "You must be logged in",
+        variant: "destructive",
       });
       return;
     }
 
     if (isOwnReply) {
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own replies',
-        variant: 'destructive',
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Нельзя лайкать свои сообщения" : "You cannot like your own replies",
+        variant: "destructive",
       });
       return;
     }
@@ -75,29 +76,30 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = 'en
 
     if (isLiked) {
       const { error } = await supabase
-        .from('community_reply_likes')
+        .from("community_reply_likes")
         .delete()
-        .eq('reply_id', replyId)
-        .eq('user_id', userId);
+        .eq("reply_id", replyId)
+        .eq("user_id", userId);
 
       if (error) {
         toast({
-          title: language === 'ru' ? 'Ошибка' : 'Error',
+          title: language === "ru" ? "Ошибка" : "Error",
           description: error.message,
-          variant: 'destructive',
+          variant: "destructive",
         });
       }
     } else {
-      const { error } = await supabase
-        .from('community_reply_likes')
-        .insert({ reply_id: replyId, user_id: userId });
+      const { error } = await supabase.from("community_reply_likes").insert({ reply_id: replyId, user_id: userId });
 
       if (error) {
         toast({
-          title: language === 'ru' ? 'Ошибка' : 'Error',
+          title: language === "ru" ? "Ошибка" : "Error",
           description: error.message,
-          variant: 'destructive',
+          variant: "destructive",
         });
+      } else {
+        // Increase author's rating
+        await supabase.rpc("increment_rating", { user_id_param: replyAuthorId });
       }
     }
 
@@ -112,14 +114,20 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = 'en
       disabled={loading || isOwnReply}
       className={`h-7 gap-1 ${
         isOwnReply
-          ? 'text-muted-foreground/50 cursor-not-allowed'
+          ? "text-muted-foreground/50 cursor-not-allowed"
           : isLiked
-            ? 'text-red-500 hover:text-red-600'
-            : 'text-muted-foreground'
+            ? "text-red-500 hover:text-red-600"
+            : "text-muted-foreground"
       }`}
-      title={isOwnReply ? (language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own replies') : undefined}
+      title={
+        isOwnReply
+          ? language === "ru"
+            ? "Нельзя лайкать свои сообщения"
+            : "You cannot like your own replies"
+          : undefined
+      }
     >
-      <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
+      <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-current" : ""}`} />
       {likeCount > 0 && <span className="text-xs">{likeCount}</span>}
     </Button>
   );
