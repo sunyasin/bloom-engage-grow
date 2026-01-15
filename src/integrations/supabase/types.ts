@@ -579,8 +579,12 @@ export type Database = {
           stream_status: string | null
           title: string
           updated_at: string | null
+          youtube_broadcast_id: string | null
           youtube_embed_url: string | null
+          youtube_rtmp_url: string | null
+          youtube_stream_key: string | null
           youtube_stream_url: string | null
+          youtube_watch_url: string | null
           zoom_link: string | null
         }
         Insert: {
@@ -604,8 +608,12 @@ export type Database = {
           stream_status?: string | null
           title: string
           updated_at?: string | null
+          youtube_broadcast_id?: string | null
           youtube_embed_url?: string | null
+          youtube_rtmp_url?: string | null
+          youtube_stream_key?: string | null
           youtube_stream_url?: string | null
+          youtube_watch_url?: string | null
           zoom_link?: string | null
         }
         Update: {
@@ -629,8 +637,12 @@ export type Database = {
           stream_status?: string | null
           title?: string
           updated_at?: string | null
+          youtube_broadcast_id?: string | null
           youtube_embed_url?: string | null
+          youtube_rtmp_url?: string | null
+          youtube_stream_key?: string | null
           youtube_stream_url?: string | null
+          youtube_watch_url?: string | null
           zoom_link?: string | null
         }
         Relationships: [
