@@ -3,6 +3,9 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Youtube from '@tiptap/extension-youtube';
+import TextAlign from '@tiptap/extension-text-align';
+import FontFamily from '@tiptap/extension-font-family';
+import { TextStyle } from '@tiptap/extension-text-style';
 import Video from './tiptap/VideoExtension';
 import { ResizableImage } from './tiptap/ResizableImageExtension';
 import { Audio } from './tiptap/AudioExtension';
@@ -13,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Bold,
   Italic,
@@ -27,7 +31,11 @@ import {
   Minus,
   Undo,
   Redo,
-  Volume2
+  Volume2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify
 } from 'lucide-react';
 import { useCallback, useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
@@ -59,6 +67,13 @@ export default function RichTextEditor({ content, onChange, language, placeholde
         heading: {
           levels: [1, 2, 3, 4],
         },
+      }),
+      TextStyle,
+      FontFamily.configure({
+        types: ['textStyle'],
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
       }),
       ResizableImage.configure({
         HTMLAttributes: {
@@ -174,6 +189,29 @@ export default function RichTextEditor({ content, onChange, language, placeholde
     { level: 3, label: 'H3' },
     { level: 4, label: 'H4' },
   ];
+
+  const fonts = [
+    { value: 'default', label: language === 'ru' ? 'По умолчанию' : 'Default' },
+    { value: 'Inter', label: 'Inter' },
+    { value: 'Arial', label: 'Arial' },
+    { value: 'Georgia', label: 'Georgia' },
+    { value: 'Times New Roman', label: 'Times New Roman' },
+    { value: 'Courier New', label: 'Courier New' },
+    { value: 'Verdana', label: 'Verdana' },
+  ];
+
+  const getCurrentFont = () => {
+    const fontFamily = editor.getAttributes('textStyle').fontFamily;
+    return fontFamily || 'default';
+  };
+
+  const setFont = (font: string) => {
+    if (font === 'default') {
+      editor.chain().focus().unsetFontFamily().run();
+    } else {
+      editor.chain().focus().setFontFamily(font).run();
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -314,6 +352,105 @@ export default function RichTextEditor({ content, onChange, language, placeholde
               </TooltipTrigger>
               <TooltipContent>
                 <p>{language === 'ru' ? 'Код' : 'Code'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Font Family */}
+          <div className="flex items-center">
+            <Select value={getCurrentFont()} onValueChange={setFont}>
+              <SelectTrigger className="h-8 w-[120px] text-xs bg-background/80 border-border/50">
+                <SelectValue placeholder={language === 'ru' ? 'Шрифт' : 'Font'} />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border z-50">
+                {fonts.map((font) => (
+                  <SelectItem 
+                    key={font.value} 
+                    value={font.value}
+                    style={{ fontFamily: font.value !== 'default' ? font.value : undefined }}
+                  >
+                    {font.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Text Alignment */}
+          <div className="flex items-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
+                    editor.isActive({ textAlign: 'left' }) ? 'bg-background text-foreground' : ''
+                  }`}
+                  onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                >
+                  <AlignLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{language === 'ru' ? 'По левому краю' : 'Align left'}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
+                    editor.isActive({ textAlign: 'center' }) ? 'bg-background text-foreground' : ''
+                  }`}
+                  onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                >
+                  <AlignCenter className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{language === 'ru' ? 'По центру' : 'Align center'}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
+                    editor.isActive({ textAlign: 'right' }) ? 'bg-background text-foreground' : ''
+                  }`}
+                  onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                >
+                  <AlignRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{language === 'ru' ? 'По правому краю' : 'Align right'}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
+                    editor.isActive({ textAlign: 'justify' }) ? 'bg-background text-foreground' : ''
+                  }`}
+                  onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+                >
+                  <AlignJustify className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{language === 'ru' ? 'По ширине' : 'Justify'}</p>
               </TooltipContent>
             </Tooltip>
           </div>
