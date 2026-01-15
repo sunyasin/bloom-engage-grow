@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
@@ -18,6 +19,7 @@ interface LessonSettingsDialogProps {
   lessonId: string;
   lessonTitle: string;
   initialDelayDays: number;
+  initialHasHomework?: boolean;
   language: string;
   onSave?: () => void;
 }
@@ -28,22 +30,28 @@ export default function LessonSettingsDialog({
   lessonId,
   lessonTitle,
   initialDelayDays,
+  initialHasHomework = false,
   language,
   onSave,
 }: LessonSettingsDialogProps) {
   const [delayDays, setDelayDays] = useState(initialDelayDays);
+  const [hasHomework, setHasHomework] = useState(initialHasHomework);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDelayDays(initialDelayDays);
-  }, [initialDelayDays, open]);
+    setHasHomework(initialHasHomework);
+  }, [initialDelayDays, initialHasHomework, open]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const { error } = await supabase
         .from('lessons')
-        .update({ delay_days: delayDays })
+        .update({ 
+          delay_days: delayDays,
+          has_homework: hasHomework,
+        })
         .eq('id', lessonId);
 
       if (error) throw error;
@@ -92,6 +100,17 @@ export default function LessonSettingsDialog({
                 ? '0 — урок доступен сразу. Старт курса — дата просмотра первого урока.' 
                 : '0 — lesson available immediately. Course start = first lesson view date.'}
             </p>
+          </div>
+
+          <div className="flex items-center space-x-3 pt-2">
+            <Checkbox
+              id="has_homework"
+              checked={hasHomework}
+              onCheckedChange={(checked) => setHasHomework(checked === true)}
+            />
+            <Label htmlFor="has_homework" className="cursor-pointer">
+              {language === 'ru' ? 'Есть домашнее задание' : 'Has homework'}
+            </Label>
           </div>
         </div>
 

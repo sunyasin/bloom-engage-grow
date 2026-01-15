@@ -52,6 +52,7 @@ import CourseSettingsDialog from '@/components/CourseSettingsDialog';
 import LessonSettingsDialog from '@/components/LessonSettingsDialog';
 import VideoPlayer from '@/components/VideoPlayer';
 import LessonContentRenderer from '@/components/LessonContentRenderer';
+import HomeworkSubmissionForm from '@/components/HomeworkSubmissionForm';
 import type { Database } from '@/integrations/supabase/types';
 
 type AccessType = Database['public']['Enums']['access_type'];
@@ -85,6 +86,7 @@ interface Lesson {
   content_html: string | null;
   video_url: string | null;
   delay_days?: number;
+  has_homework?: boolean;
   children?: Lesson[];
 }
 
@@ -1025,6 +1027,28 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Homework submission form */}
+              {selectedLesson.has_homework && !isAuthor && (
+                <HomeworkSubmissionForm
+                  lessonId={selectedLesson.id}
+                  user={user}
+                  language={language}
+                />
+              )}
+
+              {/* Homework indicator for authors */}
+              {selectedLesson.has_homework && isAuthor && (
+                <Card className="mt-6 border-dashed border-primary/30">
+                  <CardContent className="p-4 text-center text-muted-foreground">
+                    <p className="text-sm">
+                      {language === 'ru' 
+                        ? '📝 Для этого урока включено домашнее задание. Участники увидят форму для отправки ответа.'
+                        : '📝 Homework is enabled for this lesson. Participants will see a submission form.'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -1117,6 +1141,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           lessonId={lessonToEdit.id}
           lessonTitle={lessonToEdit.title}
           initialDelayDays={lessonToEdit.delay_days ?? 0}
+          initialHasHomework={lessonToEdit.has_homework ?? false}
           language={language}
           onSave={() => {
             // Refresh lessons to get updated delay_days
