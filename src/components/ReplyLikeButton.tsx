@@ -87,6 +87,9 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = "en
           description: error.message,
           variant: "destructive",
         });
+      } else {
+        // Decrease author's rating
+        await supabase.rpc("decrement_rating", { user_id_param: replyAuthorId });
       }
     } else {
       const { error } = await supabase.from("community_reply_likes").insert({ reply_id: replyId, user_id: userId });
