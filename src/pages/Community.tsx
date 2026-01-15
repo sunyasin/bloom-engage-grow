@@ -282,21 +282,60 @@ export default function Community({ user }: CommunityProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Logo at top if exists */}
-      {community.cover_image_url && (
-        <div className="container mx-auto px-4 pt-6">
-          <img 
-            src={community.cover_image_url} 
-            alt={community.name}
-            className="h-16 w-auto object-contain"
-          />
+      {/* Compact community header */}
+      <div className="container mx-auto px-4 pt-4 pb-2">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Logo */}
+          {community.cover_image_url && (
+            <img 
+              src={community.cover_image_url} 
+              alt={community.name}
+              className="h-10 w-10 rounded-lg object-cover shrink-0"
+            />
+          )}
+          {/* Name */}
+          <h1 className="text-xl font-semibold text-foreground">{community.name}</h1>
+          {/* Member count */}
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            <span>{community.member_count.toLocaleString()}</span>
+          </div>
+          {/* Actions */}
+          <div className="flex items-center gap-2 ml-auto">
+            {user && !isMember && (
+              <Button onClick={handleJoin} size="sm" className="bg-gradient-primary">
+                {t('community.join')}
+              </Button>
+            )}
+            {user && isMember && !isOwner && (
+              <Button onClick={handleLeave} size="sm" variant="outline">
+                {t('community.leave')}
+              </Button>
+            )}
+            {isOwner && (
+              <>
+                <Button 
+                  onClick={() => setSettingsOpen(true)} 
+                  size="sm"
+                  variant="outline"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+                <Button 
+                  onClick={() => setSubscriptionSettingsOpen(true)} 
+                  size="sm"
+                  variant="outline"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-8 relative">
-          {/* Main content */}
-          <div className="flex-1">
+      <div className="container mx-auto px-4 py-4">
+        <div className="max-w-3xl">
             {/* Feed Tab */}
             {activeTab === 'feed' && (
               <>
@@ -421,48 +460,6 @@ export default function Community({ user }: CommunityProps) {
                 <p className="text-muted-foreground">{community.description || 'No description'}</p>
               </div>
             )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:w-80">
-            <div className="sticky top-24 bg-card rounded-xl p-6 border border-border">
-              <h2 className="font-semibold text-lg text-foreground mb-2">{community.name}</h2>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
-                <Users className="h-4 w-4" />
-                <span>{community.member_count.toLocaleString()} {t('home.members')}</span>
-              </div>
-              {user && !isMember && (
-                <Button onClick={handleJoin} className="w-full bg-gradient-primary">
-                  {t('community.join')}
-                </Button>
-              )}
-              {user && isMember && !isOwner && (
-                <Button onClick={handleLeave} variant="outline" className="w-full">
-                  {t('community.leave')}
-                </Button>
-              )}
-              {isOwner && (
-                <div className="space-y-2 mt-3">
-                  <Button 
-                    onClick={() => setSettingsOpen(true)} 
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    {language === 'ru' ? 'Настройки' : 'Settings'}
-                  </Button>
-                  <Button 
-                    onClick={() => setSubscriptionSettingsOpen(true)} 
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    {language === 'ru' ? 'Настройки подписок' : 'Subscription Settings'}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
