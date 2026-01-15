@@ -70,14 +70,14 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-4 mb-8">
-        <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} />
-        <h1 className="text-3xl font-bold text-foreground">
-          {t('nav.myCommunities')}
-        </h1>
-      </div>
+
 
       {ownedCommunities.length === 0 ? (
+        <div className="flex items-center gap-4 mb-8">
+          <h1 className="text-3xl font-bold text-foreground">
+            {t('nav.myCommunities')}
+          </h1>
+        </div>
         <div className="text-center py-16">
           <p className="text-muted-foreground text-lg mb-4">
             {t('lang') === 'ru' ? 'Создайте первое сообщество' : 'Create your first community'}
@@ -85,11 +85,15 @@ export default function MyCommunities({ user }: MyCommunitiesProps) {
           <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} />
         </div>
       ) : (
+        <div className="flex items-center gap-4 mb-8">
+          <h1 className="text-3xl font-bold text-foreground">
+            {t('nav.myCommunities')}
+          </h1>
+          <p></p>
+          <CreateCommunityDialog user={user} onCommunityCreated={fetchMyCommunities} /> 
+        </div>
         <div className="space-y-12">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground mb-6">
-              {t('lang') === 'ru' ? 'Мои сообщества' : 'My Communities'}
-            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {ownedCommunities.map((community) => (
                 <CommunityCard
