@@ -4,7 +4,8 @@ import { useLanguage } from "@/lib/i18n";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon, Video, Youtube, Play } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +19,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { EventDialog } from "@/components/EventDialog";
 import { EventsListDialog } from "@/components/EventsListDialog";
+import { StreamViewerModal } from "@/components/StreamViewerModal";
 import { DayContentProps } from "react-day-picker";
-import { format } from "date-fns";
+import { format, isPast, isFuture } from "date-fns";
 
 interface Event {
   id: string;
@@ -35,6 +37,14 @@ interface Event {
   required_tier: string | null;
   link: string | null;
   send_email: boolean;
+  zoom_link?: string | null;
+  is_zoom_stream?: boolean;
+  youtube_stream_url?: string | null;
+  youtube_embed_url?: string | null;
+  is_youtube_stream?: boolean;
+  stream_status?: string;
+  stream_start_time?: string | null;
+  stream_end_time?: string | null;
 }
 
 interface CommunityEventsTabProps {
@@ -55,6 +65,7 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
   const [selectedDateEvents, setSelectedDateEvents] = useState<Event[]>([]);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null);
+  const [streamingEvent, setStreamingEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     if (communityId) {
@@ -140,6 +151,18 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
     }
   };
 
+  const getStreamStatus = (event: Event): 'scheduled' | 'live' | 'ended' => {
+    if (!event.stream_start_time) return 'scheduled';
+    
+    const now = new Date();
+    const start = new Date(event.stream_start_time);
+    const end = event.stream_end_time ? new Date(event.stream_end_time) : null;
+
+    if (isFuture(start)) return 'scheduled';
+    if (end && isPast(end)) return 'ended';
+    return 'live';
+  };
+
   const DayContent = (props: DayContentProps) => {
     const eventsForDay = getEventsForDate(props.date);
 
@@ -165,6 +188,36 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
   };
 
   const dayEvents = selectedDate ? getEventsForDate(selectedDate) : [];
+
+  const renderStreamBadge = (event: Event) => {
+    const status = getStreamStatus(event);
+    
+    if (event.is_zoom_stream) {
+      return (
+        <Badge 
+          variant={status === 'live' ? 'default' : 'secondary'}
+          className={status === 'live' ? 'bg-blue-500 animate-pulse' : ''}
+        >
+          <Video className="w-3 h-3 mr-1" />
+          Zoom
+        </Badge>
+      );
+    }
+    
+    if (event.is_youtube_stream) {
+      return (
+        <Badge 
+          variant={status === 'live' ? 'default' : 'secondary'}
+          className={status === 'live' ? 'bg-red-500 animate-pulse' : ''}
+        >
+          <Youtube className="w-3 h-3 mr-1" />
+          YouTube
+        </Badge>
+      );
+    }
+    
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -203,65 +256,106 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
 
             {dayEvents.length > 0 ? (
               <div className="space-y-4">
-                {dayEvents.map((event) => (
-                  <div key={event.id} className="border-l-4 border-primary pl-4 py-2 relative group">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{event.title}</h3>
-                        {event.description && (
-                          <p className="text-muted-foreground text-sm mt-1">{event.description}</p>
+                {dayEvents.map((event) => {
+                  const streamStatus = getStreamStatus(event);
+                  const hasStream = event.is_zoom_stream || event.is_youtube_stream;
+                  
+                  return (
+                    <div key={event.id} className="border-l-4 border-primary pl-4 py-2 relative group">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-lg">{event.title}</h3>
+                            {renderStreamBadge(event)}
+                            {hasStream && streamStatus === 'live' && (
+                              <Badge className="bg-green-500 text-white">
+                                {language === 'ru' ? 'В эфире' : 'Live'}
+                              </Badge>
+                            )}
+                          </div>
+                          {event.description && (
+                            <p className="text-muted-foreground text-sm mt-1">{event.description}</p>
+                          )}
+                          <div className="flex flex-col gap-2 mt-2 text-sm">
+                            {event.event_time && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>{event.event_time}</span>
+                              </div>
+                            )}
+                            {event.location && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <MapPin className="h-4 w-4" />
+                                <span>{event.location}</span>
+                              </div>
+                            )}
+                            {event.link && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <LinkIcon className="h-4 w-4" />
+                                <a
+                                  href={event.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  {event.link}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Stream button */}
+                          {hasStream && (streamStatus === 'live' || streamStatus === 'scheduled') && (
+                            <Button
+                              className={`mt-3 gap-2 ${
+                                streamStatus === 'live' 
+                                  ? 'bg-green-600 hover:bg-green-700' 
+                                  : 'bg-primary'
+                              }`}
+                              onClick={() => setStreamingEvent(event)}
+                            >
+                              <Play className="w-4 h-4" />
+                              {streamStatus === 'live'
+                                ? (language === 'ru' ? 'Присоединиться к трансляции' : 'Join Live Broadcast')
+                                : (language === 'ru' ? 'Открыть трансляцию' : 'Open Broadcast')}
+                            </Button>
+                          )}
+                          
+                          {hasStream && streamStatus === 'ended' && event.is_youtube_stream && (
+                            <Button
+                              variant="secondary"
+                              className="mt-3 gap-2"
+                              onClick={() => setStreamingEvent(event)}
+                            >
+                              <Play className="w-4 h-4" />
+                              {language === 'ru' ? 'Смотреть запись' : 'Watch Replay'}
+                            </Button>
+                          )}
+                        </div>
+                        {userId && event.creator_id === userId && (
+                          <div className="flex gap-1 ml-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => setEditingEvent(event)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setDeletingEvent(event)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         )}
-                        <div className="flex flex-col gap-2 mt-2 text-sm">
-                          {event.event_time && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="h-4 w-4" />
-                              <span>{event.event_time}</span>
-                            </div>
-                          )}
-                          {event.location && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              <span>{event.location}</span>
-                            </div>
-                          )}
-                          {event.link && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <LinkIcon className="h-4 w-4" />
-                              <a
-                                href={event.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline"
-                              >
-                                {event.link}
-                              </a>
-                            </div>
-                          )}
-                        </div>
                       </div>
-                      {userId && event.creator_id === userId && (
-                        <div className="flex gap-1 ml-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => setEditingEvent(event)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => setDeletingEvent(event)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-muted-foreground">
@@ -332,6 +426,22 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
           onOpenChange={setShowEventsListDialog}
           events={selectedDateEvents}
           date={selectedDate || new Date()}
+          language={language}
+        />
+      )}
+
+      {/* Stream viewer modal */}
+      {streamingEvent && (
+        <StreamViewerModal
+          open={!!streamingEvent}
+          onOpenChange={(open) => !open && setStreamingEvent(null)}
+          streamType={streamingEvent.is_zoom_stream ? 'zoom' : 'youtube'}
+          zoomLink={streamingEvent.zoom_link || undefined}
+          youtubeEmbedUrl={streamingEvent.youtube_embed_url || undefined}
+          streamStatus={getStreamStatus(streamingEvent)}
+          streamStartTime={streamingEvent.stream_start_time || undefined}
+          streamEndTime={streamingEvent.stream_end_time || undefined}
+          eventTitle={streamingEvent.title}
           language={language}
         />
       )}

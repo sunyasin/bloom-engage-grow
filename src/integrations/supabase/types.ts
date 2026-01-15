@@ -567,13 +567,21 @@ export type Database = {
           event_date: string
           event_time: string | null
           id: string
+          is_youtube_stream: boolean | null
+          is_zoom_stream: boolean | null
           link: string | null
           location: string | null
           min_rating: number | null
           required_tier: string | null
           send_email: boolean | null
+          stream_end_time: string | null
+          stream_start_time: string | null
+          stream_status: string | null
           title: string
           updated_at: string | null
+          youtube_embed_url: string | null
+          youtube_stream_url: string | null
+          zoom_link: string | null
         }
         Insert: {
           access?: string | null
@@ -584,13 +592,21 @@ export type Database = {
           event_date: string
           event_time?: string | null
           id?: string
+          is_youtube_stream?: boolean | null
+          is_zoom_stream?: boolean | null
           link?: string | null
           location?: string | null
           min_rating?: number | null
           required_tier?: string | null
           send_email?: boolean | null
+          stream_end_time?: string | null
+          stream_start_time?: string | null
+          stream_status?: string | null
           title: string
           updated_at?: string | null
+          youtube_embed_url?: string | null
+          youtube_stream_url?: string | null
+          zoom_link?: string | null
         }
         Update: {
           access?: string | null
@@ -601,13 +617,21 @@ export type Database = {
           event_date?: string
           event_time?: string | null
           id?: string
+          is_youtube_stream?: boolean | null
+          is_zoom_stream?: boolean | null
           link?: string | null
           location?: string | null
           min_rating?: number | null
           required_tier?: string | null
           send_email?: boolean | null
+          stream_end_time?: string | null
+          stream_start_time?: string | null
+          stream_status?: string | null
           title?: string
           updated_at?: string | null
+          youtube_embed_url?: string | null
+          youtube_stream_url?: string | null
+          zoom_link?: string | null
         }
         Relationships: [
           {
