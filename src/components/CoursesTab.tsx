@@ -505,7 +505,17 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
                     ? 'opacity-70 grayscale cursor-default' 
                     : 'cursor-pointer hover:shadow-lg hover:-translate-y-1'
                 }`}
-                onClick={() => !locked && navigate(`/course/${course.id}/preview`)}
+                onClick={() => {
+                  if (!userId) {
+                    toast.error(language === 'ru' 
+                      ? 'Зарегистрируйтесь и войдите, чтобы просмотреть содержимое' 
+                      : 'Please register and login to view the content');
+                    return;
+                  }
+                  if (!locked) {
+                    navigate(`/course/${course.id}/preview`);
+                  }
+                }}
               >
                 <div className="h-32 bg-muted relative">
                   {course.cover_image_url ? (
