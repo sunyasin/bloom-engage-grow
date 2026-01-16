@@ -230,24 +230,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         });
 
         setLessons(rootLessons);
-
-        if (rootLessons.length > 0) {
-          // Для авторов - выбрать первый урок
-          // Для студентов - найти первый доступный урок
-          const firstAvailableLesson = isAuthor
-            ? rootLessons[0]
-            : rootLessons.find((lesson) => {
-                const available = isLessonAvailable(lesson);
-                const blocked = isBlockedByHomework(lesson);
-                return available && !blocked;
-              });
-
-          // Если есть доступный урок - выбрать его
-          // Если нет - всё равно выбрать первый, но не показывать контент
-          setSelectedLesson(firstAvailableLesson || rootLessons[0]);
-        } else {
-          setSelectedLesson(null);
-        }
       }
 
       // Fetch course start date for current user
@@ -290,6 +272,57 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
     fetchData();
   }, [courseId, user]);
+
+  // Auto-select first available lesson after data is loaded
+  useEffect(() => {
+    // Only run when loading is complete and we have lessons but no selection yet
+    if (loading || lessons.length === 0 || selectedLesson) return;
+
+    const selectFirstAvailable = () => {
+      // For authors - select first lesson
+      // For students - find first available lesson
+      const userIsAuthor = user?.id === course?.author_id;
+      
+      if (userIsAuthor) {
+        setSelectedLesson(lessons[0]);
+        return;
+      }
+
+      // For students, check availability using lesson.delay_days directly
+      const firstAvailableLesson = lessons.find((lesson) => {
+        const delayDays = lesson.delay_days ?? 0;
+        
+        // Check delay availability
+        if (delayDays > 0) {
+          if (!courseStartDate) return false;
+          const now = new Date();
+          const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceStart < delayDays) return false;
+        }
+
+        // Check homework blocking
+        const lessonIndex = allLessons.findIndex((l) => l.id === lesson.id);
+        if (lessonIndex > 0) {
+          for (let i = 0; i < lessonIndex; i++) {
+            const prevLesson = allLessons[i];
+            if (prevLesson.has_homework && prevLesson.homework_blocks_next) {
+              const hwStatus = homeworkStatuses.get(prevLesson.id);
+              if (!hwStatus || hwStatus !== "ok") {
+                return false;
+              }
+            }
+          }
+        }
+
+        return true;
+      });
+
+      // Select first available or fall back to first lesson (content won't be shown)
+      setSelectedLesson(firstAvailableLesson || lessons[0]);
+    };
+
+    selectFirstAvailable();
+  }, [loading, lessons, course, user, courseStartDate, allLessons, homeworkStatuses, selectedLesson]);
 
   const toggleExpand = (lessonId: string) => {
     setExpandedLessons((prev) => {
