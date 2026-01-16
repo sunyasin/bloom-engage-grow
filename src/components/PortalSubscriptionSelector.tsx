@@ -237,45 +237,49 @@ const handleCreateCommunity = async (subscription: PortalSubscription) => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button
-                onClick={() => handlePayment(subscription)}
-                disabled={isCurrentSubscription || processingId === subscription.id}
-                className="w-full"
-                variant="default"
-              >
-                {processingId === subscription.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {language === 'ru' ? 'Обработка...' : 'Processing...'}
-                  </>
-                ) : (
-                  language === 'ru' ? 'Оплатить' : 'Pay'
-                )}
-              </Button>
+              {!isFree && (
+                <>
+                  <Button
+                    onClick={() => handlePayment(subscription)}
+                    disabled={isCurrentSubscription || processingId === subscription.id}
+                    className="w-full"
+                    variant="default"
+                  >
+                    {processingId === subscription.id ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {language === 'ru' ? 'Обработка...' : 'Processing...'}
+                      </>
+                    ) : (
+                      language === 'ru' ? 'Оплатить' : 'Pay'
+                    )}
+                  </Button>
 
-              <div className="flex items-center space-x-2 w-full py-2">
-                <Checkbox
-                  id={`paid-${subscription.id}`}
-                  checked={paidConfirmations[subscription.id] || false}
-                  onCheckedChange={(checked) => {
-                    setPaidConfirmations({
-                      ...paidConfirmations,
-                      [subscription.id]: checked as boolean
-                    });
-                  }}
-                  disabled={isCurrentSubscription}
-                />
-                <label
-                  htmlFor={`paid-${subscription.id}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                >
-                  {language === 'ru' ? 'Я оплатил' : 'I paid'}
-                </label>
-              </div>
+                  <div className="flex items-center space-x-2 w-full py-2">
+                    <Checkbox
+                      id={`paid-${subscription.id}`}
+                      checked={paidConfirmations[subscription.id] || false}
+                      onCheckedChange={(checked) => {
+                        setPaidConfirmations({
+                          ...paidConfirmations,
+                          [subscription.id]: checked as boolean
+                        });
+                      }}
+                      disabled={isCurrentSubscription}
+                    />
+                    <label
+                      htmlFor={`paid-${subscription.id}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {language === 'ru' ? 'Я оплатил' : 'I paid'}
+                    </label>
+                  </div>
+                </>
+              )}
 
               <Button
                 onClick={() => handleCreateCommunity(subscription)}
-                disabled={isCurrentSubscription || !paidConfirmations[subscription.id]}
+                disabled={isCurrentSubscription || (!isFree && !paidConfirmations[subscription.id])}
                 className="w-full"
                 variant={isFree ? 'outline' : 'default'}
               >
