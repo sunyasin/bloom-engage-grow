@@ -1,25 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabaseClient';
-import { useI18n } from '@/lib/i18n';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Edit, 
-  BookOpen, 
-  FileText, 
-  ClipboardCheck, 
-  Loader2, 
-  Trash2, 
-  Settings, 
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
+import { useI18n } from "@/lib/i18n";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  BookOpen,
+  FileText,
+  ClipboardCheck,
+  Loader2,
+  Trash2,
+  Settings,
   Globe,
   Plus,
   GripVertical,
   Lock,
-  ClipboardList
-} from 'lucide-react';
+  ClipboardList,
+} from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -28,15 +28,15 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,18 +46,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { toast } from '@/hooks/use-toast';
-import { User } from '@supabase/supabase-js';
-import CourseSettingsDialog from '@/components/CourseSettingsDialog';
-import LessonSettingsDialog from '@/components/LessonSettingsDialog';
-import VideoPlayer from '@/components/VideoPlayer';
-import LessonContentRenderer from '@/components/LessonContentRenderer';
-import HomeworkSubmissionForm from '@/components/HomeworkSubmissionForm';
-import type { Database } from '@/integrations/supabase/types';
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
+import { User } from "@supabase/supabase-js";
+import CourseSettingsDialog from "@/components/CourseSettingsDialog";
+import LessonSettingsDialog from "@/components/LessonSettingsDialog";
+import VideoPlayer from "@/components/VideoPlayer";
+import LessonContentRenderer from "@/components/LessonContentRenderer";
+import HomeworkSubmissionForm from "@/components/HomeworkSubmissionForm";
+import type { Database } from "@/integrations/supabase/types";
 
-type AccessType = Database['public']['Enums']['access_type'];
-type CourseStatus = Database['public']['Enums']['course_status'];
+type AccessType = Database["public"]["Enums"]["access_type"];
+type CourseStatus = Database["public"]["Enums"]["course_status"];
 
 interface Course {
   id: string;
@@ -100,7 +100,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { language } = useI18n();
-  
+
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [allLessons, setAllLessons] = useState<Lesson[]>([]);
@@ -119,7 +119,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [courseStartDate, setCourseStartDate] = useState<Date | null>(null);
-  const [homeworkStatuses, setHomeworkStatuses] = useState<Map<string, 'ready' | 'ok' | 'reject' | null>>(new Map());
+  const [homeworkStatuses, setHomeworkStatuses] = useState<Map<string, "ready" | "ok" | "reject" | null>>(new Map());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -129,22 +129,22 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (!over || active.id === over.id || !courseId) return;
-    
-    const oldIndex = lessons.findIndex(l => l.id === active.id);
-    const newIndex = lessons.findIndex(l => l.id === over.id);
-    
+
+    const oldIndex = lessons.findIndex((l) => l.id === active.id);
+    const newIndex = lessons.findIndex((l) => l.id === over.id);
+
     if (oldIndex === -1 || newIndex === -1) return;
-    
+
     const newLessons = arrayMove(lessons, oldIndex, newIndex);
     setLessons(newLessons);
-    
+
     setReordering(true);
     try {
       // Update order_index for all affected lessons
@@ -152,29 +152,26 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         id: lesson.id,
         order_index: index,
       }));
-      
+
       for (const update of updates) {
-        await supabase
-          .from('lessons')
-          .update({ order_index: update.order_index })
-          .eq('id', update.id);
+        await supabase.from("lessons").update({ order_index: update.order_index }).eq("id", update.id);
       }
     } catch (error) {
-      console.error('Reorder error:', error);
+      console.error("Reorder error:", error);
       // Refresh to restore original order
       const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true });
-      
+        .from("lessons")
+        .select("*")
+        .eq("course_id", courseId)
+        .order("order_index", { ascending: true });
+
       if (lessonsData) {
         const lessonMap = new Map<string, Lesson>();
         const rootLessons: Lesson[] = [];
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           lessonMap.set(lesson.id, { ...lesson, children: [] });
         });
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           const lessonWithChildren = lessonMap.get(lesson.id)!;
           if (lesson.parent_lesson_id) {
             const parent = lessonMap.get(lesson.parent_lesson_id);
@@ -197,33 +194,29 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const fetchData = async () => {
       if (!courseId) return;
 
-      const { data: courseData } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .maybeSingle();
+      const { data: courseData } = await supabase.from("courses").select("*").eq("id", courseId).maybeSingle();
 
       if (courseData) {
         setCourse(courseData);
       }
 
       const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true });
+        .from("lessons")
+        .select("*")
+        .eq("course_id", courseId)
+        .order("order_index", { ascending: true });
 
       if (lessonsData) {
         setAllLessons(lessonsData);
-        
+
         const lessonMap = new Map<string, Lesson>();
         const rootLessons: Lesson[] = [];
 
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           lessonMap.set(lesson.id, { ...lesson, children: [] });
         });
 
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           const lessonWithChildren = lessonMap.get(lesson.id)!;
           if (lesson.parent_lesson_id) {
             const parent = lessonMap.get(lesson.parent_lesson_id);
@@ -237,41 +230,55 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         });
 
         setLessons(rootLessons);
-        
+
         if (rootLessons.length > 0) {
-          setSelectedLesson(lessonMap.get(rootLessons[0].id) || rootLessons[0]);
+          // Для авторов - выбрать первый урок
+          // Для студентов - найти первый доступный урок
+          const firstAvailableLesson = isAuthor
+            ? rootLessons[0]
+            : rootLessons.find((lesson) => {
+                const available = isLessonAvailable(lesson);
+                const blocked = isBlockedByHomework(lesson);
+                return available && !blocked;
+              });
+
+          // Если есть доступный урок - выбрать его
+          // Если нет - всё равно выбрать первый, но не показывать контент
+          setSelectedLesson(firstAvailableLesson || rootLessons[0]);
+        } else {
+          setSelectedLesson(null);
         }
       }
 
       // Fetch course start date for current user
       if (user) {
         const { data: courseStart } = await supabase
-          .from('course_starts')
-          .select('started_at')
-          .eq('user_id', user.id)
-          .eq('course_id', courseId)
+          .from("course_starts")
+          .select("started_at")
+          .eq("user_id", user.id)
+          .eq("course_id", courseId)
           .maybeSingle();
-        
+
         if (courseStart) {
           setCourseStartDate(new Date(courseStart.started_at));
         }
 
         // Fetch homework statuses for lessons with blocking homework
-        const lessonsWithBlockingHw = lessonsData?.filter(l => l.homework_blocks_next && l.has_homework) || [];
+        const lessonsWithBlockingHw = lessonsData?.filter((l) => l.homework_blocks_next && l.has_homework) || [];
         if (lessonsWithBlockingHw.length > 0 && user) {
-          const lessonIds = lessonsWithBlockingHw.map(l => l.id);
+          const lessonIds = lessonsWithBlockingHw.map((l) => l.id);
           const { data: hwSubs } = await supabase
-            .from('homework_submissions')
-            .select('lesson_id, status, created_at')
-            .eq('user_id', user.id)
-            .in('lesson_id', lessonIds)
-            .order('created_at', { ascending: false });
-          
+            .from("homework_submissions")
+            .select("lesson_id, status, created_at")
+            .eq("user_id", user.id)
+            .in("lesson_id", lessonIds)
+            .order("created_at", { ascending: false });
+
           // Get latest status per lesson
-          const statusMap = new Map<string, 'ready' | 'ok' | 'reject' | null>();
-          hwSubs?.forEach(sub => {
+          const statusMap = new Map<string, "ready" | "ok" | "reject" | null>();
+          hwSubs?.forEach((sub) => {
             if (!statusMap.has(sub.lesson_id)) {
-              statusMap.set(sub.lesson_id, sub.status as 'ready' | 'ok' | 'reject');
+              statusMap.set(sub.lesson_id, sub.status as "ready" | "ok" | "reject");
             }
           });
           setHomeworkStatuses(statusMap);
@@ -285,7 +292,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   }, [courseId, user]);
 
   const toggleExpand = (lessonId: string) => {
-    setExpandedLessons(prev => {
+    setExpandedLessons((prev) => {
       const next = new Set(prev);
       if (next.has(lessonId)) {
         next.delete(lessonId);
@@ -298,9 +305,9 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'test':
+      case "test":
         return <ClipboardCheck className="h-4 w-4 text-orange-500" />;
-      case 'assignment':
+      case "assignment":
         return <FileText className="h-4 w-4 text-blue-500" />;
       default:
         return <BookOpen className="h-4 w-4 text-primary" />;
@@ -313,42 +320,42 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const isLessonAvailable = (lesson: Lesson): boolean => {
     // Authors can always access all lessons
     if (isAuthor) return true;
-    
+
     // If no delay, lesson is available (delay check)
     const delayDays = lesson.delay_days ?? 0;
     if (delayDays > 0) {
       // If no course start date yet, lesson with delay is not available
       if (!courseStartDate) return false;
-      
+
       // Calculate if enough days have passed
       const now = new Date();
       const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysSinceStart < delayDays) return false;
     }
-    
+
     return true;
   };
 
   // Check if lesson is blocked by incomplete homework from previous lessons
   const isBlockedByHomework = (lesson: Lesson): boolean => {
     if (isAuthor) return false;
-    
+
     // Find previous lessons that have homework_blocks_next enabled
-    const lessonIndex = allLessons.findIndex(l => l.id === lesson.id);
+    const lessonIndex = allLessons.findIndex((l) => l.id === lesson.id);
     if (lessonIndex <= 0) return false;
-    
+
     // Check all previous lessons
     for (let i = 0; i < lessonIndex; i++) {
       const prevLesson = allLessons[i];
       if (prevLesson.has_homework && prevLesson.homework_blocks_next) {
         const hwStatus = homeworkStatuses.get(prevLesson.id);
         // If no submission or not approved, block this lesson
-        if (!hwStatus || hwStatus !== 'ok') {
+        if (!hwStatus || hwStatus !== "ok") {
           return true;
         }
       }
     }
-    
+
     return false;
   };
 
@@ -356,7 +363,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const getDaysRemaining = (lesson: Lesson): number => {
     const delayDays = lesson.delay_days ?? 0;
     if (delayDays === 0 || !courseStartDate) return delayDays;
-    
+
     const now = new Date();
     const daysSinceStart = Math.floor((now.getTime() - courseStartDate.getTime()) / (1000 * 60 * 60 * 24));
     return Math.max(0, delayDays - daysSinceStart);
@@ -366,11 +373,12 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     // Check if lesson is blocked by homework
     if (isBlockedByHomework(lesson)) {
       toast({
-        title: language === 'ru' ? 'Урок заблокирован' : 'Lesson blocked',
-        description: language === 'ru' 
-          ? 'Чтобы открыть урок, выполните все ДЗ предыдущих уроков'
-          : 'Complete all homework from previous lessons to unlock',
-        variant: 'destructive',
+        title: language === "ru" ? "Урок заблокирован" : "Lesson blocked",
+        description:
+          language === "ru"
+            ? "Чтобы открыть урок, выполните все ДЗ предыдущих уроков"
+            : "Complete all homework from previous lessons to unlock",
+        variant: "destructive",
       });
       return;
     }
@@ -379,41 +387,45 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     if (!isLessonAvailable(lesson)) {
       const remaining = getDaysRemaining(lesson);
       toast({
-        title: language === 'ru' ? 'Урок недоступен' : 'Lesson unavailable',
-        description: language === 'ru' 
-          ? `Этот урок откроется через ${remaining} ${remaining === 1 ? 'день' : 'дней'}`
-          : `This lesson will unlock in ${remaining} day${remaining === 1 ? '' : 's'}`,
-        variant: 'destructive',
+        title: language === "ru" ? "Урок недоступен" : "Lesson unavailable",
+        description:
+          language === "ru"
+            ? `Этот урок откроется через ${remaining} ${remaining === 1 ? "день" : "дней"}`
+            : `This lesson will unlock in ${remaining} day${remaining === 1 ? "" : "s"}`,
+        variant: "destructive",
       });
       return;
     }
 
-    const fullLesson = allLessons.find(l => l.id === lesson.id);
+    const fullLesson = allLessons.find((l) => l.id === lesson.id);
     setSelectedLesson(fullLesson || lesson);
-    
+
     // Record course start if this is the first lesson view
     if (user && courseId && !courseStartDate) {
       const { data: newStart } = await supabase
-        .from('course_starts')
-        .upsert({
-          user_id: user.id,
-          course_id: courseId,
-        }, { onConflict: 'user_id,course_id' })
-        .select('started_at')
+        .from("course_starts")
+        .upsert(
+          {
+            user_id: user.id,
+            course_id: courseId,
+          },
+          { onConflict: "user_id,course_id" },
+        )
+        .select("started_at")
         .single();
-      
+
       if (newStart) {
         setCourseStartDate(new Date(newStart.started_at));
       }
     }
-    
+
     // Fetch lesson blocks
     const { data: blocksData } = await supabase
-      .from('lesson_blocks')
-      .select('*')
-      .eq('lesson_id', lesson.id)
-      .order('order_index', { ascending: true });
-    
+      .from("lesson_blocks")
+      .select("*")
+      .eq("lesson_id", lesson.id)
+      .order("order_index", { ascending: true });
+
     setLessonBlocks(blocksData || []);
   };
 
@@ -422,11 +434,11 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const loadInitialBlocks = async () => {
       if (selectedLesson && lessonBlocks.length === 0) {
         const { data: blocksData } = await supabase
-          .from('lesson_blocks')
-          .select('*')
-          .eq('lesson_id', selectedLesson.id)
-          .order('order_index', { ascending: true });
-        
+          .from("lesson_blocks")
+          .select("*")
+          .eq("lesson_id", selectedLesson.id)
+          .order("order_index", { ascending: true });
+
         setLessonBlocks(blocksData || []);
       }
     };
@@ -435,67 +447,65 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
   const renderBlock = (block: LessonBlock) => {
     const config = (block.config_json || {}) as Record<string, unknown>;
-    
+
     switch (block.block_type) {
-      case 'text':
+      case "text":
         return (
           <div key={block.id} className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
-            {(config.content as string) || ''}
+            {(config.content as string) || ""}
           </div>
         );
-      case 'image':
+      case "image":
         return config.url ? (
-          <img 
+          <img
             key={block.id}
-            src={config.url as string} 
-            alt={(config.alt as string) || ''} 
+            src={config.url as string}
+            alt={(config.alt as string) || ""}
             className="max-w-full rounded-lg"
           />
         ) : null;
-      case 'checkbox':
+      case "checkbox":
         return (
           <div key={block.id} className="flex items-center gap-2">
             <input type="checkbox" defaultChecked={Boolean(config.checked)} className="h-4 w-4" />
-            <span>{(config.label as string) || ''}</span>
+            <span>{(config.label as string) || ""}</span>
           </div>
         );
-      case 'input_text':
+      case "input_text":
         return (
           <div key={block.id} className="space-y-1">
             {config.label && <label className="text-sm font-medium">{config.label as string}</label>}
-            <input 
-              type="text" 
-              placeholder={(config.placeholder as string) || ''} 
+            <input
+              type="text"
+              placeholder={(config.placeholder as string) || ""}
               className="w-full px-3 py-2 border border-border rounded-md bg-background"
             />
           </div>
         );
-      case 'button':
+      case "button":
         return (
           <button key={block.id} className="px-4 py-2 bg-primary text-primary-foreground rounded-md" disabled>
-            {(config.label as string) || 'Button'}
+            {(config.label as string) || "Button"}
           </button>
         );
-      case 'link':
+      case "link":
         return (
-          <a key={block.id} href={(config.url as string) || '#'} className="text-primary underline">
-            {(config.label as string) || (config.url as string) || 'Link'}
+          <a key={block.id} href={(config.url as string) || "#"} className="text-primary underline">
+            {(config.label as string) || (config.url as string) || "Link"}
           </a>
         );
-      case 'list':
+      case "list":
         const items = (config.items as string[]) || [];
         return (
           <ul key={block.id} className="list-disc pl-5 space-y-1">
-            {items.map((item, i) => <li key={i}>{item}</li>)}
+            {items.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
           </ul>
         );
-      case 'video':
+      case "video":
         return config.url ? (
-          <VideoPlayer 
-            key={block.id}
-            src={config.url as string} 
-            lessonId={selectedLesson?.id}
-          />
+          <VideoPlayer key={block.id} src={config.url as string} lessonId={selectedLesson?.id} />
         ) : null;
       default:
         return null;
@@ -504,26 +514,26 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
   const handleDeleteCourse = async () => {
     if (!course) return;
-    
+
     setDeleting(true);
     try {
-      await supabase.from('lessons').delete().eq('course_id', course.id);
-      
-      const { error } = await supabase.from('courses').delete().eq('id', course.id);
-      
+      await supabase.from("lessons").delete().eq("course_id", course.id);
+
+      const { error } = await supabase.from("courses").delete().eq("id", course.id);
+
       if (error) throw error;
 
       toast({
-        title: language === 'ru' ? 'Курс удалён' : 'Course deleted',
+        title: language === "ru" ? "Курс удалён" : "Course deleted",
       });
 
       navigate(`/community/${course.community_id}`);
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Не удалось удалить курс' : 'Failed to delete course',
-        variant: 'destructive',
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Не удалось удалить курс" : "Failed to delete course",
+        variant: "destructive",
       });
     } finally {
       setDeleting(false);
@@ -536,27 +546,29 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
     setPublishing(true);
     try {
-      const newStatus: CourseStatus = course.status === 'published' ? 'draft' : 'published';
-      
-      const { error } = await supabase
-        .from('courses')
-        .update({ status: newStatus })
-        .eq('id', course.id);
+      const newStatus: CourseStatus = course.status === "published" ? "draft" : "published";
+
+      const { error } = await supabase.from("courses").update({ status: newStatus }).eq("id", course.id);
 
       if (error) throw error;
 
       setCourse({ ...course, status: newStatus });
 
       toast({
-        title: newStatus === 'published' 
-          ? (language === 'ru' ? 'Курс опубликован' : 'Course published')
-          : (language === 'ru' ? 'Курс снят с публикации' : 'Course unpublished'),
+        title:
+          newStatus === "published"
+            ? language === "ru"
+              ? "Курс опубликован"
+              : "Course published"
+            : language === "ru"
+              ? "Курс снят с публикации"
+              : "Course unpublished",
       });
     } catch (error) {
-      console.error('Publish error:', error);
+      console.error("Publish error:", error);
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        variant: 'destructive',
+        title: language === "ru" ? "Ошибка" : "Error",
+        variant: "destructive",
       });
     } finally {
       setPublishing(false);
@@ -572,24 +584,22 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       e.stopPropagation();
     }
     if (!courseId) return;
-    
+
     setCreatingLesson(true);
     try {
       // Get max order_index for siblings
-      const siblings = parentLessonId 
-        ? allLessons.filter(l => l.parent_lesson_id === parentLessonId)
-        : allLessons.filter(l => !l.parent_lesson_id);
-      
-      const maxOrder = siblings.length > 0 
-        ? Math.max(...siblings.map(l => l.order_index)) + 1 
-        : 0;
+      const siblings = parentLessonId
+        ? allLessons.filter((l) => l.parent_lesson_id === parentLessonId)
+        : allLessons.filter((l) => !l.parent_lesson_id);
+
+      const maxOrder = siblings.length > 0 ? Math.max(...siblings.map((l) => l.order_index)) + 1 : 0;
 
       const { data: newLesson, error } = await supabase
-        .from('lessons')
+        .from("lessons")
         .insert({
           course_id: courseId,
-          title: language === 'ru' ? 'Новый урок' : 'New Lesson',
-          type: 'lesson',
+          title: language === "ru" ? "Новый урок" : "New Lesson",
+          type: "lesson",
           order_index: maxOrder,
           parent_lesson_id: parentLessonId,
         })
@@ -600,22 +610,22 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
       // Refresh lessons
       const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true });
+        .from("lessons")
+        .select("*")
+        .eq("course_id", courseId)
+        .order("order_index", { ascending: true });
 
       if (lessonsData) {
         setAllLessons(lessonsData);
-        
+
         const lessonMap = new Map<string, Lesson>();
         const rootLessons: Lesson[] = [];
 
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           lessonMap.set(lesson.id, { ...lesson, children: [] });
         });
 
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           const lessonWithChildren = lessonMap.get(lesson.id)!;
           if (lesson.parent_lesson_id) {
             const parent = lessonMap.get(lesson.parent_lesson_id);
@@ -629,12 +639,12 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         });
 
         setLessons(rootLessons);
-        
+
         // Expand parent if creating nested lesson
         if (parentLessonId) {
-          setExpandedLessons(prev => new Set([...prev, parentLessonId]));
+          setExpandedLessons((prev) => new Set([...prev, parentLessonId]));
         }
-        
+
         // Select the new lesson
         if (newLesson) {
           setSelectedLesson(newLesson);
@@ -643,14 +653,14 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       }
 
       toast({
-        title: language === 'ru' ? 'Урок создан' : 'Lesson created',
+        title: language === "ru" ? "Урок создан" : "Lesson created",
       });
     } catch (error) {
-      console.error('Create lesson error:', error);
+      console.error("Create lesson error:", error);
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Не удалось создать урок' : 'Failed to create lesson',
-        variant: 'destructive',
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Не удалось создать урок" : "Failed to create lesson",
+        variant: "destructive",
       });
     } finally {
       setCreatingLesson(false);
@@ -659,42 +669,42 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
   const handleDeleteLesson = async () => {
     if (!selectedLesson || !courseId) return;
-    
+
     setDeletingLesson(true);
     try {
       // Delete lesson blocks first
-      await supabase.from('lesson_blocks').delete().eq('lesson_id', selectedLesson.id);
-      
+      await supabase.from("lesson_blocks").delete().eq("lesson_id", selectedLesson.id);
+
       // Delete child lessons recursively
-      const childLessons = allLessons.filter(l => l.parent_lesson_id === selectedLesson.id);
+      const childLessons = allLessons.filter((l) => l.parent_lesson_id === selectedLesson.id);
       for (const child of childLessons) {
-        await supabase.from('lesson_blocks').delete().eq('lesson_id', child.id);
-        await supabase.from('lessons').delete().eq('id', child.id);
+        await supabase.from("lesson_blocks").delete().eq("lesson_id", child.id);
+        await supabase.from("lessons").delete().eq("id", child.id);
       }
-      
+
       // Delete the lesson itself
-      const { error } = await supabase.from('lessons').delete().eq('id', selectedLesson.id);
-      
+      const { error } = await supabase.from("lessons").delete().eq("id", selectedLesson.id);
+
       if (error) throw error;
 
       // Refresh lessons
       const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true });
+        .from("lessons")
+        .select("*")
+        .eq("course_id", courseId)
+        .order("order_index", { ascending: true });
 
       if (lessonsData) {
         setAllLessons(lessonsData);
-        
+
         const lessonMap = new Map<string, Lesson>();
         const rootLessons: Lesson[] = [];
 
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           lessonMap.set(lesson.id, { ...lesson, children: [] });
         });
 
-        lessonsData.forEach(lesson => {
+        lessonsData.forEach((lesson) => {
           const lessonWithChildren = lessonMap.get(lesson.id)!;
           if (lesson.parent_lesson_id) {
             const parent = lessonMap.get(lesson.parent_lesson_id);
@@ -708,10 +718,21 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         });
 
         setLessons(rootLessons);
-        
-        // Select first lesson or null
+
         if (rootLessons.length > 0) {
-          setSelectedLesson(rootLessons[0]);
+          // Для авторов - выбрать первый урок
+          // Для студентов - найти первый доступный урок
+          const firstAvailableLesson = isAuthor
+            ? rootLessons[0]
+            : rootLessons.find((lesson) => {
+                const available = isLessonAvailable(lesson);
+                const blocked = isBlockedByHomework(lesson);
+                return available && !blocked;
+              });
+
+          // Если есть доступный урок - выбрать его
+          // Если нет - всё равно выбрать первый, но не показывать контент
+          setSelectedLesson(firstAvailableLesson || rootLessons[0]);
         } else {
           setSelectedLesson(null);
         }
@@ -719,14 +740,14 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       }
 
       toast({
-        title: language === 'ru' ? 'Урок удалён' : 'Lesson deleted',
+        title: language === "ru" ? "Урок удалён" : "Lesson deleted",
       });
     } catch (error) {
-      console.error('Delete lesson error:', error);
+      console.error("Delete lesson error:", error);
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Не удалось удалить урок' : 'Failed to delete lesson',
-        variant: 'destructive',
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Не удалось удалить урок" : "Failed to delete lesson",
+        variant: "destructive",
       });
     } finally {
       setDeletingLesson(false);
@@ -744,29 +765,24 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
     const hasDelay = (lesson.delay_days ?? 0) > 0;
     const isLocked = !available || blockedByHw;
 
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: lesson.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lesson.id });
 
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      opacity: isDragging ? 0.5 : (isLocked && !isAuthor ? 0.6 : 1),
+      opacity: isDragging ? 0.5 : isLocked && !isAuthor ? 0.6 : 1,
     };
 
     return (
       <div ref={setNodeRef} style={style}>
         <div
           className={`group flex items-center gap-1 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
-            isSelected 
-              ? 'bg-primary/10 text-primary border border-primary/20' 
-              : !isLocked || isAuthor ? 'hover:bg-muted/50' : 'hover:bg-muted/30'
-          } ${isDragging ? 'shadow-lg bg-card z-50' : ''}`}
+            isSelected
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : !isLocked || isAuthor
+                ? "hover:bg-muted/50"
+                : "hover:bg-muted/30"
+          } ${isDragging ? "shadow-lg bg-card z-50" : ""}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
             handleSelectLesson(lesson);
@@ -783,44 +799,40 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               <GripVertical className="h-3 w-3 text-muted-foreground" />
             </button>
           )}
-          
+
           {hasChildren ? (
-            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
           ) : (
             <div className="w-4" />
           )}
-          
-          {isLocked && !isAuthor ? (
-            <Lock className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            getTypeIcon(lesson.type)
-          )}
-          
-          <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium' : ''} ${isLocked && !isAuthor ? 'text-muted-foreground' : ''}`}>
+
+          {isLocked && !isAuthor ? <Lock className="h-4 w-4 text-muted-foreground" /> : getTypeIcon(lesson.type)}
+
+          <span
+            className={`text-sm flex-1 truncate ${isSelected ? "font-medium" : ""} ${isLocked && !isAuthor ? "text-muted-foreground" : ""}`}
+          >
             {lesson.title}
           </span>
-          
+
           {/* Show days remaining for delay-locked lessons */}
           {!available && !isAuthor && daysRemaining > 0 && (
             <span className="text-xs text-muted-foreground">
-              {language === 'ru' ? `через ${daysRemaining} дн.` : `in ${daysRemaining}d`}
+              {language === "ru" ? `через ${daysRemaining} дн.` : `in ${daysRemaining}d`}
             </span>
           )}
-          
+
           {/* Show homework block indicator */}
           {blockedByHw && !isAuthor && available && (
-            <span className="text-xs text-orange-500">
-              {language === 'ru' ? 'ДЗ' : 'HW'}
-            </span>
+            <span className="text-xs text-orange-500">{language === "ru" ? "ДЗ" : "HW"}</span>
           )}
-          
+
           {/* Show delay indicator for authors */}
           {isAuthor && hasDelay && (
             <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100">
               {lesson.delay_days}д
             </span>
           )}
-          
+
           {isAuthor && (
             <>
               <button
@@ -830,7 +842,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                   setShowLessonSettingsDialog(true);
                 }}
                 className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
-                title={language === 'ru' ? 'Настройки урока' : 'Lesson settings'}
+                title={language === "ru" ? "Настройки урока" : "Lesson settings"}
               >
                 <Settings className="h-3 w-3" />
               </button>
@@ -840,7 +852,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                   handleCreateLesson(lesson.id, e);
                 }}
                 className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity"
-                title={language === 'ru' ? 'Добавить вложенный урок' : 'Add nested lesson'}
+                title={language === "ru" ? "Добавить вложенный урок" : "Add nested lesson"}
               >
                 <Plus className="h-3 w-3" />
               </button>
@@ -850,7 +862,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
         {hasChildren && isExpanded && (
           <div>
-            {lesson.children!.map(child => (
+            {lesson.children!.map((child) => (
               <SortableLessonItem key={child.id} lesson={child} depth={depth + 1} />
             ))}
           </div>
@@ -858,7 +870,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       </div>
     );
   };
-
 
   if (loading) {
     return (
@@ -871,9 +882,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   if (!course) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <p className="text-muted-foreground text-lg">
-          {language === 'ru' ? 'Курс не найден' : 'Course not found'}
-        </p>
+        <p className="text-muted-foreground text-lg">{language === "ru" ? "Курс не найден" : "Course not found"}</p>
       </div>
     );
   }
@@ -885,95 +894,80 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => navigate(`/community/${course.community_id}?tab=courses`)}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
-                {language === 'ru' ? 'Курсы' : 'Courses'}
+                {language === "ru" ? "Курсы" : "Courses"}
               </Button>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-semibold text-foreground">{course.title}</h1>
-                  {course.status === 'draft' && (
+                  {course.status === "draft" && (
                     <span className="px-2 py-0.5 text-xs rounded-full bg-muted text-muted-foreground">
-                      {language === 'ru' ? 'Черновик' : 'Draft'}
+                      {language === "ru" ? "Черновик" : "Draft"}
                     </span>
                   )}
-                  {course.status === 'archived' && (
+                  {course.status === "archived" && (
                     <span className="px-2 py-0.5 text-xs rounded-full bg-muted text-muted-foreground">
-                      {language === 'ru' ? 'В архиве' : 'Archived'}
+                      {language === "ru" ? "В архиве" : "Archived"}
                     </span>
                   )}
                 </div>
-                {course.description && (
-                  <p className="text-sm text-muted-foreground">{course.description}</p>
-                )}
+                {course.description && <p className="text-sm text-muted-foreground">{course.description}</p>}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {isAuthor && (
                 <>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowDeleteDialog(true)}
                     className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
-                    {language === 'ru' ? 'Курс' : 'Course'}
+                    {language === "ru" ? "Курс" : "Course"}
                   </Button>
-                  
-                  {course.status !== 'published' && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handlePublish}
-                      disabled={publishing}
-                    >
+
+                  {course.status !== "published" && (
+                    <Button variant="outline" size="sm" onClick={handlePublish} disabled={publishing}>
                       {publishing ? (
                         <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                       ) : (
                         <Globe className="h-4 w-4 mr-1" />
                       )}
-                      {language === 'ru' ? 'Опубликовать' : 'Publish'}
+                      {language === "ru" ? "Опубликовать" : "Publish"}
                     </Button>
                   )}
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate('/homework-moderation')}
-                  >
+
+                  <Button variant="outline" size="sm" onClick={() => navigate("/homework-moderation")}>
                     <ClipboardList className="h-4 w-4 mr-1" />
-                    {language === 'ru' ? 'Модерация ДЗ' : 'Homework'}
+                    {language === "ru" ? "Модерация ДЗ" : "Homework"}
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowSettingsDialog(true)}
-                  >
+
+                  <Button variant="outline" size="sm" onClick={() => setShowSettingsDialog(true)}>
                     <Settings className="h-4 w-4 mr-1" />
-                    {language === 'ru' ? 'Настройки' : 'Settings'}
+                    {language === "ru" ? "Настройки" : "Settings"}
                   </Button>
                 </>
               )}
-              
+
               {isAuthor && selectedLesson && (
                 <>
-                  <Button 
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowDeleteLessonDialog(true)}
                     className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
-                    {language === 'ru' ? 'Урок' : 'Lesson'}
+                    {language === "ru" ? "Урок" : "Lesson"}
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
                     className="bg-gradient-primary"
                     size="icon"
@@ -993,32 +987,25 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         <div className="w-72 border-r border-border bg-card overflow-y-auto">
           <div className="p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              {language === 'ru' ? 'Содержание' : 'Contents'}
+              {language === "ru" ? "Содержание" : "Contents"}
             </h2>
-            
+
             {lessons.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                {language === 'ru' ? 'Уроки не добавлены' : 'No lessons'}
+                {language === "ru" ? "Уроки не добавлены" : "No lessons"}
               </p>
             ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={lessons.map(l => l.id)}
-                  strategy={verticalListSortingStrategy}
-                >
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={lessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-1">
-                    {lessons.map(lesson => (
+                    {lessons.map((lesson) => (
                       <SortableLessonItem key={lesson.id} lesson={lesson} />
                     ))}
                   </div>
                 </SortableContext>
               </DndContext>
             )}
-            
+
             {isAuthor && (
               <Button
                 variant="outline"
@@ -1027,12 +1014,8 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 onClick={() => handleCreateLesson(null)}
                 disabled={creatingLesson}
               >
-                {creatingLesson ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-2" />
-                )}
-                {language === 'ru' ? 'Новый урок' : 'New Lesson'}
+                {creatingLesson ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                {language === "ru" ? "Новый урок" : "New Lesson"}
               </Button>
             )}
           </div>
@@ -1052,10 +1035,12 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 <Card className="mb-6">
                   <CardContent className="p-0">
                     <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                      {selectedLesson.video_url.includes('youtube') || selectedLesson.video_url.includes('youtu.be') ? (
+                      {selectedLesson.video_url.includes("youtube") || selectedLesson.video_url.includes("youtu.be") ? (
                         <iframe
                           className="w-full h-full rounded-lg"
-                          src={selectedLesson.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                          src={selectedLesson.video_url
+                            .replace("watch?v=", "embed/")
+                            .replace("youtu.be/", "youtube.com/embed/")}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                         />
@@ -1080,18 +1065,14 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 </Card>
               ) : lessonBlocks.length > 0 ? (
                 <Card>
-                  <CardContent className="p-6 space-y-4">
-                    {lessonBlocks.map(block => renderBlock(block))}
-                  </CardContent>
+                  <CardContent className="p-6 space-y-4">{lessonBlocks.map((block) => renderBlock(block))}</CardContent>
                 </Card>
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
                     <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
                     <p className="text-muted-foreground">
-                      {language === 'ru'
-                        ? 'Содержимое урока пока не добавлено'
-                        : 'Lesson content not added yet'}
+                      {language === "ru" ? "Содержимое урока пока не добавлено" : "Lesson content not added yet"}
                     </p>
                     {isAuthor && (
                       <Button
@@ -1100,7 +1081,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                         onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
                       >
                         <Edit className="h-4 w-4 mr-2" />
-                        {language === 'ru' ? 'Добавить содержимое' : 'Add content'}
+                        {language === "ru" ? "Добавить содержимое" : "Add content"}
                       </Button>
                     )}
                   </CardContent>
@@ -1109,11 +1090,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
 
               {/* Homework submission form */}
               {selectedLesson.has_homework && !isAuthor && (
-                <HomeworkSubmissionForm
-                  lessonId={selectedLesson.id}
-                  user={user}
-                  language={language}
-                />
+                <HomeworkSubmissionForm lessonId={selectedLesson.id} user={user} language={language} />
               )}
 
               {/* Homework indicator for authors */}
@@ -1121,9 +1098,9 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                 <Card className="mt-6 border-dashed border-primary/30">
                   <CardContent className="p-4 text-center text-muted-foreground">
                     <p className="text-sm">
-                      {language === 'ru' 
-                        ? '📝 Для этого урока включено домашнее задание. Участники увидят форму для отправки ответа.'
-                        : '📝 Homework is enabled for this lesson. Participants will see a submission form.'}
+                      {language === "ru"
+                        ? "📝 Для этого урока включено домашнее задание. Участники увидят форму для отправки ответа."
+                        : "📝 Homework is enabled for this lesson. Participants will see a submission form."}
                     </p>
                   </CardContent>
                 </Card>
@@ -1134,9 +1111,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
               <div className="text-center">
                 <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
                 <p className="text-muted-foreground">
-                  {language === 'ru' 
-                    ? 'Выберите урок из списка слева' 
-                    : 'Select a lesson from the list'}
+                  {language === "ru" ? "Выберите урок из списка слева" : "Select a lesson from the list"}
                 </p>
               </div>
             </div>
@@ -1148,26 +1123,22 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {language === 'ru' ? 'Удалить курс?' : 'Delete course?'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{language === "ru" ? "Удалить курс?" : "Delete course?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {language === 'ru' 
-                ? 'Это действие нельзя отменить. Все уроки курса будут удалены.'
-                : 'This action cannot be undone. All lessons will be deleted.'}
+              {language === "ru"
+                ? "Это действие нельзя отменить. Все уроки курса будут удалены."
+                : "This action cannot be undone. All lessons will be deleted."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>
-              {language === 'ru' ? 'Отмена' : 'Cancel'}
-            </AlertDialogCancel>
+            <AlertDialogCancel>{language === "ru" ? "Отмена" : "Cancel"}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteCourse}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {language === 'ru' ? 'Удалить' : 'Delete'}
+              {language === "ru" ? "Удалить" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1177,26 +1148,22 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       <AlertDialog open={showDeleteLessonDialog} onOpenChange={setShowDeleteLessonDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {language === 'ru' ? 'Удалить урок?' : 'Delete lesson?'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{language === "ru" ? "Удалить урок?" : "Delete lesson?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {language === 'ru' 
-                ? 'Это действие нельзя отменить. Все вложенные уроки также будут удалены.'
-                : 'This action cannot be undone. All nested lessons will also be deleted.'}
+              {language === "ru"
+                ? "Это действие нельзя отменить. Все вложенные уроки также будут удалены."
+                : "This action cannot be undone. All nested lessons will also be deleted."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>
-              {language === 'ru' ? 'Отмена' : 'Cancel'}
-            </AlertDialogCancel>
+            <AlertDialogCancel>{language === "ru" ? "Отмена" : "Cancel"}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteLesson}
               disabled={deletingLesson}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingLesson && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {language === 'ru' ? 'Удалить' : 'Delete'}
+              {language === "ru" ? "Удалить" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1227,19 +1194,19 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
             // Refresh lessons to get updated delay_days
             if (courseId) {
               supabase
-                .from('lessons')
-                .select('*')
-                .eq('course_id', courseId)
-                .order('order_index', { ascending: true })
+                .from("lessons")
+                .select("*")
+                .eq("course_id", courseId)
+                .order("order_index", { ascending: true })
                 .then(({ data }) => {
                   if (data) {
                     setAllLessons(data);
                     const lessonMap = new Map<string, Lesson>();
                     const rootLessons: Lesson[] = [];
-                    data.forEach(lesson => {
+                    data.forEach((lesson) => {
                       lessonMap.set(lesson.id, { ...lesson, children: [] });
                     });
-                    data.forEach(lesson => {
+                    data.forEach((lesson) => {
                       const lessonWithChildren = lessonMap.get(lesson.id)!;
                       if (lesson.parent_lesson_id) {
                         const parent = lessonMap.get(lesson.parent_lesson_id);
