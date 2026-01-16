@@ -140,7 +140,8 @@ const handleCreateCommunity = async (subscription: PortalSubscription) => {
       return;
     }
 
-    if (!paidConfirmations[subscription.id]) {
+    const isFree = subscription.price === 0;
+    if (!isFree && !paidConfirmations[subscription.id]) {
       toast({
         title: language === 'ru' ? 'Ошибка' : 'Error',
         description: language === 'ru' ? 'Подтвердите оплату перед созданием сообщества' : 'Please confirm payment before creating community',
