@@ -282,7 +282,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       // For authors - select first lesson
       // For students - find first available lesson
       const userIsAuthor = user?.id === course?.author_id;
-      
+
       if (userIsAuthor) {
         setSelectedLesson(lessons[0]);
         return;
@@ -291,7 +291,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       // For students, check availability using lesson.delay_days directly
       const firstAvailableLesson = lessons.find((lesson) => {
         const delayDays = lesson.delay_days ?? 0;
-        
+
         // Check delay availability
         if (delayDays > 0) {
           if (!courseStartDate) return false;
@@ -318,7 +318,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       });
 
       // Select first available or fall back to first lesson (content won't be shown)
-      setSelectedLesson(firstAvailableLesson || lessons[0]);
+      setSelectedLesson(firstAvailableLesson); // || lessons[0]
     };
 
     selectFirstAvailable();
@@ -1090,7 +1090,8 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                   <Card className="mb-6">
                     <CardContent className="p-0">
                       <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                        {selectedLesson.video_url.includes("youtube") || selectedLesson.video_url.includes("youtu.be") ? (
+                        {selectedLesson.video_url.includes("youtube") ||
+                        selectedLesson.video_url.includes("youtu.be") ? (
                           <iframe
                             className="w-full h-full rounded-lg"
                             src={selectedLesson.video_url
@@ -1120,7 +1121,9 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
                   </Card>
                 ) : lessonBlocks.length > 0 ? (
                   <Card>
-                    <CardContent className="p-6 space-y-4">{lessonBlocks.map((block) => renderBlock(block))}</CardContent>
+                    <CardContent className="p-6 space-y-4">
+                      {lessonBlocks.map((block) => renderBlock(block))}
+                    </CardContent>
                   </Card>
                 ) : (
                   <Card>
