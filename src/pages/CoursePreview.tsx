@@ -318,7 +318,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       });
 
       // Select first available or fall back to first lesson (content won't be shown)
-      setSelectedLesson(firstAvailableLesson); // || lessons[0]
+      setSelectedLesson(firstAvailableLesson || lessons[0]); //
     };
 
     selectFirstAvailable();
