@@ -1024,88 +1024,111 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         {/* Right content - Lesson viewer */}
         <div className="flex-1 overflow-y-auto">
           {selectedLesson ? (
-            <div className="p-6 max-w-4xl mx-auto">
-              <div className="flex items-center gap-2 mb-4">
-                {getTypeIcon(selectedLesson.type)}
-                <h2 className="text-2xl font-bold text-foreground">{selectedLesson.title}</h2>
-              </div>
-
-              {/* Video player */}
-              {selectedLesson.video_url && (
-                <Card className="mb-6">
-                  <CardContent className="p-0">
-                    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                      {selectedLesson.video_url.includes("youtube") || selectedLesson.video_url.includes("youtu.be") ? (
-                        <iframe
-                          className="w-full h-full rounded-lg"
-                          src={selectedLesson.video_url
-                            .replace("watch?v=", "embed/")
-                            .replace("youtu.be/", "youtube.com/embed/")}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <VideoPlayer src={selectedLesson.video_url} lessonId={selectedLesson.id} className="w-full" />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Content - prefer WYSIWYG HTML when present to avoid flicker while blocks load */}
-              {selectedLesson.content_html && selectedLesson.content_html.trim().length > 0 ? (
-                <Card>
-                  <CardContent className="p-6">
-                    <LessonContentRenderer
-                      lessonId={selectedLesson.id}
-                      html={selectedLesson.content_html}
-                      className="prose prose-sm max-w-none dark:prose-invert"
-                    />
-                  </CardContent>
-                </Card>
-              ) : lessonBlocks.length > 0 ? (
-                <Card>
-                  <CardContent className="p-6 space-y-4">{lessonBlocks.map((block) => renderBlock(block))}</CardContent>
-                </Card>
-              ) : (
+            // Check if lesson is unavailable for non-authors
+            !isAuthor && (!isLessonAvailable(selectedLesson) || isBlockedByHomework(selectedLesson)) ? (
+              <div className="p-6 max-w-4xl mx-auto">
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+                    <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      {language === "ru" ? "Урок недоступен" : "Lesson unavailable"}
+                    </h3>
                     <p className="text-muted-foreground">
-                      {language === "ru" ? "Содержимое урока пока не добавлено" : "Lesson content not added yet"}
-                    </p>
-                    {isAuthor && (
-                      <Button
-                        variant="outline"
-                        className="mt-4"
-                        onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        {language === "ru" ? "Добавить содержимое" : "Add content"}
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Homework submission form */}
-              {selectedLesson.has_homework && !isAuthor && (
-                <HomeworkSubmissionForm lessonId={selectedLesson.id} user={user} language={language} />
-              )}
-
-              {/* Homework indicator for authors */}
-              {selectedLesson.has_homework && isAuthor && (
-                <Card className="mt-6 border-dashed border-primary/30">
-                  <CardContent className="p-4 text-center text-muted-foreground">
-                    <p className="text-sm">
-                      {language === "ru"
-                        ? "📝 Для этого урока включено домашнее задание. Участники увидят форму для отправки ответа."
-                        : "📝 Homework is enabled for this lesson. Participants will see a submission form."}
+                      {isBlockedByHomework(selectedLesson)
+                        ? language === "ru"
+                          ? "Выполните домашнее задание предыдущего урока, чтобы открыть этот урок"
+                          : "Complete the homework from the previous lesson to unlock this lesson"
+                        : language === "ru"
+                          ? `Урок откроется через ${getDaysRemaining(selectedLesson)} ${getDaysRemaining(selectedLesson) === 1 ? "день" : "дней"}`
+                          : `Lesson unlocks in ${getDaysRemaining(selectedLesson)} day${getDaysRemaining(selectedLesson) === 1 ? "" : "s"}`}
                     </p>
                   </CardContent>
                 </Card>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="p-6 max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 mb-4">
+                  {getTypeIcon(selectedLesson.type)}
+                  <h2 className="text-2xl font-bold text-foreground">{selectedLesson.title}</h2>
+                </div>
+
+                {/* Video player */}
+                {selectedLesson.video_url && (
+                  <Card className="mb-6">
+                    <CardContent className="p-0">
+                      <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                        {selectedLesson.video_url.includes("youtube") || selectedLesson.video_url.includes("youtu.be") ? (
+                          <iframe
+                            className="w-full h-full rounded-lg"
+                            src={selectedLesson.video_url
+                              .replace("watch?v=", "embed/")
+                              .replace("youtu.be/", "youtube.com/embed/")}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <VideoPlayer src={selectedLesson.video_url} lessonId={selectedLesson.id} className="w-full" />
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Content - prefer WYSIWYG HTML when present to avoid flicker while blocks load */}
+                {selectedLesson.content_html && selectedLesson.content_html.trim().length > 0 ? (
+                  <Card>
+                    <CardContent className="p-6">
+                      <LessonContentRenderer
+                        lessonId={selectedLesson.id}
+                        html={selectedLesson.content_html}
+                        className="prose prose-sm max-w-none dark:prose-invert"
+                      />
+                    </CardContent>
+                  </Card>
+                ) : lessonBlocks.length > 0 ? (
+                  <Card>
+                    <CardContent className="p-6 space-y-4">{lessonBlocks.map((block) => renderBlock(block))}</CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+                      <p className="text-muted-foreground">
+                        {language === "ru" ? "Содержимое урока пока не добавлено" : "Lesson content not added yet"}
+                      </p>
+                      {isAuthor && (
+                        <Button
+                          variant="outline"
+                          className="mt-4"
+                          onClick={() => navigate(`/course/${courseId}/lesson/${selectedLesson.id}`)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          {language === "ru" ? "Добавить содержимое" : "Add content"}
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Homework submission form */}
+                {selectedLesson.has_homework && !isAuthor && (
+                  <HomeworkSubmissionForm lessonId={selectedLesson.id} user={user} language={language} />
+                )}
+
+                {/* Homework indicator for authors */}
+                {selectedLesson.has_homework && isAuthor && (
+                  <Card className="mt-6 border-dashed border-primary/30">
+                    <CardContent className="p-4 text-center text-muted-foreground">
+                      <p className="text-sm">
+                        {language === "ru"
+                          ? "📝 Для этого урока включено домашнее задание. Участники увидят форму для отправки ответа."
+                          : "📝 Homework is enabled for this lesson. Participants will see a submission form."}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
