@@ -36,13 +36,30 @@ export function PortalSubscriptionSelector({ userId, onSubscriptionSelected }: P
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [paidConfirmations, setPaidConfirmations] = useState<{ [key: string]: boolean }>({});
+  const [userCommunitiesCount, setUserCommunitiesCount] = useState<number>(0);
 
   useEffect(() => {
     loadSubscriptions();
     if (userId) {
       loadCurrentSubscription();
+      loadUserCommunitiesCount();
     }
   }, [userId]);
+
+  const loadUserCommunitiesCount = async () => {
+    if (!userId) return;
+    try {
+      const { count, error } = await supabase
+        .from('communities')
+        .select('*', { count: 'exact', head: true })
+        .eq('creator_id', userId);
+
+      if (error) throw error;
+      setUserCommunitiesCount(count || 0);
+    } catch (error: any) {
+      console.error('Error loading communities count:', error);
+    }
+  };
 
   const loadSubscriptions = async () => {
     try {
@@ -206,6 +223,7 @@ const handleCreateCommunity = async (subscription: PortalSubscription) => {
       {subscriptions.map((subscription) => {
         const isCurrentSubscription = currentSubscriptionId === subscription.id;
         const isFree = subscription.price === 0;
+        const isFreeDisabled = isFree && userCommunitiesCount > 0;
 
         return (
           <Card
@@ -280,7 +298,7 @@ const handleCreateCommunity = async (subscription: PortalSubscription) => {
 
               <Button
                 onClick={() => handleCreateCommunity(subscription)}
-                disabled={isCurrentSubscription || (!isFree && !paidConfirmations[subscription.id])}
+                disabled={isFree ? isFreeDisabled : (!paidConfirmations[subscription.id])}
                 className="w-full"
                 variant={isFree ? 'outline' : 'default'}
               >
