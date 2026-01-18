@@ -20,6 +20,7 @@ interface PortalSubscription {
   payment_url: string | null;
   is_active: boolean;
   sort_order: number;
+  community_limit: number | null;
 }
 
 interface PortalSubscriptionSelectorProps {
@@ -223,7 +224,8 @@ const handleCreateCommunity = async (subscription: PortalSubscription) => {
       {subscriptions.map((subscription) => {
         const isCurrentSubscription = currentSubscriptionId === subscription.id;
         const isFree = subscription.price === 0;
-        const isFreeDisabled = isFree && userCommunitiesCount > 0;
+        const limit = subscription.community_limit;
+        const isLimitReached = limit !== null && userCommunitiesCount >= limit;
 
         return (
           <Card
@@ -298,11 +300,14 @@ const handleCreateCommunity = async (subscription: PortalSubscription) => {
 
               <Button
                 onClick={() => handleCreateCommunity(subscription)}
-                disabled={isFree ? isFreeDisabled : (!paidConfirmations[subscription.id])}
+                disabled={isLimitReached || (!isFree && !paidConfirmations[subscription.id])}
                 className="w-full"
                 variant={isFree ? 'outline' : 'default'}
               >
-                {language === 'ru' ? 'Создать сообщество' : 'Create Community'}
+                {isLimitReached 
+                  ? (language === 'ru' ? `Лимит достигнут (${userCommunitiesCount}/${limit})` : `Limit reached (${userCommunitiesCount}/${limit})`)
+                  : (language === 'ru' ? 'Создать сообщество' : 'Create Community')
+                }
               </Button>
             </CardFooter>
           </Card>

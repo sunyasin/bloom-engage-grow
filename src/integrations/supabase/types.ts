@@ -941,6 +941,7 @@ export type Database = {
         Row: {
           badge_text: string
           billing_period: string
+          community_limit: number | null
           created_at: string
           description: string | null
           id: string
@@ -954,6 +955,7 @@ export type Database = {
         Insert: {
           badge_text?: string
           billing_period?: string
+          community_limit?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -967,6 +969,7 @@ export type Database = {
         Update: {
           badge_text?: string
           billing_period?: string
+          community_limit?: number | null
           created_at?: string
           description?: string | null
           id?: string
