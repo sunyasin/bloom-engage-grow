@@ -234,6 +234,16 @@ export default function MyProfile() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="telegram_id">Telegram ID</Label>
+              <Input
+                id="telegram_id"
+                value={profile.telegram_id || 'Не привязан'}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
             <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
               <div>
                 <p className="text-sm text-muted-foreground">Rating</p>
