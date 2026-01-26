@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Plus, Loader2, Lock, ShoppingCart, Key } from 'lucide-react';
+import { BookOpen, Plus, Loader2, Lock, ShoppingCart, Key, MessageCircle } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 import { paymentsApi } from '@/lib/paymentsApi';
 import { toast } from 'sonner';
@@ -50,6 +50,7 @@ interface UserProfile {
   id: string;
   email: string;
   rating: number | null;
+  telegram_id: string | null;
 }
 
 interface CoursesTabProps {
@@ -78,6 +79,9 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
   const [promoInput, setPromoInput] = useState('');
   const [promoCourseId, setPromoCourseId] = useState<string | null>(null);
   const [unlockedCourseIds, setUnlockedCourseIds] = useState<Set<string>>(new Set());
+  
+  // Telegram linking dialog state
+  const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,10 +131,10 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       // Fetch user's profile and membership status
       if (userId) {
         try {
-          // Fetch user profile for email and rating
+          // Fetch user profile for email, rating and telegram_id
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('id, email, rating')
+            .select('id, email, rating, telegram_id')
             .eq('id', userId)
             .single();
           
@@ -374,6 +378,12 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       return;
     }
 
+    // Check if user has telegram_id linked
+    if (!userProfile?.telegram_id) {
+      setTelegramDialogOpen(true);
+      return;
+    }
+
     // Find the tier that gives access to this course
     const tier = getTierWithPaymentUrlForCourse(course.id);
     
@@ -405,6 +415,11 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       toast.error(error instanceof Error ? error.message : (language === 'ru' ? 'Ошибка оплаты' : 'Payment error'));
       setPurchasingCourseId(null);
     }
+  };
+
+  const handleGoToTelegramBot = () => {
+    window.open('https://t.me/univer_skool_bot', '_blank', 'noopener,noreferrer');
+    setTelegramDialogOpen(false);
   };
 
   const handleCreateCourse = async () => {
@@ -663,35 +678,31 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
         </DialogContent>
       </Dialog>
 
-      {/* Promo Code Dialog */}
-      <Dialog open={promoDialogOpen} onOpenChange={setPromoDialogOpen}>
+      {/* Telegram Linking Dialog */}
+      <Dialog open={telegramDialogOpen} onOpenChange={setTelegramDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {language === 'ru' ? 'Введите промокод' : 'Enter Promo Code'}
+              {language === 'ru' ? 'Привязка Telegram' : 'Link Telegram'}
             </DialogTitle>
             <DialogDescription>
               {language === 'ru' 
-                ? 'Введите промокод для получения доступа к курсу'
-                : 'Enter the promo code to unlock access to the course'}
+                ? 'Для оплаты нужно привязать Telegram. Нажмите на кнопку для перехода в бот. В боте нажмите Start и отправьте ему текст:'
+                : 'To make a payment, you need to link your Telegram account. Click the button to go to the bot. In the bot, press Start and send the text:'}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <Input
-              value={promoInput}
-              onChange={(e) => setPromoInput(e.target.value)}
-              placeholder={language === 'ru' ? 'Промокод' : 'Promo code'}
-              onKeyDown={(e) => e.key === 'Enter' && handlePromoCodeSubmit()}
-            />
+          <div className="bg-muted p-3 rounded-md font-mono text-sm break-all select-all">
+            {userId}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPromoDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setTelegramDialogOpen(false)}>
               {language === 'ru' ? 'Отмена' : 'Cancel'}
             </Button>
-            <Button onClick={handlePromoCodeSubmit} disabled={!promoInput.trim()}>
-              {language === 'ru' ? 'Применить' : 'Apply'}
+            <Button onClick={handleGoToTelegramBot}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              {language === 'ru' ? 'Перейти в бот' : 'Go to bot'}
             </Button>
           </DialogFooter>
         </DialogContent>
