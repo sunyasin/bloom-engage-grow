@@ -1102,6 +1102,7 @@ export type Database = {
           portal_subscription_id: string | null
           rating: number | null
           real_name: string | null
+          sbp_phone: string | null
           state: string | null
           telegram_id: string | null
           updated_at: string | null
@@ -1121,6 +1122,7 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          sbp_phone?: string | null
           state?: string | null
           telegram_id?: string | null
           updated_at?: string | null
@@ -1140,6 +1142,7 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          sbp_phone?: string | null
           state?: string | null
           telegram_id?: string | null
           updated_at?: string | null
