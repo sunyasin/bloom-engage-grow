@@ -1104,7 +1104,10 @@ export type Database = {
           real_name: string | null
           sbp_phone: string | null
           state: string | null
+          telegram_first_name: string | null
           telegram_id: string | null
+          telegram_user_id: number | null
+          telegram_username: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1124,7 +1127,10 @@ export type Database = {
           real_name?: string | null
           sbp_phone?: string | null
           state?: string | null
+          telegram_first_name?: string | null
           telegram_id?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1144,7 +1150,10 @@ export type Database = {
           real_name?: string | null
           sbp_phone?: string | null
           state?: string | null
+          telegram_first_name?: string | null
           telegram_id?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
           updated_at?: string | null
         }
         Relationships: [
