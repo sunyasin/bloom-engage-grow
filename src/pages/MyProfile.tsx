@@ -238,7 +238,7 @@ export default function MyProfile() {
               <Label htmlFor="telegram_id">Telegram ID</Label>
               <Input
                 id="telegram_id"
-                value={profile.telegram_id || 'Не привязан'}
+                value={profile.telegram_user_id ? String(profile.telegram_user_id) : 'Не привязан'}
                 disabled
                 className="bg-muted"
               />

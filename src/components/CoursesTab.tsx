@@ -50,7 +50,7 @@ interface UserProfile {
   id: string;
   email: string;
   rating: number | null;
-  telegram_id: string | null;
+  telegram_user_id: number | null;
 }
 
 interface CoursesTabProps {
@@ -131,10 +131,10 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       // Fetch user's profile and membership status
       if (userId) {
         try {
-          // Fetch user profile for email, rating and telegram_id
+          // Fetch user profile for email, rating and telegram_user_id
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('id, email, rating, telegram_id')
+            .select('id, email, rating, telegram_user_id')
             .eq('id', userId)
             .single();
           
@@ -378,8 +378,8 @@ export function CoursesTab({ communityId, isOwner, userId, language, navigate }:
       return;
     }
 
-    // Check if user has telegram_id linked
-    if (!userProfile?.telegram_id) {
+    // Check if user has telegram_user_id linked
+    if (!userProfile?.telegram_user_id) {
       setTelegramDialogOpen(true);
       return;
     }
