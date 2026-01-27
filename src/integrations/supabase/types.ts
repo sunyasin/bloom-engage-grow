@@ -1250,6 +1250,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_free: boolean
+          moderated_at: string | null
           name: string
           payment_url: string | null
           price_monthly: number | null
@@ -1269,6 +1270,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_free?: boolean
+          moderated_at?: string | null
           name: string
           payment_url?: string | null
           price_monthly?: number | null
@@ -1288,6 +1290,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_free?: boolean
+          moderated_at?: string | null
           name?: string
           payment_url?: string | null
           price_monthly?: number | null
