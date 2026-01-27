@@ -192,6 +192,65 @@ export default function RichTextEditor({ content, onChange, language, placeholde
     { level: 4, label: 'H4' },
   ];
 
+  // Smart heading: if partial text is selected within a paragraph, split and apply heading only to selection
+  const applySmartHeading = useCallback((level: 1 | 2 | 3 | 4) => {
+    if (!editor) return;
+
+    const { from, to, empty } = editor.state.selection;
+    
+    // If no selection or already a heading, just toggle normally
+    if (empty || editor.isActive('heading', { level })) {
+      editor.chain().focus().toggleHeading({ level }).run();
+      return;
+    }
+
+    // Get the current node (paragraph/heading) boundaries
+    const $from = editor.state.doc.resolve(from);
+    const $to = editor.state.doc.resolve(to);
+    
+    // Check if selection is within a single paragraph/text block
+    const parentNode = $from.parent;
+    const startOfBlock = $from.start();
+    const endOfBlock = startOfBlock + parentNode.nodeSize - 2; // -2 for opening/closing tags
+    
+    const selectionStartsAtBlockStart = from === startOfBlock;
+    const selectionEndsAtBlockEnd = to === endOfBlock;
+
+    // If selection covers the whole block, just toggle heading
+    if (selectionStartsAtBlockStart && selectionEndsAtBlockEnd) {
+      editor.chain().focus().toggleHeading({ level }).run();
+      return;
+    }
+
+    // Get the selected text
+    const selectedText = editor.state.doc.textBetween(from, to, '');
+    if (!selectedText.trim()) {
+      editor.chain().focus().toggleHeading({ level }).run();
+      return;
+    }
+
+    // Split and insert heading for selected text only
+    editor.chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { from: selFrom, to: selTo } = state.selection;
+        
+        // Delete selected text
+        tr.delete(selFrom, selTo);
+        
+        // Insert a hard break + heading with the text + hard break to split
+        const headingNode = state.schema.nodes.heading.create(
+          { level },
+          state.schema.text(selectedText)
+        );
+        
+        tr.insert(selFrom, headingNode);
+        
+        return true;
+      })
+      .run();
+  }, [editor]);
+
   const fonts = [
     { value: 'default', label: language === 'ru' ? 'По умолчанию' : 'Default' },
     { value: 'Inter', label: 'Inter' },
@@ -269,7 +328,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                     className={`h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                       editor.isActive('heading', { level }) ? 'bg-background text-foreground' : ''
                     }`}
-                    onClick={() => editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 | 4 }).run()}
+                    onClick={() => applySmartHeading(level as 1 | 2 | 3 | 4)}
                   >
                     <span className="text-sm font-medium">{label}</span>
                   </Button>
