@@ -251,6 +251,62 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       .run();
   }, [editor]);
 
+  // Smart text alignment: if partial text is selected, split into separate paragraph and apply alignment
+  const applySmartAlignment = useCallback((alignment: 'left' | 'center' | 'right' | 'justify') => {
+    if (!editor) return;
+
+    const { from, to, empty } = editor.state.selection;
+    
+    // If no selection, just apply alignment to current block
+    if (empty) {
+      editor.chain().focus().setTextAlign(alignment).run();
+      return;
+    }
+
+    // Get the current node boundaries
+    const $from = editor.state.doc.resolve(from);
+    const parentNode = $from.parent;
+    const startOfBlock = $from.start();
+    const endOfBlock = startOfBlock + parentNode.nodeSize - 2;
+    
+    const selectionStartsAtBlockStart = from === startOfBlock;
+    const selectionEndsAtBlockEnd = to === endOfBlock;
+
+    // If selection covers the whole block, just apply alignment
+    if (selectionStartsAtBlockStart && selectionEndsAtBlockEnd) {
+      editor.chain().focus().setTextAlign(alignment).run();
+      return;
+    }
+
+    // Get the selected text
+    const selectedText = editor.state.doc.textBetween(from, to, '');
+    if (!selectedText.trim()) {
+      editor.chain().focus().setTextAlign(alignment).run();
+      return;
+    }
+
+    // Split and insert paragraph with alignment for selected text only
+    editor.chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { from: selFrom, to: selTo } = state.selection;
+        
+        // Delete selected text
+        tr.delete(selFrom, selTo);
+        
+        // Create a paragraph with the selected text and alignment
+        const paragraphNode = state.schema.nodes.paragraph.create(
+          { textAlign: alignment },
+          state.schema.text(selectedText)
+        );
+        
+        tr.insert(selFrom, paragraphNode);
+        
+        return true;
+      })
+      .run();
+  }, [editor]);
+
   const fonts = [
     { value: 'default', label: language === 'ru' ? 'По умолчанию' : 'Default' },
     { value: 'Inter', label: 'Inter' },
@@ -451,7 +507,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive({ textAlign: 'left' }) ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                  onClick={() => applySmartAlignment('left')}
                 >
                   <AlignLeft className="h-4 w-4" />
                 </Button>
@@ -469,7 +525,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive({ textAlign: 'center' }) ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                  onClick={() => applySmartAlignment('center')}
                 >
                   <AlignCenter className="h-4 w-4" />
                 </Button>
@@ -487,7 +543,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive({ textAlign: 'right' }) ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                  onClick={() => applySmartAlignment('right')}
                 >
                   <AlignRight className="h-4 w-4" />
                 </Button>
@@ -505,7 +561,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive({ textAlign: 'justify' }) ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+                  onClick={() => applySmartAlignment('justify')}
                 >
                   <AlignJustify className="h-4 w-4" />
                 </Button>
