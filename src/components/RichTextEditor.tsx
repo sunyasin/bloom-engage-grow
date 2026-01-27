@@ -332,9 +332,9 @@ export default function RichTextEditor({ content, onChange, language, placeholde
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="border border-border rounded-lg overflow-hidden bg-background">
+      <div className="border border-border rounded-lg bg-background">
         {/* Toolbar - sticky */}
-        <div className="flex items-center gap-0.5 p-2 bg-muted/80 border-b border-border/50 flex-wrap sticky top-0 z-10">
+        <div className="flex items-center gap-0.5 p-2 bg-muted/80 border-b border-border/50 flex-wrap sticky top-0 z-10 rounded-t-lg">
           {/* Undo/Redo */}
           <div className="flex items-center">
             <Tooltip>
