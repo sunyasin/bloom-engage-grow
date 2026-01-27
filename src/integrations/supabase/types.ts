@@ -1257,6 +1257,7 @@ export type Database = {
           selected_course_ids: string[] | null
           slug: string
           sort_order: number
+          tier_id: number
           updated_at: string
         }
         Insert: {
@@ -1275,6 +1276,7 @@ export type Database = {
           selected_course_ids?: string[] | null
           slug: string
           sort_order?: number
+          tier_id?: number
           updated_at?: string
         }
         Update: {
@@ -1293,6 +1295,7 @@ export type Database = {
           selected_course_ids?: string[] | null
           slug?: string
           sort_order?: number
+          tier_id?: number
           updated_at?: string
         }
         Relationships: [
