@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.get-telegram-id]
 verify_jwt = false
+
+[functions.tribute-webhook]
+verify_jwt = false
