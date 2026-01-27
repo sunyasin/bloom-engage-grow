@@ -10,12 +10,22 @@ interface TributePayload {
   created_at: string;
   sent_at: string;
   payload: {
-    product_id: number;
+    product_id?: number;
     amount: number;
     currency: string;
     user_id: number;
     telegram_user_id: number;
-    period?: string; // once, weekly, monthly, 3months, 6month, yearly
+    period?: string; // once, weekly, monthly, 3months, 6month, yearly, onetime
+    subscription_name?: string; // format: XXX_community-name where XXX is tier_id
+    subscription_id?: number;
+    expires_at?: string;
+    channel_id?: number;
+    channel_name?: string;
+    email?: string;
+    price?: number;
+    period_id?: number;
+    type?: string;
+    web_app_link?: string;
   };
 }
 
@@ -203,11 +213,19 @@ Deno.serve(async (req) => {
 
     const userId = profile.id;
 
-    // Parse tier_id from name (format: XXX_community-name)
-    const tierId = parseTierId(webhookData.name);
+    // Parse tier_id from payload.subscription_name (format: XXX_community-name)
+    const subscriptionName = webhookData.payload.subscription_name;
+    if (!subscriptionName) {
+      console.error("Missing subscription_name in payload");
+      const errorMsg = "Missing subscription_name in payload";
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
+      return new Response(null, { status: 400, headers: corsHeaders });
+    }
+
+    const tierId = parseTierId(subscriptionName);
     if (!tierId) {
-      console.error("Could not parse tier_id from name:", webhookData.name);
-      const errorMsg = `Could not parse tier_id from name: ${webhookData.name}`;
+      console.error("Could not parse tier_id from subscription_name:", subscriptionName);
+      const errorMsg = `Could not parse tier_id from subscription_name: ${subscriptionName}`;
       await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
