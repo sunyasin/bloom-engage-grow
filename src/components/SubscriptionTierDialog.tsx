@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/lib/supabaseClient';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookOpen } from 'lucide-react';
-import { useI18n } from '@/lib/i18n';
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, BookOpen } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface Course {
   id: string;
@@ -44,16 +44,16 @@ interface SubscriptionTierDialogProps {
 }
 
 const FEATURE_OPTIONS = [
-  { key: 'community_access', labelRu: 'Доступ к сообществу', labelEn: 'Community access' },
-  { key: 'courses_all', labelRu: 'Доступ ко всем курсам', labelEn: 'Access to all courses' },
-  { key: 'courses_selected', labelRu: 'Доступ к выбранным курсам', labelEn: 'Access to selected courses' },
-  { key: 'call_replays', labelRu: 'Записи созвонов', labelEn: 'Call replays' },
-  { key: 'group_calls', labelRu: 'Еженедельные живые созвоны', labelEn: 'Weekly live calls' },
-  { key: 'private_chat', labelRu: 'Приватный чат/канал', labelEn: 'Private chat/channel' },
-  { key: 'discounts', labelRu: 'Скидки на мероприятия/продукты', labelEn: 'Discounts on events/products' },
+  { key: "community_access", labelRu: "Доступ к сообществу", labelEn: "Community access" },
+  { key: "courses_all", labelRu: "Доступ ко всем курсам", labelEn: "Access to all courses" },
+  { key: "courses_selected", labelRu: "Доступ к выбранным курсам", labelEn: "Access to selected courses" },
+  { key: "call_replays", labelRu: "Записи созвонов", labelEn: "Call replays" },
+  { key: "group_calls", labelRu: "Еженедельные живые созвоны", labelEn: "Weekly live calls" },
+  { key: "private_chat", labelRu: "Приватный чат/канал", labelEn: "Private chat/channel" },
+  { key: "discounts", labelRu: "Скидки на мероприятия/продукты", labelEn: "Discounts on events/products" },
 ];
 
-const CURRENCIES = ['RUB', 'USD', 'EUR'];
+const CURRENCIES = ["RUB", "USD", "EUR"];
 
 export function SubscriptionTierDialog({
   open,
@@ -68,21 +68,21 @@ export function SubscriptionTierDialog({
   const [saving, setSaving] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
-  
+
   const [formData, setFormData] = useState<SubscriptionTier>({
     community_id: communityId,
-    name: '',
-    slug: '',
-    description: '',
+    name: "",
+    slug: "",
+    description: "",
     price_monthly: 0,
     price_yearly: 0,
-    currency: 'RUB',
+    currency: "RUB",
     is_free: false,
     is_active: true,
     sort_order: maxSortOrder + 1,
     features: [],
     selected_course_ids: [],
-    payment_url: '',
+    payment_url: "",
   });
 
   // Fetch community courses
@@ -91,10 +91,10 @@ export function SubscriptionTierDialog({
       if (!open) return;
       setLoadingCourses(true);
       const { data } = await supabase
-        .from('courses')
-        .select('id, title')
-        .eq('community_id', communityId)
-        .order('title');
+        .from("courses")
+        .select("id, title")
+        .eq("community_id", communityId)
+        .order("title");
       setCourses(data || []);
       setLoadingCourses(false);
     };
@@ -107,23 +107,23 @@ export function SubscriptionTierDialog({
         ...tier,
         features: Array.isArray(tier.features) ? tier.features : [],
         selected_course_ids: Array.isArray(tier.selected_course_ids) ? tier.selected_course_ids : [],
-        payment_url: tier.payment_url || '',
+        payment_url: tier.payment_url || "",
       });
     } else {
       setFormData({
         community_id: communityId,
-        name: '',
-        slug: '',
-        description: '',
+        name: "",
+        slug: "",
+        description: "",
         price_monthly: 0,
         price_yearly: 0,
-        currency: 'RUB',
+        currency: "RUB",
         is_free: false,
         is_active: true,
         sort_order: maxSortOrder + 1,
         features: [],
         selected_course_ids: [],
-        payment_url: '',
+        payment_url: "",
       });
     }
   }, [tier, communityId, maxSortOrder]);
@@ -131,14 +131,14 @@ export function SubscriptionTierDialog({
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
-      .replace(/[^a-zа-яё0-9\s-]/gi, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
+      .replace(/[^a-zа-яё0-9\s-]/gi, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
       .trim();
   };
 
   const handleNameChange = (name: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       name,
       slug: !tier ? generateSlug(name) : prev.slug,
@@ -146,25 +146,25 @@ export function SubscriptionTierDialog({
   };
 
   const handleFeatureToggle = (featureKey: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       features: prev.features.includes(featureKey)
-        ? prev.features.filter(f => f !== featureKey)
+        ? prev.features.filter((f) => f !== featureKey)
         : [...prev.features, featureKey],
     }));
   };
 
   const handleCourseToggle = (courseId: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       selected_course_ids: (prev.selected_course_ids || []).includes(courseId)
-        ? (prev.selected_course_ids || []).filter(id => id !== courseId)
+        ? (prev.selected_course_ids || []).filter((id) => id !== courseId)
         : [...(prev.selected_course_ids || []), courseId],
     }));
   };
 
   const handleIsFreeChange = (isFree: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       is_free: isFree,
       price_monthly: isFree ? 0 : prev.price_monthly,
@@ -174,11 +174,19 @@ export function SubscriptionTierDialog({
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast({ title: language === 'ru' ? 'Ошибка' : 'Error', description: language === 'ru' ? 'Введите название' : 'Enter name', variant: 'destructive' });
+      toast({
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Введите название" : "Enter name",
+        variant: "destructive",
+      });
       return;
     }
     if (!formData.slug.trim()) {
-      toast({ title: language === 'ru' ? 'Ошибка' : 'Error', description: language === 'ru' ? 'Введите slug' : 'Enter slug', variant: 'destructive' });
+      toast({
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Введите slug" : "Enter slug",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -189,37 +197,32 @@ export function SubscriptionTierDialog({
       name: formData.name.trim(),
       slug: formData.slug.trim(),
       description: formData.description || null,
-      price_monthly: formData.is_free ? 0 : (formData.price_monthly || 0),
-      price_yearly: formData.is_free ? 0 : (formData.price_yearly || 0),
+      price_monthly: formData.is_free ? 0 : formData.price_monthly || 0,
+      price_yearly: formData.is_free ? 0 : formData.price_yearly || 0,
       currency: formData.currency,
       is_free: formData.is_free,
       is_active: formData.is_active,
       sort_order: formData.sort_order,
       features: formData.features,
-      selected_course_ids: formData.features.includes('courses_selected') ? formData.selected_course_ids : [],
-      payment_url: formData.is_free ? null : (formData.payment_url?.trim() || null),
+      selected_course_ids: formData.features.includes("courses_selected") ? formData.selected_course_ids : [],
+      payment_url: formData.is_free ? null : formData.payment_url?.trim() || null,
     };
 
     let error;
     if (tier?.id) {
-      const { error: updateError } = await supabase
-        .from('subscription_tiers')
-        .update(dataToSave)
-        .eq('id', tier.id);
+      const { error: updateError } = await supabase.from("subscription_tiers").update(dataToSave).eq("id", tier.id);
       error = updateError;
     } else {
-      const { error: insertError } = await supabase
-        .from('subscription_tiers')
-        .insert(dataToSave);
+      const { error: insertError } = await supabase.from("subscription_tiers").insert(dataToSave);
       error = insertError;
     }
 
     setSaving(false);
 
     if (error) {
-      toast({ title: language === 'ru' ? 'Ошибка' : 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: language === "ru" ? "Ошибка" : "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: language === 'ru' ? 'Сохранено' : 'Saved' });
+      toast({ title: language === "ru" ? "Сохранено" : "Saved" });
       onSaved();
       onOpenChange(false);
     }
@@ -230,29 +233,31 @@ export function SubscriptionTierDialog({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {tier ? (language === 'ru' ? 'Редактировать уровень' : 'Edit tier') : (language === 'ru' ? 'Новый уровень подписки' : 'New subscription tier')}
+            {tier
+              ? language === "ru"
+                ? "Редактировать уровень"
+                : "Edit tier"
+              : language === "ru"
+                ? "Новый уровень подписки"
+                : "New subscription tier"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Is Free toggle */}
           <div className="flex items-center justify-between">
-            <Label htmlFor="is_free">{language === 'ru' ? 'Бесплатный уровень' : 'Free tier'}</Label>
-            <Switch
-              id="is_free"
-              checked={formData.is_free}
-              onCheckedChange={handleIsFreeChange}
-            />
+            <Label htmlFor="is_free">{language === "ru" ? "Бесплатный уровень" : "Free tier"}</Label>
+            <Switch id="is_free" checked={formData.is_free} onCheckedChange={handleIsFreeChange} />
           </div>
 
           {/* Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">{language === 'ru' ? 'Название' : 'Name'}</Label>
+            <Label htmlFor="name">{language === "ru" ? "Название" : "Name"}</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder={language === 'ru' ? 'Например: Pro' : 'e.g. Pro'}
+              placeholder={language === "ru" ? "Например: Pro" : "e.g. Pro"}
             />
           </div>
 
@@ -262,50 +267,50 @@ export function SubscriptionTierDialog({
             <Input
               id="slug"
               value={formData.slug}
-              onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
               placeholder="pro"
             />
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">{language === 'ru' ? 'Описание' : 'Description'}</Label>
+            <Label htmlFor="description">{language === "ru" ? "Описание" : "Description"}</Label>
             <Textarea
               id="description"
-              value={formData.description || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder={language === 'ru' ? 'Что получит участник' : 'What member will get'}
+              value={formData.description || ""}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder={language === "ru" ? "Что получит участник" : "What member will get"}
               rows={3}
             />
           </div>
 
           {/* Prices */}
           <div className="space-y-2">
-            <Label>{language === 'ru' ? 'Цены' : 'Pricing'}</Label>
+            <Label>{language === "ru" ? "Цены" : "Pricing"}</Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="price_monthly" className="text-xs text-muted-foreground">
-                  {language === 'ru' ? 'Месячная' : 'Monthly'}
+                  {language === "ru" ? "Месячная" : "Monthly"}
                 </Label>
                 <Input
                   id="price_monthly"
                   type="number"
                   min="0"
                   value={formData.price_monthly || 0}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price_monthly: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, price_monthly: parseFloat(e.target.value) || 0 }))}
                   disabled={formData.is_free}
                 />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="price_yearly" className="text-xs text-muted-foreground">
-                  {language === 'ru' ? 'Годовая' : 'Yearly'}
+                  {language === "ru" ? "Годовая" : "Yearly"}
                 </Label>
                 <Input
                   id="price_yearly"
                   type="number"
                   min="0"
                   value={formData.price_yearly || 0}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price_yearly: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, price_yearly: parseFloat(e.target.value) || 0 }))}
                   disabled={formData.is_free}
                 />
               </div>
@@ -314,25 +319,27 @@ export function SubscriptionTierDialog({
 
           {/* Currency */}
           <div className="space-y-2">
-            <Label>{language === 'ru' ? 'Валюта' : 'Currency'}</Label>
+            <Label>{language === "ru" ? "Валюта" : "Currency"}</Label>
             <Select
               value={formData.currency}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
               disabled={formData.is_free}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CURRENCIES.map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           {/* Payment URL - only for paid tiers */}
-          {!formData.is_free && (formData.price_monthly || 0) > 0 && (
+          {/*!formData.is_free && (formData.price_monthly || 0) > 0 && (
             <div className="space-y-2">
               <Label htmlFor="payment_url">
                 {language === 'ru' ? 'Ссылка на оплату (необязательно)' : 'Payment URL (optional)'}
@@ -350,13 +357,13 @@ export function SubscriptionTierDialog({
                   : 'If set — opens on "Pay" button click. If empty — uses YooKassa payment.'}
               </p>
             </div>
-          )}
+          )*/}
 
           {/* Features */}
           <div className="space-y-2">
-            <Label>{language === 'ru' ? 'Что входит в уровень' : 'Features included'}</Label>
+            <Label>{language === "ru" ? "Что входит в уровень" : "Features included"}</Label>
             <div className="space-y-2 border border-border rounded-lg p-3">
-              {FEATURE_OPTIONS.map(feature => (
+              {FEATURE_OPTIONS.map((feature) => (
                 <div key={feature.key}>
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -364,28 +371,25 @@ export function SubscriptionTierDialog({
                       checked={formData.features.includes(feature.key)}
                       onCheckedChange={() => handleFeatureToggle(feature.key)}
                     />
-                    <label
-                      htmlFor={feature.key}
-                      className="text-sm cursor-pointer"
-                    >
-                      {language === 'ru' ? feature.labelRu : feature.labelEn}
+                    <label htmlFor={feature.key} className="text-sm cursor-pointer">
+                      {language === "ru" ? feature.labelRu : feature.labelEn}
                     </label>
                   </div>
-                  
+
                   {/* Show course selection when courses_selected is checked */}
-                  {feature.key === 'courses_selected' && formData.features.includes('courses_selected') && (
+                  {feature.key === "courses_selected" && formData.features.includes("courses_selected") && (
                     <div className="ml-6 mt-2 pl-3 border-l-2 border-border space-y-2">
                       {loadingCourses ? (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-3 w-3 animate-spin" />
-                          {language === 'ru' ? 'Загрузка курсов...' : 'Loading courses...'}
+                          {language === "ru" ? "Загрузка курсов..." : "Loading courses..."}
                         </div>
                       ) : courses.length === 0 ? (
                         <p className="text-xs text-muted-foreground">
-                          {language === 'ru' ? 'Нет курсов в сообществе' : 'No courses in community'}
+                          {language === "ru" ? "Нет курсов в сообществе" : "No courses in community"}
                         </p>
                       ) : (
-                        courses.map(course => (
+                        courses.map((course) => (
                           <div key={course.id} className="flex items-center space-x-2">
                             <Checkbox
                               id={`course-${course.id}`}
@@ -411,22 +415,22 @@ export function SubscriptionTierDialog({
 
           {/* Is Active */}
           <div className="flex items-center justify-between">
-            <Label htmlFor="is_active">{language === 'ru' ? 'Активен' : 'Active'}</Label>
+            <Label htmlFor="is_active">{language === "ru" ? "Активен" : "Active"}</Label>
             <Switch
               id="is_active"
               checked={formData.is_active}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+              onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {language === 'ru' ? 'Отмена' : 'Cancel'}
+            {language === "ru" ? "Отмена" : "Cancel"}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {language === 'ru' ? 'Сохранить' : 'Save'}
+            {language === "ru" ? "Сохранить" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
