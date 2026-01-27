@@ -58,9 +58,11 @@ model subscription_tiers {
   is_free         Boolean       @default(false)
   is_active       Boolean       @default(true)
   sort_order      Int           @default(0)
+  tier_id         Int           @default(autoincrement())
   features        Json?         @default("[]")
   created_at      DateTime      @default(now()) @db.Timestamptz(6)
   updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+  moderated_at    DateTime?     @db.Timestamptz(6)
 
   community       communities   @relation(fields: [community_id], references: [id], onDelete: Cascade)
   memberships     memberships[]

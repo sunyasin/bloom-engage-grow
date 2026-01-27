@@ -10,12 +10,13 @@ import { useCommunityTabs } from "@/contexts/CommunityTabsContext";
 interface HeaderProps {
   user: User | null;
   isSuperuser: boolean;
+  isModerator?: boolean;
   isAuthor: boolean;
   onAuthClick: (mode: 'signin' | 'register') => void;
   logoUrl?: string;
 }
 
-export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: HeaderProps) => {
+export const Header = ({ user, isSuperuser, isModerator = false, isAuthor, onAuthClick, logoUrl }: HeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -94,7 +95,7 @@ export const Header = ({ user, isSuperuser, isAuthor, onAuthClick, logoUrl }: He
               Мои курсы
             </Link>
           )}
-          {isSuperuser && (
+          {(isSuperuser || isModerator) && (
             <Link
               to="/admin"
               className="text-sm font-medium text-accent hover:text-accent/80 transition-smooth"

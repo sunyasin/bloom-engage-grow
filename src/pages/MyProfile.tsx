@@ -119,6 +119,7 @@ export default function MyProfile() {
       state: formData.get('state') as string,
       city: formData.get('city') as string,
       about_me: formData.get('about_me') as string,
+      sbp_phone: formData.get('sbp_phone') as string,
     };
 
     const { error } = await supabase
@@ -175,6 +176,17 @@ export default function MyProfile() {
 
           <form onSubmit={handleUpdateProfile} className="space-y-6">
             <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                value={profile.email || ''}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="real_name">Real Name</Label>
               <Input
                 id="real_name"
@@ -209,6 +221,26 @@ export default function MyProfile() {
                 name="about_me"
                 defaultValue={profile.about_me || ''}
                 rows={4}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sbp_phone">Номер телефона для выплат по СБП</Label>
+              <Input
+                id="sbp_phone"
+                name="sbp_phone"
+                defaultValue={profile.sbp_phone || ''}
+                placeholder="+7 999 123 45 67"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telegram_id">Telegram ID</Label>
+              <Input
+                id="telegram_id"
+                value={profile.telegram_user_id ? String(profile.telegram_user_id) : 'Не привязан'}
+                disabled
+                className="bg-muted"
               />
             </div>
 

@@ -1102,8 +1102,12 @@ export type Database = {
           portal_subscription_id: string | null
           rating: number | null
           real_name: string | null
+          sbp_phone: string | null
           state: string | null
+          telegram_first_name: string | null
           telegram_id: string | null
+          telegram_user_id: number | null
+          telegram_username: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1121,8 +1125,12 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          sbp_phone?: string | null
           state?: string | null
+          telegram_first_name?: string | null
           telegram_id?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1140,8 +1148,12 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          sbp_phone?: string | null
           state?: string | null
+          telegram_first_name?: string | null
           telegram_id?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1238,6 +1250,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_free: boolean
+          moderated_at: string | null
           name: string
           payment_url: string | null
           price_monthly: number | null
@@ -1245,6 +1258,7 @@ export type Database = {
           selected_course_ids: string[] | null
           slug: string
           sort_order: number
+          tier_id: number
           updated_at: string
         }
         Insert: {
@@ -1256,6 +1270,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_free?: boolean
+          moderated_at?: string | null
           name: string
           payment_url?: string | null
           price_monthly?: number | null
@@ -1263,6 +1278,7 @@ export type Database = {
           selected_course_ids?: string[] | null
           slug: string
           sort_order?: number
+          tier_id?: number
           updated_at?: string
         }
         Update: {
@@ -1274,6 +1290,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_free?: boolean
+          moderated_at?: string | null
           name?: string
           payment_url?: string | null
           price_monthly?: number | null
@@ -1281,6 +1298,7 @@ export type Database = {
           selected_course_ids?: string[] | null
           slug?: string
           sort_order?: number
+          tier_id?: number
           updated_at?: string
         }
         Relationships: [
@@ -1527,7 +1545,7 @@ export type Database = {
         | "promo_code"
         | "by_rating_level"
         | "delayed_by_rating"
-      app_role: "user" | "superuser" | "author"
+      app_role: "user" | "superuser" | "author" | "moderator"
       block_type:
         | "text"
         | "image"
@@ -1685,7 +1703,7 @@ export const Constants = {
         "by_rating_level",
         "delayed_by_rating",
       ],
-      app_role: ["user", "superuser", "author"],
+      app_role: ["user", "superuser", "author", "moderator"],
       block_type: [
         "text",
         "image",
