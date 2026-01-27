@@ -1497,6 +1497,48 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          processing_time_ms: number | null
+          request_headers: Json | null
+          request_method: string | null
+          request_payload: Json | null
+          request_url: string | null
+          response_body: Json | null
+          response_status: number | null
+          webhook_name: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          processing_time_ms?: number | null
+          request_headers?: Json | null
+          request_method?: string | null
+          request_payload?: Json | null
+          request_url?: string | null
+          response_body?: Json | null
+          response_status?: number | null
+          webhook_name: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          processing_time_ms?: number | null
+          request_headers?: Json | null
+          request_method?: string | null
+          request_payload?: Json | null
+          request_url?: string | null
+          response_body?: Json | null
+          response_status?: number | null
+          webhook_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
