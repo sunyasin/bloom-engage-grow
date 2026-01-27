@@ -6,6 +6,10 @@ import Youtube from '@tiptap/extension-youtube';
 import TextAlign from '@tiptap/extension-text-align';
 import FontFamily from '@tiptap/extension-font-family';
 import { TextStyle } from '@tiptap/extension-text-style';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 import Video from './tiptap/VideoExtension';
 import { ResizableImage } from './tiptap/ResizableImageExtension';
 import { Audio } from './tiptap/AudioExtension';
@@ -17,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
   Bold,
   Italic,
@@ -35,7 +40,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify
+  AlignJustify,
+  Table as TableIcon,
+  Plus,
+  Trash2,
+  RowsIcon,
+  Columns
 } from 'lucide-react';
 import { useCallback, useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
@@ -107,6 +117,27 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       }),
       Placeholder.configure({
         placeholder: placeholder || (language === 'ru' ? 'Начните писать...' : 'Start writing...'),
+      }),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: {
+          class: 'border-collapse table-auto w-full',
+        },
+      }),
+      TableRow.configure({
+        HTMLAttributes: {
+          class: '',
+        },
+      }),
+      TableCell.configure({
+        HTMLAttributes: {
+          class: 'border border-border p-2 min-w-[100px]',
+        },
+      }),
+      TableHeader.configure({
+        HTMLAttributes: {
+          class: 'border border-border p-2 bg-muted font-semibold min-w-[100px]',
+        },
       }),
     ],
     content,
@@ -958,6 +989,82 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                 <p>{language === 'ru' ? 'Аудио' : 'Audio'}</p>
               </TooltipContent>
             </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Table */}
+          <div className="flex items-center">
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
+                        editor.isActive('table') ? 'bg-background text-foreground' : ''
+                      }`}
+                    >
+                      <TableIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{language === 'ru' ? 'Таблица' : 'Table'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Вставить таблицу 3×3' : 'Insert 3×3 table'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Вставить таблицу 2×2' : 'Insert 2×2 table'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => editor.chain().focus().addColumnAfter().run()}
+                  disabled={!editor.can().addColumnAfter()}
+                >
+                  <Columns className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Добавить столбец' : 'Add column'}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => editor.chain().focus().addRowAfter().run()}
+                  disabled={!editor.can().addRowAfter()}
+                >
+                  <RowsIcon className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Добавить строку' : 'Add row'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => editor.chain().focus().deleteColumn().run()}
+                  disabled={!editor.can().deleteColumn()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Columns className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Удалить столбец' : 'Delete column'}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => editor.chain().focus().deleteRow().run()}
+                  disabled={!editor.can().deleteRow()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <RowsIcon className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Удалить строку' : 'Delete row'}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => editor.chain().focus().deleteTable().run()}
+                  disabled={!editor.can().deleteTable()}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {language === 'ru' ? 'Удалить таблицу' : 'Delete table'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
