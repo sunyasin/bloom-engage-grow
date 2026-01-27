@@ -436,20 +436,20 @@ export default function Community({ user }: CommunityProps) {
           {/* About Tab */}
           {activeTab === "about" && (
             <div className="bg-card rounded-xl border border-border overflow-hidden">
-              {/* Rich content preview */}
+              {/* Description - always shown if exists */}
+              {community.description && (
+                <div className="px-6 pt-6 pb-4">
+                  <p className="text-muted-foreground whitespace-pre-wrap">{community.description}</p>
+                </div>
+              )}
+
+              {/* Rich content - shown below description */}
               {community.content_html && (
                 <div className="px-6 pb-6">
                   <div
                     className="prose prose-sm max-w-none dark:prose-invert"
                     dangerouslySetInnerHTML={{ __html: community.content_html }}
                   />
-                </div>
-              )}
-
-              {/* Description fallback if no content_html */}
-              {!community.content_html && community.description && (
-                <div className="px-6 pb-6">
-                  <p className="text-muted-foreground">{community.description}</p>
                 </div>
               )}
             </div>
