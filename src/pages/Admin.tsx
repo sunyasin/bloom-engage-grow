@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Settings, CreditCard } from "lucide-react";
+import { MessageSquare, Settings, CreditCard, Webhook } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminMessagesSection } from "@/components/admin/AdminMessagesSection";
 import { AdminTiersModerationSection } from "@/components/admin/AdminTiersModerationSection";
 import { AdminSubscriptionsSection } from "@/components/admin/AdminSubscriptionsSection";
+import { AdminWebhookLogsSection } from "@/components/admin/AdminWebhookLogsSection";
 
-type AdminSection = "messages" | "tiers" | "subscriptions";
+type AdminSection = "messages" | "tiers" | "subscriptions" | "webhooks";
 
 export default function Admin() {
   const [activeSection, setActiveSection] = useState<AdminSection>("tiers");
@@ -17,6 +17,7 @@ export default function Admin() {
     { id: "messages" as const, label: "Сообщения", icon: MessageSquare },
     { id: "tiers" as const, label: "Изменения в tiers", icon: Settings },
     { id: "subscriptions" as const, label: "Подписки", icon: CreditCard },
+    { id: "webhooks" as const, label: "Логи вебхуков", icon: Webhook },
   ];
   return (
     <div className="container mx-auto px-4 py-8">
@@ -51,6 +52,7 @@ export default function Admin() {
             {activeSection === "messages" && <AdminMessagesSection />}
             {activeSection === "tiers" && <AdminTiersModerationSection />}
             {activeSection === "subscriptions" && <AdminSubscriptionsSection />}
+            {activeSection === "webhooks" && <AdminWebhookLogsSection />}
           </div>
         </div>
       </div>
