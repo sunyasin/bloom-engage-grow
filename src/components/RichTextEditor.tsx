@@ -307,6 +307,223 @@ export default function RichTextEditor({ content, onChange, language, placeholde
       .run();
   }, [editor]);
 
+  // Smart blockquote: if partial text is selected, split into separate paragraph and wrap in blockquote
+  const applySmartBlockquote = useCallback(() => {
+    if (!editor) return;
+
+    const { from, to, empty } = editor.state.selection;
+    
+    // If no selection or already a blockquote, just toggle normally
+    if (empty || editor.isActive('blockquote')) {
+      editor.chain().focus().toggleBlockquote().run();
+      return;
+    }
+
+    const $from = editor.state.doc.resolve(from);
+    const parentNode = $from.parent;
+    const startOfBlock = $from.start();
+    const endOfBlock = startOfBlock + parentNode.nodeSize - 2;
+    
+    const selectionStartsAtBlockStart = from === startOfBlock;
+    const selectionEndsAtBlockEnd = to === endOfBlock;
+
+    // If selection covers the whole block, just toggle blockquote
+    if (selectionStartsAtBlockStart && selectionEndsAtBlockEnd) {
+      editor.chain().focus().toggleBlockquote().run();
+      return;
+    }
+
+    // Get the selected text
+    const selectedText = editor.state.doc.textBetween(from, to, '');
+    if (!selectedText.trim()) {
+      editor.chain().focus().toggleBlockquote().run();
+      return;
+    }
+
+    // Split and insert blockquote with selected text only
+    editor.chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { from: selFrom, to: selTo } = state.selection;
+        
+        tr.delete(selFrom, selTo);
+        
+        const paragraphNode = state.schema.nodes.paragraph.create(
+          null,
+          state.schema.text(selectedText)
+        );
+        const blockquoteNode = state.schema.nodes.blockquote.create(null, paragraphNode);
+        
+        tr.insert(selFrom, blockquoteNode);
+        
+        return true;
+      })
+      .run();
+  }, [editor]);
+
+  // Smart code block: if partial text is selected, split into separate paragraph and wrap in code block
+  const applySmartCodeBlock = useCallback(() => {
+    if (!editor) return;
+
+    const { from, to, empty } = editor.state.selection;
+    
+    // If no selection or already a code block, just toggle normally
+    if (empty || editor.isActive('codeBlock')) {
+      editor.chain().focus().toggleCodeBlock().run();
+      return;
+    }
+
+    const $from = editor.state.doc.resolve(from);
+    const parentNode = $from.parent;
+    const startOfBlock = $from.start();
+    const endOfBlock = startOfBlock + parentNode.nodeSize - 2;
+    
+    const selectionStartsAtBlockStart = from === startOfBlock;
+    const selectionEndsAtBlockEnd = to === endOfBlock;
+
+    // If selection covers the whole block, just toggle code block
+    if (selectionStartsAtBlockStart && selectionEndsAtBlockEnd) {
+      editor.chain().focus().toggleCodeBlock().run();
+      return;
+    }
+
+    // Get the selected text
+    const selectedText = editor.state.doc.textBetween(from, to, '');
+    if (!selectedText.trim()) {
+      editor.chain().focus().toggleCodeBlock().run();
+      return;
+    }
+
+    // Split and insert code block with selected text only
+    editor.chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { from: selFrom, to: selTo } = state.selection;
+        
+        tr.delete(selFrom, selTo);
+        
+        const codeBlockNode = state.schema.nodes.codeBlock.create(
+          null,
+          state.schema.text(selectedText)
+        );
+        
+        tr.insert(selFrom, codeBlockNode);
+        
+        return true;
+      })
+      .run();
+  }, [editor]);
+
+  // Smart bullet list: if partial text is selected, split into separate paragraph and wrap in bullet list
+  const applySmartBulletList = useCallback(() => {
+    if (!editor) return;
+
+    const { from, to, empty } = editor.state.selection;
+    
+    // If no selection or already a bullet list, just toggle normally
+    if (empty || editor.isActive('bulletList')) {
+      editor.chain().focus().toggleBulletList().run();
+      return;
+    }
+
+    const $from = editor.state.doc.resolve(from);
+    const parentNode = $from.parent;
+    const startOfBlock = $from.start();
+    const endOfBlock = startOfBlock + parentNode.nodeSize - 2;
+    
+    const selectionStartsAtBlockStart = from === startOfBlock;
+    const selectionEndsAtBlockEnd = to === endOfBlock;
+
+    // If selection covers the whole block, just toggle bullet list
+    if (selectionStartsAtBlockStart && selectionEndsAtBlockEnd) {
+      editor.chain().focus().toggleBulletList().run();
+      return;
+    }
+
+    // Get the selected text
+    const selectedText = editor.state.doc.textBetween(from, to, '');
+    if (!selectedText.trim()) {
+      editor.chain().focus().toggleBulletList().run();
+      return;
+    }
+
+    // Split and insert bullet list with selected text only
+    editor.chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { from: selFrom, to: selTo } = state.selection;
+        
+        tr.delete(selFrom, selTo);
+        
+        const paragraphNode = state.schema.nodes.paragraph.create(
+          null,
+          state.schema.text(selectedText)
+        );
+        const listItemNode = state.schema.nodes.listItem.create(null, paragraphNode);
+        const bulletListNode = state.schema.nodes.bulletList.create(null, listItemNode);
+        
+        tr.insert(selFrom, bulletListNode);
+        
+        return true;
+      })
+      .run();
+  }, [editor]);
+
+  // Smart ordered list: if partial text is selected, split into separate paragraph and wrap in ordered list
+  const applySmartOrderedList = useCallback(() => {
+    if (!editor) return;
+
+    const { from, to, empty } = editor.state.selection;
+    
+    // If no selection or already an ordered list, just toggle normally
+    if (empty || editor.isActive('orderedList')) {
+      editor.chain().focus().toggleOrderedList().run();
+      return;
+    }
+
+    const $from = editor.state.doc.resolve(from);
+    const parentNode = $from.parent;
+    const startOfBlock = $from.start();
+    const endOfBlock = startOfBlock + parentNode.nodeSize - 2;
+    
+    const selectionStartsAtBlockStart = from === startOfBlock;
+    const selectionEndsAtBlockEnd = to === endOfBlock;
+
+    // If selection covers the whole block, just toggle ordered list
+    if (selectionStartsAtBlockStart && selectionEndsAtBlockEnd) {
+      editor.chain().focus().toggleOrderedList().run();
+      return;
+    }
+
+    // Get the selected text
+    const selectedText = editor.state.doc.textBetween(from, to, '');
+    if (!selectedText.trim()) {
+      editor.chain().focus().toggleOrderedList().run();
+      return;
+    }
+
+    // Split and insert ordered list with selected text only
+    editor.chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { from: selFrom, to: selTo } = state.selection;
+        
+        tr.delete(selFrom, selTo);
+        
+        const paragraphNode = state.schema.nodes.paragraph.create(
+          null,
+          state.schema.text(selectedText)
+        );
+        const listItemNode = state.schema.nodes.listItem.create(null, paragraphNode);
+        const orderedListNode = state.schema.nodes.orderedList.create(null, listItemNode);
+        
+        tr.insert(selFrom, orderedListNode);
+        
+        return true;
+      })
+      .run();
+  }, [editor]);
+
   const fonts = [
     { value: 'default', label: language === 'ru' ? 'По умолчанию' : 'Default' },
     { value: 'Inter', label: 'Inter' },
@@ -584,7 +801,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive('bulletList') ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  onClick={() => applySmartBulletList()}
                 >
                   <List className="h-4 w-4" />
                 </Button>
@@ -602,7 +819,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive('orderedList') ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  onClick={() => applySmartOrderedList()}
                 >
                   <ListOrdered className="h-4 w-4" />
                 </Button>
@@ -625,7 +842,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive('blockquote') ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                  onClick={() => applySmartBlockquote()}
                 >
                   <Quote className="h-4 w-4" />
                 </Button>
@@ -643,7 +860,7 @@ export default function RichTextEditor({ content, onChange, language, placeholde
                   className={`h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-background/80 ${
                     editor.isActive('codeBlock') ? 'bg-background text-foreground' : ''
                   }`}
-                  onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                  onClick={() => applySmartCodeBlock()}
                 >
                   <Code className="h-4 w-4" />
                 </Button>
