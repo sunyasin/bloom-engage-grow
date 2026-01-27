@@ -68,11 +68,11 @@ export default function LessonContentRenderer({
   }, [html]);
 
   return (
-    <article className={`prose prose-sm sm:prose dark:prose-invert max-w-none ${className || ''}`}>
+    <article className={`lesson-content ${className || ''}`}>
       {parts.map((p, idx) => {
         if (p.type === "video") {
           return (
-            <div key={`video-${idx}`} className="not-prose my-4">
+            <div key={`video-${idx}`} className="my-4">
               <VideoPlayer src={p.src} lessonId={lessonId} />
             </div>
           );
@@ -81,7 +81,7 @@ export default function LessonContentRenderer({
         return (
           <div
             key={`html-${idx}`}
-            className="prose prose-sm sm:prose dark:prose-invert max-w-none prose-headings:font-semibold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-ul:list-disc prose-ol:list-decimal prose-li:my-1"
+            className="lesson-content-html"
             dangerouslySetInnerHTML={{ __html: p.content }}
           />
         );
