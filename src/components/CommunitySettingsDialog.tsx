@@ -247,6 +247,7 @@ export function CommunitySettingsDialog({
                 placeholder={language === 'ru' ? 'Добавьте контент для страницы About...' : 'Add content for About page...'}
                 language={language}
                 communityId={community.id}
+                disableSticky
               />
             </div>
           </div>

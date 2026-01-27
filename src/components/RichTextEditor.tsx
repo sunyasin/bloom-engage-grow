@@ -59,9 +59,10 @@ interface RichTextEditorProps {
   placeholder?: string;
   lessonId?: string;
   communityId?: string;
+  disableSticky?: boolean;
 }
 
-export default function RichTextEditor({ content, onChange, language, placeholder, lessonId, communityId }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, language, placeholder, lessonId, communityId, disableSticky = false }: RichTextEditorProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [videoDialogOpen, setVideoDialogOpen] = useState(false);
   const [audioDialogOpen, setAudioDialogOpen] = useState(false);
@@ -583,8 +584,8 @@ export default function RichTextEditor({ content, onChange, language, placeholde
   return (
     <TooltipProvider delayDuration={300}>
       <div className="border border-border rounded-lg bg-background">
-        {/* Toolbar - sticky */}
-        <div className="flex items-center gap-0.5 p-2 bg-muted/95 border-b border-border/50 flex-wrap sticky top-16 z-40 rounded-t-lg backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+        {/* Toolbar */}
+        <div className={`flex items-center gap-0.5 p-2 bg-muted/95 border-b border-border/50 flex-wrap rounded-t-lg backdrop-blur supports-[backdrop-filter]:bg-muted/80 ${disableSticky ? '' : 'sticky top-16 z-40'}`}>
           {/* Undo/Redo */}
           <div className="flex items-center">
             <Tooltip>
