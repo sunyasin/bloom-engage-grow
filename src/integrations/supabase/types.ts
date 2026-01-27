@@ -1545,7 +1545,7 @@ export type Database = {
         | "promo_code"
         | "by_rating_level"
         | "delayed_by_rating"
-      app_role: "user" | "superuser" | "author"
+      app_role: "user" | "superuser" | "author" | "moderator"
       block_type:
         | "text"
         | "image"
@@ -1703,7 +1703,7 @@ export const Constants = {
         "by_rating_level",
         "delayed_by_rating",
       ],
-      app_role: ["user", "superuser", "author"],
+      app_role: ["user", "superuser", "author", "moderator"],
       block_type: [
         "text",
         "image",
