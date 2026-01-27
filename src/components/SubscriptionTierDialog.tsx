@@ -329,35 +329,34 @@ export function SubscriptionTierDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
+                RUB
+                {/*CURRENCIES.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))*/}
               </SelectContent>
             </Select>
           </div>
 
           {/* Payment URL - only for paid tiers */}
-          {/*!formData.is_free && (formData.price_monthly || 0) > 0 && (
+          {!formData.is_free && (formData.price_monthly || 0) > 0 && (
             <div className="space-y-2">
               <Label htmlFor="payment_url">
-                {language === 'ru' ? 'Ссылка на оплату (необязательно)' : 'Payment URL (optional)'}
+                {language === "ru" ? "Ссылка на оплату (необязательно)" : "Payment URL (optional)"}
               </Label>
               <Input
                 id="payment_url"
                 type="url"
-                value={formData.payment_url || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, payment_url: e.target.value }))}
-                placeholder={language === 'ru' ? 'https://...' : 'https://...'}
+                value={formData.payment_url || ""}
+                onChange={(e) => setFormData((prev) => ({ ...prev, payment_url: e.target.value }))}
+                placeholder={language === "ru" ? "https://..." : "https://..."}
               />
               <p className="text-xs text-muted-foreground">
-                {language === 'ru' 
+                {language === "ru"
                   ? 'Если указана — откроется по кнопке "Оплатить". Если пустая — оплата через ЮKassa.'
                   : 'If set — opens on "Pay" button click. If empty — uses YooKassa payment.'}
               </p>
             </div>
-          )*/}
+          )}
 
           {/* Features */}
           <div className="space-y-2">
