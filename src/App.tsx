@@ -43,6 +43,7 @@ const App = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isSuperuser, setIsSuperuser] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
   const [isAuthor, setIsAuthor] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
@@ -55,6 +56,7 @@ const App = () => {
     
     const roles = data?.map(r => r.role) || [];
     setIsSuperuser(roles.includes('superuser'));
+    setIsModerator(roles.includes('moderator'));
     setIsAuthor(roles.includes('author'));
   };
 
@@ -70,6 +72,7 @@ const App = () => {
           }, 0);
         } else {
           setIsSuperuser(false);
+          setIsModerator(false);
           setIsAuthor(false);
         }
       }
@@ -103,7 +106,8 @@ const App = () => {
               <div className="min-h-screen bg-background">
                 <Header 
                   user={user} 
-                  isSuperuser={isSuperuser} 
+                  isSuperuser={isSuperuser}
+                  isModerator={isModerator}
                   isAuthor={isAuthor}
                   onAuthClick={handleAuthClick} 
                 />
@@ -126,7 +130,7 @@ const App = () => {
                   />
                   <Route 
                     path="/admin" 
-                    element={isSuperuser ? <Admin /> : <Navigate to="/" />} 
+                    element={(isSuperuser || isModerator) ? <Admin /> : <Navigate to="/" />}
                   />
                   <Route 
                     path="/my-courses" 
