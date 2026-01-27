@@ -16,6 +16,7 @@ interface SubscriptionTier {
   currency: string;
   is_free: boolean;
   features: any;
+  moderated_at: string | null;
 }
 
 interface SubscriptionTiersListProps {
@@ -137,6 +138,7 @@ export function SubscriptionTiersList({ communityId, userId }: SubscriptionTiers
                   subscriptionTierId={tier.id}
                   tierName={tier.name}
                   price={tier.price_monthly || 0}
+                  moderatedAt={tier.moderated_at}
                   disabled={isCurrentTier || !userId}
                   className="w-full"
                 />
