@@ -329,7 +329,7 @@ export function SubscriptionTierDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                RUB
+                <SelectItem>RUB</SelectItem>
                 {/*CURRENCIES.map(c => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))*/}
