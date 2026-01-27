@@ -115,7 +115,9 @@ export default function RichTextEditor({ content, onChange, language, placeholde
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose dark:prose-invert max-w-none min-h-[300px] p-4 focus:outline-none',
+        // Typography plugin's `.prose` sets `max-width: 65ch;` which can visually "limit" the editor.
+        // Force full-width editing surface.
+        class: 'prose prose-sm sm:prose dark:prose-invert !max-w-none w-full min-h-[300px] p-4 focus:outline-none',
       },
     },
   });
