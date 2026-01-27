@@ -15,7 +15,41 @@ interface TributePayload {
     currency: string;
     user_id: number;
     telegram_user_id: number;
+    period?: string; // once, weekly, monthly, 3months, 6month, yearly
   };
+}
+
+type RenewalPeriod = "monthly" | "yearly" | "lifetime";
+
+function calculateExpiresAt(period: string | undefined): Date {
+  const now = new Date();
+  switch (period) {
+    case "once":
+      return new Date(now.setFullYear(now.getFullYear() + 100)); // lifetime
+    case "weekly":
+      return new Date(now.setDate(now.getDate() + 7));
+    case "monthly":
+      return new Date(now.setMonth(now.getMonth() + 1));
+    case "3months":
+      return new Date(now.setMonth(now.getMonth() + 3));
+    case "6month":
+      return new Date(now.setMonth(now.getMonth() + 6));
+    case "yearly":
+      return new Date(now.setFullYear(now.getFullYear() + 1));
+    default:
+      return new Date(now.setMonth(now.getMonth() + 1)); // default monthly
+  }
+}
+
+function mapToRenewalPeriod(period: string | undefined): RenewalPeriod {
+  switch (period) {
+    case "once":
+      return "lifetime";
+    case "yearly":
+      return "yearly";
+    default:
+      return "monthly";
+  }
 }
 
 async function verifySignature(body: string, signature: string, apiKey: string): Promise<boolean> {
@@ -155,9 +189,9 @@ Deno.serve(async (req) => {
       return new Response(null, { status: 400, headers: corsHeaders });
     }
 
-    // Calculate expiration date (1 month from now)
-    const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    // Calculate expiration date based on period
+    const expiresAt = calculateExpiresAt(webhookData.payload.period);
+    const renewalPeriod = mapToRenewalPeriod(webhookData.payload.period);
 
     // Check for existing membership
     const { data: existingMembership } = await supabase
@@ -176,7 +210,7 @@ Deno.serve(async (req) => {
           status: "active",
           started_at: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
-          renewal_period: "monthly",
+          renewal_period: renewalPeriod,
           external_subscription_id: `tribute_${webhookData.payload.product_id}`,
           updated_at: new Date().toISOString(),
         })
@@ -196,7 +230,7 @@ Deno.serve(async (req) => {
           status: "active",
           started_at: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
-          renewal_period: "monthly",
+          renewal_period: renewalPeriod,
           external_subscription_id: `tribute_${webhookData.payload.product_id}`,
         });
 
