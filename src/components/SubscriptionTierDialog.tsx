@@ -44,13 +44,13 @@ interface SubscriptionTierDialogProps {
 }
 
 const FEATURE_OPTIONS = [
-  { key: "community_access", labelRu: "Доступ к сообществу", labelEn: "Community access" },
+  { key: "community_access", labelRu: "Доступ к чату", labelEn: "Chat access" },
   { key: "courses_all", labelRu: "Доступ ко всем курсам", labelEn: "Access to all courses" },
   { key: "courses_selected", labelRu: "Доступ к выбранным курсам", labelEn: "Access to selected courses" },
-  { key: "call_replays", labelRu: "Записи созвонов", labelEn: "Call replays" },
+  // { key: "call_replays", labelRu: "Записи созвонов", labelEn: "Call replays" },
   { key: "group_calls", labelRu: "Еженедельные живые созвоны", labelEn: "Weekly live calls" },
-  { key: "private_chat", labelRu: "Приватный чат/канал", labelEn: "Private chat/channel" },
-  { key: "discounts", labelRu: "Скидки на мероприятия/продукты", labelEn: "Discounts on events/products" },
+  { key: "private_chat", labelRu: "Приватные сообщения", labelEn: "Private chat" },
+  // { key: "discounts", labelRu: "Скидки на мероприятия/продукты", labelEn: "Discounts on events/products" },
 ];
 
 const CURRENCIES = ["RUB"];
