@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
         subscription_tier_id: tier.id,
         amount: webhookData.payload.amount,
         currency: webhookData.payload.currency.toUpperCase(),
-        status: "succeeded",
+        status: "paid",
         provider: "tribute",
         provider_payment_id: `tribute_${webhookData.payload.product_id}_${webhookData.payload.user_id}`,
         description: `Оплата через Tribute: ${community?.name || "Сообщество"} / ${tier.name}`,
