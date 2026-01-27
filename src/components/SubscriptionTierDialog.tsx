@@ -53,7 +53,7 @@ const FEATURE_OPTIONS = [
   { key: "discounts", labelRu: "Скидки на мероприятия/продукты", labelEn: "Discounts on events/products" },
 ];
 
-const CURRENCIES = ["RUB", "USD", "EUR"];
+const CURRENCIES = ["RUB"];
 
 export function SubscriptionTierDialog({
   open,
@@ -329,16 +329,17 @@ export function SubscriptionTierDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem>RUB</SelectItem>
-                {/*CURRENCIES.map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))*/}
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           {/* Payment URL - only for paid tiers */}
-          {!formData.is_free && (formData.price_monthly || 0) > 0 && (
+          {/*!formData.is_free && (formData.price_monthly || 0) > 0 && (
             <div className="space-y-2">
               <Label htmlFor="payment_url">
                 {language === "ru" ? "Ссылка на оплату (необязательно)" : "Payment URL (optional)"}
@@ -356,7 +357,7 @@ export function SubscriptionTierDialog({
                   : 'If set — opens on "Pay" button click. If empty — uses YooKassa payment.'}
               </p>
             </div>
-          )}
+          )*/}
 
           {/* Features */}
           <div className="space-y-2">
