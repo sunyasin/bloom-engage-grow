@@ -108,7 +108,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
   const [lessonBlocks, setLessonBlocks] = useState<LessonBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showDeleteLessonDialog, setShowDeleteLessonDialog] = useState(false);
   const [showLessonSettingsDialog, setShowLessonSettingsDialog] = useState(false);
@@ -570,7 +569,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
       });
     } finally {
       setDeleting(false);
-      setShowDeleteDialog(false);
     }
   };
 
@@ -956,15 +954,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
             <div className="flex items-center gap-2">
               {isAuthor && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    {language === "ru" ? "Курс" : "Course"}
-                  </Button>
 
                   {course.status !== "published" && (
                     <Button variant="outline" size="sm" onClick={handlePublish} disabled={publishing}>
@@ -1178,30 +1167,6 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
         </div>
       </div>
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{language === "ru" ? "Удалить курс?" : "Delete course?"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {language === "ru"
-                ? "Это действие нельзя отменить. Все уроки курса будут удалены."
-                : "This action cannot be undone. All lessons will be deleted."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{language === "ru" ? "Отмена" : "Cancel"}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteCourse}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {language === "ru" ? "Удалить" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Delete lesson confirmation dialog */}
       <AlertDialog open={showDeleteLessonDialog} onOpenChange={setShowDeleteLessonDialog}>
@@ -1235,6 +1200,7 @@ export default function CoursePreview({ user }: CoursePreviewProps) {
           onOpenChange={setShowSettingsDialog}
           course={course}
           onSave={handleSettingsSave}
+          onDelete={handleDeleteCourse}
         />
       )}
 

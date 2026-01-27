@@ -9,7 +9,17 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Upload, X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { Database } from '@/integrations/supabase/types';
 
 type AccessType = Database['public']['Enums']['access_type'];
@@ -34,15 +44,17 @@ interface CourseSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
   course: Course;
   onSave: (updatedCourse: Course) => void;
+  onDelete?: () => void;
 }
 
-type SettingsTab = 'title' | 'description' | 'cover' | 'access' | 'status';
+type SettingsTab = 'title' | 'description' | 'cover' | 'access' | 'status' | 'danger';
 
 export default function CourseSettingsDialog({ 
   open, 
   onOpenChange, 
   course, 
-  onSave 
+  onSave,
+  onDelete 
 }: CourseSettingsDialogProps) {
   const { language } = useI18n();
   const [activeTab, setActiveTab] = useState<SettingsTab>('title');
@@ -52,6 +64,8 @@ export default function CourseSettingsDialog({
   const [status, setStatus] = useState<CourseStatus>(course.status || 'draft');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Multi-select access types
@@ -210,12 +224,13 @@ export default function CourseSettingsDialog({
     }
   };
 
-  const tabs: { id: SettingsTab; label: string }[] = [
+  const tabs: { id: SettingsTab; label: string; danger?: boolean }[] = [
     { id: 'title', label: language === 'ru' ? 'Название' : 'Title' },
     { id: 'description', label: language === 'ru' ? 'Описание' : 'Description' },
     { id: 'cover', label: language === 'ru' ? 'Обложка' : 'Cover' },
     { id: 'access', label: language === 'ru' ? 'Видимость' : 'Visibility' },
     { id: 'status', label: language === 'ru' ? 'Статус' : 'Status' },
+    { id: 'danger', label: language === 'ru' ? 'Удаление' : 'Delete', danger: true },
   ];
 
   const accessOptions: { value: AccessType; label: string; desc?: string }[] = [
@@ -293,8 +308,12 @@ export default function CourseSettingsDialog({
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    ? tab.danger 
+                      ? 'bg-destructive/10 text-destructive font-medium'
+                      : 'bg-primary/10 text-primary font-medium'
+                    : tab.danger
+                      ? 'text-destructive/70 hover:bg-destructive/5 hover:text-destructive'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                 }`}
               >
                 {tab.label}
@@ -523,6 +542,29 @@ export default function CourseSettingsDialog({
                 </RadioGroup>
               </div>
             )}
+
+            {activeTab === 'danger' && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+                  <h3 className="font-medium text-destructive mb-2">
+                    {language === 'ru' ? 'Опасная зона' : 'Danger Zone'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {language === 'ru' 
+                      ? 'Удаление курса нельзя отменить. Все уроки и данные будут безвозвратно удалены.'
+                      : 'Deleting a course cannot be undone. All lessons and data will be permanently removed.'}
+                  </p>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleting}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {language === 'ru' ? 'Удалить курс' : 'Delete Course'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -536,6 +578,38 @@ export default function CourseSettingsDialog({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {language === 'ru' ? 'Удалить курс?' : 'Delete course?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {language === 'ru'
+                ? 'Это действие нельзя отменить. Все уроки курса будут удалены.'
+                : 'This action cannot be undone. All lessons will be deleted.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{language === 'ru' ? 'Отмена' : 'Cancel'}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (onDelete) {
+                  setDeleting(true);
+                  onDelete();
+                }
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {language === 'ru' ? 'Удалить' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
