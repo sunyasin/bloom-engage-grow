@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Settings } from "lucide-react";
+import { MessageSquare, Settings, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminMessagesSection } from "@/components/admin/AdminMessagesSection";
 import { AdminTiersModerationSection } from "@/components/admin/AdminTiersModerationSection";
+import { AdminSubscriptionsSection } from "@/components/admin/AdminSubscriptionsSection";
 
-type AdminSection = "messages" | "tiers";
+type AdminSection = "messages" | "tiers" | "subscriptions";
 
 export default function Admin() {
   const [activeSection, setActiveSection] = useState<AdminSection>("tiers");
@@ -15,8 +16,8 @@ export default function Admin() {
   const sections = [
     { id: "messages" as const, label: "Сообщения", icon: MessageSquare },
     { id: "tiers" as const, label: "Изменения в tiers", icon: Settings },
+    { id: "subscriptions" as const, label: "Подписки", icon: CreditCard },
   ];
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-7xl mx-auto">
@@ -49,6 +50,7 @@ export default function Admin() {
           <div className="flex-1">
             {activeSection === "messages" && <AdminMessagesSection />}
             {activeSection === "tiers" && <AdminTiersModerationSection />}
+            {activeSection === "subscriptions" && <AdminSubscriptionsSection />}
           </div>
         </div>
       </div>
