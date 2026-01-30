@@ -5,7 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon, Video, Youtube, Play, ExternalLink } from "lucide-react";
+import { Plus, MapPin, Clock, Edit, Trash2, Link as LinkIcon, Video, Youtube, Play, ExternalLink, Lock } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,10 +16,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { EventDialog } from "@/components/EventDialog";
 import { EventsListDialog } from "@/components/EventsListDialog";
 import { StreamViewerModal } from "@/components/StreamViewerModal";
+import { useGroupCallsAccess } from "@/hooks/useGroupCallsAccess";
 import { DayContentProps } from "react-day-picker";
 import { format, isPast, isFuture } from "date-fns";
 
@@ -67,6 +74,8 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null);
   const [streamingEvent, setStreamingEvent] = useState<Event | null>(null);
+
+  const { hasGroupCallsAccess } = useGroupCallsAccess({ userId, communityId });
 
   useEffect(() => {
     if (communityId) {
@@ -286,6 +295,7 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
                 {dayEvents.map((event) => {
                   const streamStatus = getStreamStatus(event);
                   const hasStream = event.is_zoom_stream || event.is_youtube_stream;
+                  const canAccessStream = isOwnerOrModerator || hasGroupCallsAccess;
                   
                   return (
                     <div key={event.id} className="border-l-4 border-primary pl-4 py-2 relative group">
@@ -331,33 +341,79 @@ export const CommunityEventsTab = ({ communityId, userId, isOwnerOrModerator, us
                             )}
                           </div>
                           
-                          {/* Stream button */}
+                          {/* Stream button with access check */}
                           {hasStream && (streamStatus === 'live' || streamStatus === 'scheduled') && (
-                            <Button
-                              className={`mt-3 gap-2 ${
-                                streamStatus === 'live' 
-                                  ? 'bg-green-600 hover:bg-green-700' 
-                                  : 'bg-primary'
-                              }`}
-                              onClick={() => handleOpenStream(event)}
-                            >
-                              <Play className="w-4 h-4" />
-                              {event.is_youtube_stream && <ExternalLink className="w-3 h-3" />}
-                              {streamStatus === 'live'
-                                ? (language === 'ru' ? 'Присоединиться к трансляции' : 'Join Live Broadcast')
-                                : (language === 'ru' ? 'Открыть трансляцию' : 'Open Broadcast')}
-                            </Button>
+                            canAccessStream ? (
+                              <Button
+                                className={`mt-3 gap-2 ${
+                                  streamStatus === 'live' 
+                                    ? 'bg-green-600 hover:bg-green-700' 
+                                    : 'bg-primary'
+                                }`}
+                                onClick={() => handleOpenStream(event)}
+                              >
+                                <Play className="w-4 h-4" />
+                                {event.is_youtube_stream && <ExternalLink className="w-3 h-3" />}
+                                {streamStatus === 'live'
+                                  ? (language === 'ru' ? 'Присоединиться к трансляции' : 'Join Live Broadcast')
+                                  : (language === 'ru' ? 'Открыть трансляцию' : 'Open Broadcast')}
+                              </Button>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      className="mt-3 gap-2 opacity-60 cursor-not-allowed"
+                                      variant="secondary"
+                                      disabled
+                                    >
+                                      <Lock className="w-4 h-4" />
+                                      {language === 'ru' ? 'Трансляция недоступна' : 'Stream Unavailable'}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{language === 'ru' 
+                                      ? 'Для доступа к созвонам требуется тариф с опцией "Еженедельные созвоны"' 
+                                      : 'Access to calls requires a plan with "Weekly calls" feature'}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )
                           )}
                           
                           {hasStream && streamStatus === 'ended' && event.is_youtube_stream && (
-                            <Button
-                              variant="secondary"
-                              className="mt-3 gap-2"
-                              onClick={() => handleOpenStream(event)}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              {language === 'ru' ? 'Смотреть запись' : 'Watch Replay'}
-                            </Button>
+                            canAccessStream ? (
+                              <Button
+                                variant="secondary"
+                                className="mt-3 gap-2"
+                                onClick={() => handleOpenStream(event)}
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                {language === 'ru' ? 'Смотреть запись' : 'Watch Replay'}
+                              </Button>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      className="mt-3 gap-2 opacity-60 cursor-not-allowed"
+                                      variant="secondary"
+                                      disabled
+                                    >
+                                      <Lock className="w-4 h-4" />
+                                      {language === 'ru' ? 'Запись недоступна' : 'Replay Unavailable'}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{language === 'ru' 
+                                      ? 'Для доступа к записям требуется тариф с опцией "Еженедельные созвоны"' 
+                                      : 'Access to replays requires a plan with "Weekly calls" feature'}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )
                           )}
                         </div>
                         {userId && event.creator_id === userId && (
