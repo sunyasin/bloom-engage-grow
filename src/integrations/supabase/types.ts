@@ -948,6 +948,11 @@ export type Database = {
           is_active: boolean
           name: string
           payment_url: string | null
+          payment_url_10: string | null
+          payment_url_20: string | null
+          payment_url_30: string | null
+          payment_url_40: string | null
+          payment_url_50: string | null
           price: number
           sort_order: number
           updated_at: string
@@ -962,6 +967,11 @@ export type Database = {
           is_active?: boolean
           name: string
           payment_url?: string | null
+          payment_url_10?: string | null
+          payment_url_20?: string | null
+          payment_url_30?: string | null
+          payment_url_40?: string | null
+          payment_url_50?: string | null
           price?: number
           sort_order?: number
           updated_at?: string
@@ -976,6 +986,11 @@ export type Database = {
           is_active?: boolean
           name?: string
           payment_url?: string | null
+          payment_url_10?: string | null
+          payment_url_20?: string | null
+          payment_url_30?: string | null
+          payment_url_40?: string | null
+          payment_url_50?: string | null
           price?: number
           sort_order?: number
           updated_at?: string
