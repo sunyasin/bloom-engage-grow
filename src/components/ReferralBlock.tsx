@@ -51,13 +51,8 @@ export function ReferralBlock({ referralCode, userId }: ReferralBlockProps) {
       const totalReferred = referrals?.length || 0;
       const payingReferred = referrals?.filter((r) => r.is_paying).length || 0;
 
-      // Calculate discount
-      let discount = 0;
-      if (payingReferred === 1) {
-        discount = 10;
-      } else if (payingReferred > 1) {
-        discount = Math.min(10 + (payingReferred - 1), 50);
-      }
+      // Calculate discount: 10% per paying referral, max 50%
+      const discount = Math.min(payingReferred * 10, 50);
 
       setStats({
         totalReferred,
@@ -109,8 +104,8 @@ export function ReferralBlock({ referralCode, userId }: ReferralBlockProps) {
           </h3>
           <p className="text-sm text-muted-foreground">
             {language === "ru"
-              ? "Получите -10% пожизненно за первого платящего подписчика и -1% за каждого следующего (максимум -50%)"
-              : "Get -10% lifetime discount for your first paying subscriber and -1% for each next one (max -50%)"}
+              ? "Получите -10% пожизненно за каждого платящего подписчика (максимум -50%)"
+              : "Get -10% lifetime discount for each paying subscriber (max -50%)"}
           </p>
         </div>
       </div>
