@@ -2,10 +2,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn, signUp, resetPassword } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/i18n";
+import { supabase } from "@/lib/supabaseClient";
 
 interface AuthModalProps {
   open: boolean;
@@ -22,33 +23,80 @@ export const AuthModal = ({ open, mode, onClose }: AuthModalProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
 
+  // Check for referral code on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      localStorage.setItem('referral_code', refCode);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = mode === 'signin' 
-        ? await signIn(email, password)
-        : await signUp(email, password);
-
-      if (error) {
-        toast({
-          title: t('common.error'),
-          description: error.message,
-          variant: "destructive",
-        });
-        if (mode === 'signin') {
+      if (mode === 'signin') {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: t('common.error'),
+            description: error.message,
+            variant: "destructive",
+          });
           setShowForgotPassword(true);
+        } else {
+          toast({
+            title: t('auth.success'),
+            description: t('auth.signedInSuccessfully'),
+          });
+          onClose();
+          setEmail("");
+          setPassword("");
+          setShowForgotPassword(false);
         }
       } else {
-        toast({
-          title: t('auth.success'),
-          description: mode === 'signin' ? t('auth.signedInSuccessfully') : t('auth.accountCreatedSuccessfully'),
-        });
-        onClose();
-        setEmail("");
-        setPassword("");
-        setShowForgotPassword(false);
+        // Register mode - handle referral code
+        const { error, data } = await signUp(email, password);
+        
+        if (error) {
+          toast({
+            title: t('common.error'),
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          // Check for referral code and update profile
+          const referralCode = localStorage.getItem('referral_code');
+          if (referralCode && data?.user?.id) {
+            // Find referrer by referral_code
+            const { data: referrer } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('referral_code', referralCode)
+              .single();
+            
+            if (referrer) {
+              // Update the new user's profile with referred_by
+              await supabase
+                .from('profiles')
+                .update({ referred_by: referrer.id })
+                .eq('id', data.user.id);
+              
+              localStorage.removeItem('referral_code');
+            }
+          }
+          
+          toast({
+            title: t('auth.success'),
+            description: t('auth.accountCreatedSuccessfully'),
+          });
+          onClose();
+          setEmail("");
+          setPassword("");
+          setShowForgotPassword(false);
+        }
       }
     } finally {
       setLoading(false);

@@ -326,6 +326,37 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Update referral stats if user was referred
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("referred_by")
+      .eq("id", userId)
+      .single();
+
+    if (userProfile?.referred_by) {
+      // Update referral_stats: mark this user as paying
+      const { error: referralUpdateError } = await supabase
+        .from("referral_stats")
+        .update({
+          is_paying: true,
+          first_payment_at: new Date().toISOString(),
+          total_payments: 1,
+        })
+        .eq("user_id", userProfile.referred_by)
+        .eq("referred_user_id", userId)
+        .is("first_payment_at", null); // Only update if first payment
+
+      if (referralUpdateError) {
+        console.error("Error updating referral stats:", referralUpdateError);
+      } else {
+        // Increment total_payments if not first payment
+        await supabase.rpc("increment_referral_payment", {
+          referrer_id_param: userProfile.referred_by,
+          referred_id_param: userId,
+        });
+      }
+    }
+
     const successMessage = `Payment processed successfully for telegram_user_id: ${telegramUserId}, tier_id: ${tierId}`;
     console.log(successMessage);
 
