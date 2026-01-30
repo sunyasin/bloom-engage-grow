@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, BookOpen } from "lucide-react";
@@ -432,18 +433,46 @@ export function SubscriptionTierDialog({
           <div className="space-y-2">
             <Label>{language === "ru" ? "Что входит в уровень" : "Features included"}</Label>
             <div className="space-y-2 border border-border rounded-lg p-3">
-              {FEATURE_OPTIONS.map((feature) => (
-                <div key={feature.key}>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={feature.key}
-                      checked={formData.features.includes(feature.key)}
-                      onCheckedChange={() => handleFeatureToggle(feature.key)}
-                    />
-                    <label htmlFor={feature.key} className="text-sm cursor-pointer">
-                      {language === "ru" ? feature.labelRu : feature.labelEn}
-                    </label>
-                  </div>
+              {FEATURE_OPTIONS.map((feature) => {
+                const isRestrictedFeature = feature.key === "group_calls" || feature.key === "private_chat";
+                const isDisabled = isPortalFree && isRestrictedFeature;
+
+                return (
+                  <div key={feature.key}>
+                    <div className="flex items-center space-x-2">
+                      {isDisabled ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center space-x-2 opacity-50 cursor-not-allowed">
+                                <Checkbox
+                                  id={feature.key}
+                                  checked={false}
+                                  disabled
+                                />
+                                <label className="text-sm">
+                                  {language === "ru" ? feature.labelRu : feature.labelEn}
+                                </label>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{language === "ru" ? "Недоступно на бесплатной подписке" : "Not available on free subscription"}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <>
+                          <Checkbox
+                            id={feature.key}
+                            checked={formData.features.includes(feature.key)}
+                            onCheckedChange={() => handleFeatureToggle(feature.key)}
+                          />
+                          <label htmlFor={feature.key} className="text-sm cursor-pointer">
+                            {language === "ru" ? feature.labelRu : feature.labelEn}
+                          </label>
+                        </>
+                      )}
+                    </div>
 
                   {/* Show course selection when courses_selected is checked */}
                   {feature.key === "courses_selected" && formData.features.includes("courses_selected") && (
@@ -478,7 +507,8 @@ export function SubscriptionTierDialog({
                     </div>
                   )}
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
 
