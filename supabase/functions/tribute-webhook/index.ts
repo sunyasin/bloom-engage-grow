@@ -10,12 +10,22 @@ interface TributePayload {
   created_at: string;
   sent_at: string;
   payload: {
-    product_id: number;
+    product_id?: number;
     amount: number;
     currency: string;
     user_id: number;
     telegram_user_id: number;
-    period?: string; // once, weekly, monthly, 3months, 6month, yearly
+    period?: string; // once, weekly, monthly, 3months, 6month, yearly, onetime
+    subscription_name?: string; // format: XXX_community-name where XXX is tier_id
+    subscription_id?: number;
+    expires_at?: string;
+    channel_id?: number;
+    channel_name?: string;
+    email?: string;
+    price?: number;
+    period_id?: number;
+    type?: string;
+    web_app_link?: string;
   };
 }
 
@@ -79,10 +89,66 @@ function parseTierId(name: string): number | null {
   return null;
 }
 
+// Helper to sanitize headers for logging (remove sensitive data)
+function sanitizeHeaders(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    // Don't log full signature, just indicate it was present
+    if (key.toLowerCase() === "trbt-signature") {
+      result[key] = value ? "[PRESENT]" : "[MISSING]";
+    } else if (key.toLowerCase() === "authorization") {
+      result[key] = value ? "[PRESENT]" : "[MISSING]";
+    } else {
+      result[key] = value;
+    }
+  });
+  return result;
+}
+
+// Log webhook call to database
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logWebhook(
+  supabase: any,
+  webhookName: string,
+  req: Request,
+  payload: unknown,
+  responseStatus: number,
+  responseBody: unknown,
+  errorMessage: string | null,
+  startTime: number
+) {
+  try {
+    const processingTime = Date.now() - startTime;
+    
+    await supabase.from("webhook_logs").insert({
+      webhook_name: webhookName,
+      request_url: req.url,
+      request_method: req.method,
+      request_headers: sanitizeHeaders(req.headers),
+      request_payload: payload,
+      response_status: responseStatus,
+      response_body: responseBody,
+      error_message: errorMessage,
+      processing_time_ms: processingTime,
+    });
+  } catch (logError) {
+    console.error("Failed to log webhook:", logError);
+  }
+}
+
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  let bodyText = "";
+  let webhookData: TributePayload | null = null;
 
   try {
     const signature = req.headers.get("trbt-signature");
@@ -90,39 +156,44 @@ Deno.serve(async (req) => {
 
     if (!apiKey) {
       console.error("TRIBUTE_API_KEY not configured");
+      const errorMsg = "TRIBUTE_API_KEY not configured";
+      await logWebhook(supabase, "tribute-webhook", req, null, 401, null, errorMsg, startTime);
       return new Response(null, { status: 401, headers: corsHeaders });
     }
 
-    const bodyText = await req.text();
+    bodyText = await req.text();
 
     if (!signature) {
       console.error("Missing trbt-signature header");
+      const errorMsg = "Missing trbt-signature header";
+      await logWebhook(supabase, "tribute-webhook", req, bodyText, 401, null, errorMsg, startTime);
       return new Response(null, { status: 401, headers: corsHeaders });
     }
 
     const isValid = await verifySignature(bodyText, signature, apiKey);
     if (!isValid) {
       console.error("Invalid signature");
+      const errorMsg = "Invalid signature";
+      await logWebhook(supabase, "tribute-webhook", req, bodyText, 401, null, errorMsg, startTime);
       return new Response(null, { status: 401, headers: corsHeaders });
     }
 
-    let webhookData: TributePayload;
     try {
       webhookData = JSON.parse(bodyText);
     } catch {
       console.error("Invalid JSON payload");
+      const errorMsg = "Invalid JSON payload";
+      await logWebhook(supabase, "tribute-webhook", req, bodyText, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
 
     // Validate required fields
-    if (!webhookData.name || !webhookData.payload || !webhookData.payload.telegram_user_id) {
+    if (!webhookData?.name || !webhookData?.payload || !webhookData?.payload.telegram_user_id) {
       console.error("Missing required fields in payload");
+      const errorMsg = "Missing required fields in payload";
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const telegramUserId = webhookData.payload.telegram_user_id;
 
@@ -135,15 +206,27 @@ Deno.serve(async (req) => {
 
     if (profileError || !profile) {
       console.error("User not found for telegram_user_id:", telegramUserId);
+      const errorMsg = `User not found for telegram_user_id: ${telegramUserId}`;
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
 
     const userId = profile.id;
 
-    // Parse tier_id from name (format: XXX_community-name)
-    const tierId = parseTierId(webhookData.name);
+    // Parse tier_id from payload.subscription_name (format: XXX_community-name)
+    const subscriptionName = webhookData.payload.subscription_name;
+    if (!subscriptionName) {
+      console.error("Missing subscription_name in payload");
+      const errorMsg = "Missing subscription_name in payload";
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
+      return new Response(null, { status: 400, headers: corsHeaders });
+    }
+
+    const tierId = parseTierId(subscriptionName);
     if (!tierId) {
-      console.error("Could not parse tier_id from name:", webhookData.name);
+      console.error("Could not parse tier_id from subscription_name:", subscriptionName);
+      const errorMsg = `Could not parse tier_id from subscription_name: ${subscriptionName}`;
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
 
@@ -156,6 +239,8 @@ Deno.serve(async (req) => {
 
     if (tierError || !tier) {
       console.error("Subscription tier not found for tier_id:", tierId);
+      const errorMsg = `Subscription tier not found for tier_id: ${tierId}`;
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
 
@@ -186,6 +271,8 @@ Deno.serve(async (req) => {
 
     if (transactionError) {
       console.error("Error creating transaction:", transactionError);
+      const errorMsg = `Error creating transaction: ${transactionError.message}`;
+      await logWebhook(supabase, "tribute-webhook", req, webhookData, 400, null, errorMsg, startTime);
       return new Response(null, { status: 400, headers: corsHeaders });
     }
 
@@ -239,12 +326,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Payment processed successfully for telegram_user_id: ${telegramUserId}, tier_id: ${tierId}`);
+    const successMessage = `Payment processed successfully for telegram_user_id: ${telegramUserId}, tier_id: ${tierId}`;
+    console.log(successMessage);
+
+    // Log successful webhook
+    await logWebhook(
+      supabase,
+      "tribute-webhook",
+      req,
+      webhookData,
+      200,
+      { success: true, message: successMessage, transactionId: transaction?.id },
+      null,
+      startTime
+    );
 
     return new Response(null, { status: 200, headers: corsHeaders });
 
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unexpected error";
     console.error("Unexpected error:", error);
+    await logWebhook(supabase, "tribute-webhook", req, webhookData || bodyText, 400, null, errorMsg, startTime);
     return new Response(null, { status: 400, headers: corsHeaders });
   }
 });
