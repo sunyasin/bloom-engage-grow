@@ -12,6 +12,7 @@ import { PortalSubscriptionSelector } from "@/components/PortalSubscriptionSelec
 import { Badge } from "@/components/ui/badge";
 import { CreditCard } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { ReferralBlock } from "@/components/ReferralBlock";
 
 interface PortalSubscription {
   id: string;
@@ -318,6 +319,14 @@ export default function MyProfile() {
                 </Button>
               </div>
             </div>
+
+            {/* Referral Block */}
+            {profile?.referral_code && (
+              <ReferralBlock 
+                referralCode={profile.referral_code} 
+                userId={profile.id} 
+              />
+            )}
 
             <Button type="submit" className="w-full bg-gradient-primary">
               Save Changes

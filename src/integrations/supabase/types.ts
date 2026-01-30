@@ -1102,6 +1102,8 @@ export type Database = {
           portal_subscription_id: string | null
           rating: number | null
           real_name: string | null
+          referral_code: string | null
+          referred_by: string | null
           sbp_phone: string | null
           state: string | null
           telegram_first_name: string | null
@@ -1125,6 +1127,8 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           sbp_phone?: string | null
           state?: string | null
           telegram_first_name?: string | null
@@ -1148,6 +1152,8 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           sbp_phone?: string | null
           state?: string | null
           telegram_first_name?: string | null
@@ -1162,6 +1168,13 @@ export type Database = {
             columns: ["portal_subscription_id"]
             isOneToOne: false
             referencedRelation: "portal_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1236,6 +1249,51 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_stats: {
+        Row: {
+          created_at: string | null
+          first_payment_at: string | null
+          id: string
+          is_paying: boolean | null
+          referred_user_id: string
+          total_payments: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          first_payment_at?: string | null
+          id?: string
+          is_paying?: boolean | null
+          referred_user_id: string
+          total_payments?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          first_payment_at?: string | null
+          id?: string
+          is_paying?: boolean | null
+          referred_user_id?: string
+          total_payments?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_stats_referred_user_id_fkey"
+            columns: ["referred_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_stats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1545,6 +1603,7 @@ export type Database = {
     }
     Functions: {
       decrement_rating: { Args: { user_id_param: string }; Returns: undefined }
+      generate_referral_code: { Args: never; Returns: string }
       get_public_profile: {
         Args: { profile_id: string }
         Returns: {
@@ -1565,6 +1624,7 @@ export type Database = {
           real_name: string
         }[]
       }
+      get_referral_discount: { Args: { referrer_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1573,6 +1633,10 @@ export type Database = {
         Returns: boolean
       }
       increment_rating: { Args: { user_id_param: string }; Returns: undefined }
+      increment_referral_payment: {
+        Args: { referred_id_param: string; referrer_id_param: string }
+        Returns: undefined
+      }
       is_community_owner: {
         Args: { _community_id: string; _user_id: string }
         Returns: boolean

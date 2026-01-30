@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 export const signUp = async (email: string, password: string) => {
   const redirectUrl = `${window.location.origin}/`;
   
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -11,7 +11,7 @@ export const signUp = async (email: string, password: string) => {
     }
   });
   
-  return { error };
+  return { data, error };
 };
 
 export const signIn = async (email: string, password: string) => {
