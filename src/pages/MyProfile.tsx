@@ -7,11 +7,26 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PortalSubscriptionSelector } from "@/components/PortalSubscriptionSelector";
+import { Badge } from "@/components/ui/badge";
+import { CreditCard } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+
+interface PortalSubscription {
+  id: string;
+  name: string;
+  badge_text: string;
+  price: number;
+}
 
 export default function MyProfile() {
   const [profile, setProfile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
+  const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<PortalSubscription | null>(null);
   const { toast } = useToast();
+  const { language } = useI18n();
 
   useEffect(() => {
     fetchProfile();
@@ -29,6 +44,17 @@ export default function MyProfile() {
 
     if (data) {
       setProfile(data);
+      
+      // Fetch current portal subscription
+      if (data.portal_subscription_id) {
+        const { data: planData } = await supabase
+          .from('portal_subscriptions')
+          .select('id, name, badge_text, price')
+          .eq('id', data.portal_subscription_id)
+          .maybeSingle();
+        
+        setCurrentPlan(planData);
+      }
     }
   };
 
@@ -259,12 +285,66 @@ export default function MyProfile() {
               </div>
             </div>
 
+            {/* Portal Subscription Section */}
+            <div className="p-4 border border-border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {language === 'ru' ? 'Тариф портала' : 'Portal Plan'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {currentPlan ? (
+                      <>
+                        <span className="text-lg font-semibold">{currentPlan.name}</span>
+                        <Badge variant={currentPlan.price === 0 ? 'secondary' : 'default'}>
+                          {currentPlan.badge_text}
+                        </Badge>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {language === 'ru' ? 'Не выбран' : 'Not selected'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setChangePlanOpen(true)}
+                  className="gap-2"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {language === 'ru' ? 'Сменить тариф' : 'Change Plan'}
+                </Button>
+              </div>
+            </div>
+
             <Button type="submit" className="w-full bg-gradient-primary">
               Save Changes
             </Button>
           </form>
         </Card>
       </div>
+
+      {/* Change Plan Dialog */}
+      <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'ru' ? 'Выберите тариф' : 'Select Plan'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <PortalSubscriptionSelector
+              userId={profile?.id}
+              onSubscriptionSelected={() => {
+                setChangePlanOpen(false);
+                fetchProfile();
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
