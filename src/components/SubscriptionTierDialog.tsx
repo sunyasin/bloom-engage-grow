@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, BookOpen } from "lucide-react";
@@ -68,6 +69,8 @@ export function SubscriptionTierDialog({
   const [saving, setSaving] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
+  const [isPortalFree, setIsPortalFree] = useState(false);
+  const [loadingPortalStatus, setLoadingPortalStatus] = useState(true);
 
   const [formData, setFormData] = useState<SubscriptionTier>({
     community_id: communityId,
@@ -84,6 +87,44 @@ export function SubscriptionTierDialog({
     selected_course_ids: [],
     payment_url: "",
   });
+
+  // Check if user has free portal subscription
+  useEffect(() => {
+    const checkPortalSubscription = async () => {
+      if (!open) return;
+      setLoadingPortalStatus(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoadingPortalStatus(false);
+        return;
+      }
+
+      // Get user's profile with portal subscription
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("portal_subscription_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile?.portal_subscription_id) {
+        // Check if portal subscription is free (price = 0)
+        const { data: portalSub } = await supabase
+          .from("portal_subscriptions")
+          .select("price")
+          .eq("id", profile.portal_subscription_id)
+          .maybeSingle();
+
+        setIsPortalFree(portalSub?.price === 0);
+      } else {
+        // No portal subscription = treat as free
+        setIsPortalFree(true);
+      }
+      
+      setLoadingPortalStatus(false);
+    };
+    checkPortalSubscription();
+  }, [open]);
 
   // Fetch community courses
   useEffect(() => {
@@ -108,6 +149,8 @@ export function SubscriptionTierDialog({
         features: Array.isArray(tier.features) ? tier.features : [],
         selected_course_ids: Array.isArray(tier.selected_course_ids) ? tier.selected_course_ids : [],
         payment_url: tier.payment_url || "",
+        // Force is_free for portal free users
+        is_free: isPortalFree ? true : tier.is_free,
       });
     } else {
       setFormData({
@@ -118,7 +161,7 @@ export function SubscriptionTierDialog({
         price_monthly: 0,
         price_yearly: 0,
         currency: "RUB",
-        is_free: false,
+        is_free: isPortalFree ? true : false,
         is_active: true,
         sort_order: maxSortOrder + 1,
         features: [],
@@ -126,7 +169,7 @@ export function SubscriptionTierDialog({
         payment_url: "",
       });
     }
-  }, [tier, communityId, maxSortOrder]);
+  }, [tier, communityId, maxSortOrder, isPortalFree]);
 
   const generateSlug = (name: string) => {
     return name
@@ -247,7 +290,29 @@ export function SubscriptionTierDialog({
           {/* Is Free toggle */}
           <div className="flex items-center justify-between">
             <Label htmlFor="is_free">{language === "ru" ? "Бесплатный уровень" : "Free tier"}</Label>
-            <Switch id="is_free" checked={formData.is_free} onCheckedChange={handleIsFreeChange} />
+            {isPortalFree ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div>
+                    <Switch 
+                      id="is_free" 
+                      checked={true} 
+                      disabled 
+                      className="cursor-not-allowed"
+                    />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-3" side="left">
+                  <p className="text-sm">
+                    {language === "ru" 
+                      ? "На бесплатном тарифе функция отключена" 
+                      : "This feature is disabled on free plan"}
+                  </p>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <Switch id="is_free" checked={formData.is_free} onCheckedChange={handleIsFreeChange} />
+            )}
           </div>
 
           {/* Name */}
@@ -284,59 +349,63 @@ export function SubscriptionTierDialog({
             />
           </div>
 
-          {/* Prices */}
-          <div className="space-y-2">
-            <Label>{language === "ru" ? "Цены" : "Pricing"}</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="price_monthly" className="text-xs text-muted-foreground">
-                  {language === "ru" ? "Месячная" : "Monthly"}
-                </Label>
-                <Input
-                  id="price_monthly"
-                  type="number"
-                  min="0"
-                  value={formData.price_monthly || 0}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, price_monthly: parseFloat(e.target.value) || 0 }))}
-                  disabled={formData.is_free}
-                />
+          {/* Prices - hidden for portal free users */}
+          {!isPortalFree && (
+            <>
+              <div className="space-y-2">
+                <Label>{language === "ru" ? "Цены" : "Pricing"}</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="price_monthly" className="text-xs text-muted-foreground">
+                      {language === "ru" ? "Месячная" : "Monthly"}
+                    </Label>
+                    <Input
+                      id="price_monthly"
+                      type="number"
+                      min="0"
+                      value={formData.price_monthly || 0}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, price_monthly: parseFloat(e.target.value) || 0 }))}
+                      disabled={formData.is_free}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="price_yearly" className="text-xs text-muted-foreground">
+                      {language === "ru" ? "Годовая" : "Yearly"}
+                    </Label>
+                    <Input
+                      id="price_yearly"
+                      type="number"
+                      min="0"
+                      value={formData.price_yearly || 0}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, price_yearly: parseFloat(e.target.value) || 0 }))}
+                      disabled={formData.is_free}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="price_yearly" className="text-xs text-muted-foreground">
-                  {language === "ru" ? "Годовая" : "Yearly"}
-                </Label>
-                <Input
-                  id="price_yearly"
-                  type="number"
-                  min="0"
-                  value={formData.price_yearly || 0}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, price_yearly: parseFloat(e.target.value) || 0 }))}
-                  disabled={formData.is_free}
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Currency */}
-          <div className="space-y-2">
-            <Label>{language === "ru" ? "Валюта" : "Currency"}</Label>
-            <Select
-              value={formData.currency}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
-              disabled={formData.is_free}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Currency */}
+              <div className="space-y-2">
+                <Label>{language === "ru" ? "Валюта" : "Currency"}</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
+                  disabled={formData.is_free}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
           {/* Payment URL - only for paid tiers */}
           {/*!formData.is_free && (formData.price_monthly || 0) > 0 && (
