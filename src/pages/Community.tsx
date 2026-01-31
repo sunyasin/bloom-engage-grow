@@ -569,17 +569,34 @@ export default function Community({ user }: CommunityProps) {
                               userId={user?.id || null}
                               postAuthorId={post.user_id}
                               language={language}
+                              isMember={isMember || isOwner}
                             />
-                            <button
-                              onClick={() => handleOpenReplyDialog(post)}
-                              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                              <span>{t("community.reply")}</span>
-                              {post.reply_count && post.reply_count > 0 && (
-                                <span className="ml-1">({post.reply_count})</span>
-                              )}
-                            </button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => isMember || isOwner ? handleOpenReplyDialog(post) : null}
+                                    disabled={!isMember && !isOwner}
+                                    className={`flex items-center gap-1 text-sm transition-smooth ${
+                                      !isMember && !isOwner 
+                                        ? 'text-muted-foreground/50 cursor-not-allowed' 
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                  >
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span>{t("community.reply")}</span>
+                                    {post.reply_count && post.reply_count > 0 && (
+                                      <span className="ml-1">({post.reply_count})</span>
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                {!isMember && !isOwner && (
+                                  <TooltipContent>
+                                    <p>{language === "ru" ? "Для отправки сообщений вступите в сообщество" : "Join the community to send messages"}</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                             {isOwner && (
                               <button
                                 onClick={() => handlePin(post.id, post.is_pinned)}
@@ -667,6 +684,7 @@ export default function Community({ user }: CommunityProps) {
         onClose={handleCloseReplyDialog}
         userId={user?.id || null}
         language={language}
+        isMember={isMember || isOwner}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import { Loader2, Reply as ReplyIcon } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 import { ReplyLikeButton } from './ReplyLikeButton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Post {
   id: string;
@@ -41,9 +42,10 @@ interface CommunityReplyDialogProps {
   onClose: () => void;
   userId: string | null;
   language?: string;
+  isMember?: boolean;
 }
 
-export function CommunityReplyDialog({ post, open, onClose, userId, language = 'en' }: CommunityReplyDialogProps) {
+export function CommunityReplyDialog({ post, open, onClose, userId, language = 'en', isMember = true }: CommunityReplyDialogProps) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [newReply, setNewReply] = useState("");
   const [loading, setLoading] = useState(false);
@@ -240,19 +242,34 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
                             userId={userId}
                             replyAuthorId={reply.user_id}
                             language={language}
+                            isMember={isMember}
                           />
                           {userId && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleReplyToReply(reply)}
-                              className="h-7 gap-1 text-muted-foreground"
-                            >
-                              <ReplyIcon className="h-3.5 w-3.5" />
-                              <span className="text-xs">
-                                {language === 'ru' ? 'Ответить' : 'Reply'}
-                              </span>
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleReplyToReply(reply)}
+                                      disabled={!isMember}
+                                      className={`h-7 gap-1 ${!isMember ? 'text-muted-foreground/50 cursor-not-allowed' : 'text-muted-foreground'}`}
+                                    >
+                                      <ReplyIcon className="h-3.5 w-3.5" />
+                                      <span className="text-xs">
+                                        {language === 'ru' ? 'Ответить' : 'Reply'}
+                                      </span>
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {!isMember && (
+                                  <TooltipContent>
+                                    <p>{language === 'ru' ? 'Для отправки сообщений вступите в сообщество' : 'Join the community to send messages'}</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       </div>
@@ -269,7 +286,7 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
             {/* Reply Input */}
             {userId && (
               <div className="space-y-2 border-t pt-4">
-                {replyingTo && (
+                {replyingTo && isMember && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                     <ReplyIcon className="h-4 w-4" />
                     <span>
@@ -285,26 +302,53 @@ export function CommunityReplyDialog({ post, open, onClose, userId, language = '
                     </Button>
                   </div>
                 )}
-                <Textarea
-                  placeholder={language === 'ru' ? 'Напишите ваш ответ...' : 'Write your reply...'}
-                  value={newReply}
-                  onChange={(e) => setNewReply(e.target.value)}
-                  className="min-h-[80px]"
-                />
-                <Button
-                  onClick={handleSubmitReply}
-                  disabled={loading || !newReply.trim()}
-                  className="bg-gradient-primary"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      {language === 'ru' ? 'Публикация...' : 'Posting...'}
-                    </>
-                  ) : (
-                    language === 'ru' ? 'Отправить ответ' : 'Post Reply'
-                  )}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Textarea
+                          placeholder={language === 'ru' ? 'Напишите ваш ответ...' : 'Write your reply...'}
+                          value={newReply}
+                          onChange={(e) => setNewReply(e.target.value)}
+                          className={`min-h-[80px] ${!isMember ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          disabled={!isMember}
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    {!isMember && (
+                      <TooltipContent>
+                        <p>{language === 'ru' ? 'Для отправки сообщений вступите в сообщество' : 'Join the community to send messages'}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          onClick={handleSubmitReply}
+                          disabled={loading || !newReply.trim() || !isMember}
+                          className={`bg-gradient-primary ${!isMember ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              {language === 'ru' ? 'Публикация...' : 'Posting...'}
+                            </>
+                          ) : (
+                            language === 'ru' ? 'Отправить ответ' : 'Post Reply'
+                          )}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {!isMember && (
+                      <TooltipContent>
+                        <p>{language === 'ru' ? 'Для отправки сообщений вступите в сообщество' : 'Join the community to send messages'}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )}
           </div>
