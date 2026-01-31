@@ -29,7 +29,11 @@ export const Header = ({ user, isSuperuser, isModerator = false, isAuthor, onAut
 
   const handleSignOut = async () => {
     const { error } = await signOut();
-    if (error) {
+    // Treat "session missing" errors as successful logout - user is already logged out
+    const isSessionMissingError = error?.message?.toLowerCase().includes('session') || 
+                                   error?.message?.toLowerCase().includes('missing');
+    
+    if (error && !isSessionMissingError) {
       toast({
         title: "Ошибка",
         description: error.message,
