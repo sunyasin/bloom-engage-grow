@@ -10,9 +10,10 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PortalSubscriptionSelector } from "@/components/PortalSubscriptionSelector";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Wallet } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { ReferralBlock } from "@/components/ReferralBlock";
+import { useNavigate } from "react-router-dom";
 
 interface PortalSubscription {
   id: string;
@@ -28,6 +29,7 @@ export default function MyProfile() {
   const [currentPlan, setCurrentPlan] = useState<PortalSubscription | null>(null);
   const { toast } = useToast();
   const { language } = useI18n();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProfile();
@@ -271,7 +273,7 @@ export default function MyProfile() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+            <div className="grid grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
               <div>
                 <p className="text-sm text-muted-foreground">Rating</p>
                 <p className="text-2xl font-bold">{profile.rating}</p>
@@ -283,6 +285,17 @@ export default function MyProfile() {
               <div>
                 <p className="text-sm text-muted-foreground">Plan</p>
                 <p className="text-2xl font-bold">{profile.payplan}</p>
+              </div>
+              <div className="flex items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/profile/finances")}
+                  className="gap-2"
+                >
+                  <Wallet className="h-4 w-4" />
+                  {language === 'ru' ? 'Финансы' : 'Finance'}
+                </Button>
               </div>
             </div>
 

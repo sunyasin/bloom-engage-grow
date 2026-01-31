@@ -28,6 +28,7 @@ import CommunityLessonBuilder from "./pages/CommunityLessonBuilder";
 import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
 import CreateCommunity from "./pages/CreateCommunity";
+import FinancePage from "./pages/FinancePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -124,6 +125,10 @@ const App = () => {
                   <Route path="/events" element={<Events />} />
                   <Route path="/map" element={<div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Map coming soon...</div>} />
                   <Route path="/help" element={<Help />} />
+                  <Route 
+                    path="/profile/finances"
+                    element={user ? <FinancePage /> : <Navigate to="/" />}
+                  />
                   <Route 
                     path="/profile" 
                     element={user ? <MyProfile /> : <Navigate to="/" />} 
