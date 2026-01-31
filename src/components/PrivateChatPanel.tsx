@@ -68,9 +68,11 @@ interface PrivateChatPanelProps {
   communityId: string;
   userId: string;
   language: string;
+  courseId?: string | null;
+  courseName?: string | null;
 }
 
-export function PrivateChatPanel({ communityId, userId, language }: PrivateChatPanelProps) {
+export function PrivateChatPanel({ communityId, userId, language, courseId, courseName }: PrivateChatPanelProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -106,12 +108,21 @@ export function PrivateChatPanel({ communityId, userId, language }: PrivateChatP
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
-    const { data: messagesData } = await supabase
+    let query = supabase
       .from('direct_messages')
       .select('*')
       .eq('community_id', communityId)
       .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
       .order('created_at', { ascending: false });
+
+    // Filter by course_id
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    } else {
+      query = query.is('course_id', null);
+    }
+
+    const { data: messagesData } = await query;
 
     if (!messagesData) {
       setConversations([]);
@@ -168,7 +179,7 @@ export function PrivateChatPanel({ communityId, userId, language }: PrivateChatP
 
     setConversations(convs);
     setLoading(false);
-  }, [communityId, userId]);
+  }, [communityId, userId, courseId]);
 
   // Fetch community members
   const fetchMembers = useCallback(async () => {
@@ -242,23 +253,40 @@ export function PrivateChatPanel({ communityId, userId, language }: PrivateChatP
 
   // Fetch messages for selected conversation
   const fetchMessagesForConversation = async (partnerId: string) => {
-    const { data } = await supabase
+    let query = supabase
       .from('direct_messages')
       .select('*')
       .eq('community_id', communityId)
       .or(`and(sender_id.eq.${userId},recipient_id.eq.${partnerId}),and(sender_id.eq.${partnerId},recipient_id.eq.${userId})`)
       .order('created_at', { ascending: true });
 
+    // Filter by course_id
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    } else {
+      query = query.is('course_id', null);
+    }
+
+    const { data } = await query;
+
     if (data) {
       setMessages(data);
       // Mark as read
-      await supabase
+      let updateQuery = supabase
         .from('direct_messages')
         .update({ read_at: new Date().toISOString() })
         .eq('community_id', communityId)
         .eq('sender_id', partnerId)
         .eq('recipient_id', userId)
         .is('read_at', null);
+
+      if (courseId) {
+        updateQuery = updateQuery.eq('course_id', courseId);
+      } else {
+        updateQuery = updateQuery.is('course_id', null);
+      }
+
+      await updateQuery;
     }
   };
 
@@ -349,6 +377,7 @@ export function PrivateChatPanel({ communityId, userId, language }: PrivateChatP
           sender_id: userId,
           recipient_id: recipientId,
           community_id: communityId,
+          course_id: courseId || null,
           content_text: text?.trim() || '',
           image_url: imageUrl
         });
@@ -402,7 +431,10 @@ export function PrivateChatPanel({ communityId, userId, language }: PrivateChatP
       <div className="p-4 border-b border-border">
         <h3 className="font-semibold flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          {language === 'ru' ? 'Приватный чат' : 'Private Chat'}
+          {courseName 
+            ? (language === 'ru' ? `Чат: ${courseName}` : `Chat: ${courseName}`)
+            : (language === 'ru' ? 'Приватный чат' : 'Private Chat')
+          }
         </h3>
       </div>
 

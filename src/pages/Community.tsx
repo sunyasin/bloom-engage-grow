@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal, Lock } from "lucide-react";
+import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal, Lock, BookOpen } from "lucide-react";
 import { SubscriptionTiersManager } from "@/components/SubscriptionTiersManager";
 import { CommunitySettingsDialog } from "@/components/CommunitySettingsDialog";
 import { User } from "@supabase/supabase-js";
@@ -30,6 +30,16 @@ interface CommunityData {
   content_html?: string | null;
 }
 
+interface CommunityData {
+  id: string;
+  name: string;
+  description: string | null;
+  cover_image_url: string | null;
+  member_count: number;
+  creator_id: string;
+  content_html?: string | null;
+}
+
 interface Post {
   id: string;
   content: string;
@@ -41,6 +51,11 @@ interface Post {
     avatar_url: string | null;
   };
   reply_count?: number;
+}
+
+interface AccessibleCourse {
+  id: string;
+  title: string;
 }
 
 interface CommunityProps {
@@ -67,6 +82,8 @@ export default function Community({ user }: CommunityProps) {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [showPrivateChat, setShowPrivateChat] = useState(false);
+  const [accessibleCourses, setAccessibleCourses] = useState<AccessibleCourse[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const { hasPrivateChatAccess, loading: privateChatLoading } = usePrivateChatAccess(id || null, user?.id || null);
 
@@ -174,6 +191,60 @@ export default function Community({ user }: CommunityProps) {
     }
   };
 
+  // Fetch courses that user has access to
+  const fetchAccessibleCourses = async () => {
+    if (!id) return;
+
+    const { data: coursesData } = await supabase
+      .from("courses")
+      .select("id, title, author_id, status, access_types, access_type, required_rating, delay_days, gifted_emails, promo_code")
+      .eq("community_id", id)
+      .eq("status", "published");
+
+    if (!coursesData) return;
+
+    // For owner, all courses are accessible
+    if (community?.creator_id === user?.id) {
+      setAccessibleCourses(coursesData.map(c => ({ id: c.id, title: c.title })));
+      return;
+    }
+
+    // Check access for each course
+    const accessible: AccessibleCourse[] = [];
+
+    for (const course of coursesData) {
+      const accessTypes = course.access_types?.length > 0 ? course.access_types : [course.access_type || 'open'];
+      
+      // Check if any access type is satisfied
+      let hasAccess = false;
+      
+      for (const accessType of accessTypes) {
+        if (accessType === 'open') {
+          hasAccess = true;
+          break;
+        }
+        
+        if (accessType === 'paid_subscription' && hasPrivateChatAccess) {
+          hasAccess = true;
+          break;
+        }
+        
+        if (accessType === 'by_rating_level' && userProfile?.rating != null && course.required_rating != null) {
+          if (userProfile.rating >= course.required_rating) {
+            hasAccess = true;
+            break;
+          }
+        }
+      }
+      
+      if (hasAccess) {
+        accessible.push({ id: course.id, title: course.title });
+      }
+    }
+
+    setAccessibleCourses(accessible);
+  };
+
   useEffect(() => {
     fetchCommunity();
     fetchPosts();
@@ -196,6 +267,13 @@ export default function Community({ user }: CommunityProps) {
       supabase.removeChannel(channel);
     };
   }, [id, user]);
+
+  // Fetch accessible courses when user profile and membership are loaded
+  useEffect(() => {
+    if (community && !privateChatLoading) {
+      fetchAccessibleCourses();
+    }
+  }, [community, userProfile, hasPrivateChatAccess, privateChatLoading]);
 
   const handleJoin = async () => {
     if (!user || !id) return;
@@ -337,15 +415,19 @@ export default function Community({ user }: CommunityProps) {
           {/* Feed Tab */}
           {activeTab === "feed" && (
             <>
-              {/* Private Chat Button for paid subscribers */}
+              {/* Chat Toggle Buttons */}
               {isMember && user && (
-                <div className="mb-6">
+                <div className="mb-6 flex flex-wrap gap-2">
                   <TooltipProvider>
+                    {/* Private Chat Button */}
                     {hasPrivateChatAccess || isOwner ? (
                       <Button
-                        variant={showPrivateChat ? "default" : "outline"}
-                        onClick={() => setShowPrivateChat(!showPrivateChat)}
-                        className={showPrivateChat ? "bg-gradient-primary" : ""}
+                        variant={showPrivateChat && !selectedCourseId ? "default" : "outline"}
+                        onClick={() => {
+                          setShowPrivateChat(!showPrivateChat || selectedCourseId !== null);
+                          setSelectedCourseId(null);
+                        }}
+                        className={showPrivateChat && !selectedCourseId ? "bg-gradient-primary" : ""}
                       >
                         <MessageSquare className="h-4 w-4 mr-2" />
                         {language === "ru" ? "Приватный чат" : "Private Chat"}
@@ -363,17 +445,35 @@ export default function Community({ user }: CommunityProps) {
                         </TooltipContent>
                       </Tooltip>
                     )}
+
+                    {/* Course Chat Buttons */}
+                    {(hasPrivateChatAccess || isOwner) && accessibleCourses.map(course => (
+                      <Button
+                        key={course.id}
+                        variant={selectedCourseId === course.id ? "default" : "outline"}
+                        onClick={() => {
+                          setSelectedCourseId(course.id);
+                          setShowPrivateChat(true);
+                        }}
+                        className={selectedCourseId === course.id ? "bg-gradient-primary" : ""}
+                      >
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        {course.title}
+                      </Button>
+                    ))}
                   </TooltipProvider>
                 </div>
               )}
 
-              {/* Private Chat Panel */}
+              {/* Private/Course Chat Panel */}
               {showPrivateChat && (hasPrivateChatAccess || isOwner) && user && (
                 <div className="mb-6">
                   <PrivateChatPanel
                     communityId={id!}
                     userId={user.id}
                     language={language}
+                    courseId={selectedCourseId}
+                    courseName={accessibleCourses.find(c => c.id === selectedCourseId)?.title || null}
                   />
                 </div>
               )}
