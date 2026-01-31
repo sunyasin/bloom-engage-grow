@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public"]
 }
 
 enum membership_status {
@@ -12,12 +13,16 @@ enum membership_status {
   canceled
   expired
   trial
+
+  @@schema("public")
 }
 
 enum renewal_period {
   monthly
   yearly
   lifetime
+
+  @@schema("public")
 }
 
 enum payment_status {
@@ -27,6 +32,8 @@ enum payment_status {
   refunded
   succeeded
   canceled
+
+  @@schema("public")
 }
 
 model communities {
@@ -41,6 +48,7 @@ model communities {
   subscription_tiers  subscription_tiers[]
   memberships         memberships[]
   transactions        transactions[]
+  payouts             community_payouts[]
 
   @@map("communities")
   @@schema("public")
@@ -100,6 +108,7 @@ model transactions {
   course_id            String?             @db.Uuid
   community_id         String?             @db.Uuid
   subscription_tier_id String?             @db.Uuid
+  payout_id            String?             @db.Uuid
   amount               Decimal             @db.Decimal(10, 2)
   currency             String              @default("RUB")
   payment_method       String?
@@ -114,10 +123,65 @@ model transactions {
 
   community            communities?        @relation(fields: [community_id], references: [id], onDelete: SetNull)
   subscription_tier    subscription_tiers? @relation(fields: [subscription_tier_id], references: [id], onDelete: SetNull)
+  payout               community_payouts?  @relation(fields: [payout_id], references: [id], onDelete: SetNull)
 
   @@index([provider_payment_id], map: "idx_transactions_provider_payment_id")
   @@index([user_id], map: "idx_transactions_user_id")
   @@index([status], map: "idx_transactions_status")
+  @@index([payout_id], map: "idx_transactions_payout_id")
   @@map("transactions")
+  @@schema("public")
+}
+
+model community_payouts {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // Автор выплаты
+  author_id           String              @db.Uuid
+
+  // Сообщество, за которое начислена выплата
+  community_id        String              @db.Uuid
+
+  // Период, за который начислена выплата
+  period_start        DateTime            @db.Timestamptz
+  period_end          DateTime            @db.Timestamptz
+
+  // Сумма выплаты
+  amount              Decimal             @db.Decimal(10, 2)
+  currency            String              @default("RUB")
+
+  // Способ выплаты
+  payout_method       String?
+
+  // Реквизиты/кошелек для выплаты
+  payout_details      Json?
+
+  // Bucket для хранения квитанции
+  receipt_bucket      String?             @default("payout-receipts")
+
+  // Путь к файлу квитанции в storage
+  receipt_path        String?
+
+  // Комментарий администратора
+  admin_comment       String?
+
+  // Метаданные
+  metadata            Json?
+
+  // Timestamps
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime            @default(now()) @db.Timestamptz(6)
+  paid_at             DateTime?           @db.Timestamptz(6)
+
+  // Связь с сообществом
+  community           communities         @relation(fields: [community_id], references: [id], onDelete: Cascade)
+
+  // Связанные транзакции
+  transactions        transactions[]
+
+  @@index([author_id], map: "idx_payouts_author_id")
+  @@index([community_id], map: "idx_payouts_community_id")
+  @@index([created_at], map: "idx_payouts_created_at")
+  @@map("community_payouts")
   @@schema("public")
 }
