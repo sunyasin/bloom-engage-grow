@@ -468,16 +468,17 @@ export default function Community({ user }: CommunityProps) {
                         {accessibleCourses.map(course => (
                           <Button
                             key={course.id}
-                            variant={selectedCourseId === course.id ? "default" : "outline"}
+                            variant={selectedCourseId === course.id && !showPrivateChat ? "default" : "outline"}
                             onClick={() => {
-                              if (selectedCourseId === course.id) {
-                                // Toggle off - show all posts
+                              if (selectedCourseId === course.id && !showPrivateChat) {
+                                // Toggle off - show general feed
                                 setSelectedCourseId(null);
                               } else {
                                 setSelectedCourseId(course.id);
+                                setShowPrivateChat(false); // Close private chat and show course feed
                               }
                             }}
-                            className={selectedCourseId === course.id ? "bg-gradient-primary" : ""}
+                            className={selectedCourseId === course.id && !showPrivateChat ? "bg-gradient-primary" : ""}
                           >
                             <BookOpen className="h-4 w-4 mr-2" />
                             {course.title}
