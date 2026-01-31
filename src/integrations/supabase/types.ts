@@ -517,6 +517,8 @@ export type Database = {
           created_at: string | null
           id: string
           image_url: string | null
+          is_pinned: boolean | null
+          parent_message_id: string | null
           read_at: string | null
           recipient_id: string
           sender_id: string
@@ -528,6 +530,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          is_pinned?: boolean | null
+          parent_message_id?: string | null
           read_at?: string | null
           recipient_id: string
           sender_id: string
@@ -539,6 +543,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          is_pinned?: boolean | null
+          parent_message_id?: string | null
           read_at?: string | null
           recipient_id?: string
           sender_id?: string
@@ -556,6 +562,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
             referencedColumns: ["id"]
           },
         ]
