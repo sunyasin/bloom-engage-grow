@@ -486,6 +486,7 @@ export default function Community({ user }: CommunityProps) {
                     courseName={accessibleCourses.find(c => c.id === selectedCourseId)?.title || ''}
                     userId={user.id}
                     language={language}
+                    communityOwnerId={community?.creator_id}
                   />
                 </div>
               )}

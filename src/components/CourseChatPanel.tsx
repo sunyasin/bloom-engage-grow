@@ -11,8 +11,7 @@ import {
   Smile,
   Loader2,
   MessageCircle,
-  ChevronDown,
-  ChevronRight
+  Pin
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
@@ -31,12 +30,14 @@ interface ThreadMessage {
   image_url: string | null;
   created_at: string;
   parent_message_id: string | null;
+  is_pinned: boolean;
   sender?: {
     id: string;
     real_name: string | null;
     avatar_url: string | null;
   };
-  replies?: ThreadMessage[];
+  replies: ThreadMessage[];
+  reply_count: number;
 }
 
 interface CourseChatPanelProps {
@@ -45,9 +46,10 @@ interface CourseChatPanelProps {
   courseName: string;
   userId: string;
   language: string;
+  communityOwnerId?: string;
 }
 
-export function CourseChatPanel({ communityId, courseId, courseName, userId, language }: CourseChatPanelProps) {
+export function CourseChatPanel({ communityId, courseId, courseName, userId, language, communityOwnerId }: CourseChatPanelProps) {
   const [threads, setThreads] = useState<ThreadMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -58,11 +60,29 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ownerId, setOwnerId] = useState<string | null>(communityOwnerId || null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replyFileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch community owner if not provided
+  useEffect(() => {
+    if (!communityOwnerId) {
+      const fetchOwner = async () => {
+        const { data } = await supabase
+          .from('communities')
+          .select('creator_id')
+          .eq('id', communityId)
+          .single();
+        if (data) setOwnerId(data.creator_id);
+      };
+      fetchOwner();
+    }
+  }, [communityId, communityOwnerId]);
+
+  const isOwner = userId === ownerId;
 
   // Fetch all messages for this course
   const fetchThreads = useCallback(async () => {
@@ -88,40 +108,50 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
 
     const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
 
-    // Build thread structure
-    // Parent messages have recipient_id = sender_id (self-addressed) or null
-    // Replies have recipient_id = parent message sender
-    const parentMessages: ThreadMessage[] = [];
+    // Build thread structure - separate root messages and replies
+    const rootMessages: ThreadMessage[] = [];
     const repliesMap = new Map<string, ThreadMessage[]>();
 
     messagesData.forEach((msg: any) => {
       const enrichedMsg: ThreadMessage = {
-        ...msg,
+        id: msg.id,
+        sender_id: msg.sender_id,
+        content_text: msg.content_text,
+        image_url: msg.image_url,
+        created_at: msg.created_at,
+        parent_message_id: msg.parent_message_id,
+        is_pinned: msg.is_pinned || false,
         sender: profileMap.get(msg.sender_id) as any,
-        replies: []
+        replies: [],
+        reply_count: 0
       };
 
-      // Check if this is a reply (has parent_message_id in metadata or recipient != sender)
-      // We'll use a convention: if sender_id === recipient_id, it's a root message
-      // Otherwise, it could be a reply
-      // Actually, let's use a simpler approach: root messages are those where sender_id === recipient_id
-      if (msg.sender_id === msg.recipient_id || !msg.recipient_id) {
-        parentMessages.push(enrichedMsg);
+      if (msg.parent_message_id) {
+        // It's a reply
+        if (!repliesMap.has(msg.parent_message_id)) {
+          repliesMap.set(msg.parent_message_id, []);
+        }
+        repliesMap.get(msg.parent_message_id)!.push(enrichedMsg);
       } else {
-        // It's a reply - find parent by looking at earlier messages from recipient
-        // For simplicity, we'll treat all as root messages but group replies by parent
-        // Let's use a metadata field or create proper threading
-        // For now, show all as root messages since we don't have parent_message_id
-        parentMessages.push(enrichedMsg);
+        // It's a root message
+        rootMessages.push(enrichedMsg);
       }
     });
 
-    // Sort by date descending (newest first)
-    parentMessages.sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    // Attach replies to root messages
+    rootMessages.forEach(root => {
+      root.replies = repliesMap.get(root.id) || [];
+      root.reply_count = root.replies.length;
+    });
 
-    setThreads(parentMessages);
+    // Sort: pinned first, then by date descending
+    rootMessages.sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    setThreads(rootMessages);
     setLoading(false);
   }, [communityId, courseId]);
 
@@ -201,16 +231,17 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
 
     setSending(true);
     try {
-      // For course chat, we set sender_id = recipient_id to mark it as a root post
       const { error } = await supabase
         .from('direct_messages')
         .insert({
           sender_id: userId,
-          recipient_id: userId, // Self-addressed = root message
+          recipient_id: userId,
           community_id: communityId,
           course_id: courseId,
           content_text: text?.trim() || '',
-          image_url: imageUrl
+          image_url: imageUrl,
+          parent_message_id: null,
+          is_pinned: false
         });
 
       if (error) throw error;
@@ -227,21 +258,19 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
   const sendReply = async (text: string | null, imageUrl: string | null = null) => {
     if (!replyingTo || (!text?.trim() && !imageUrl)) return;
 
-    const parentMsg = threads.find(t => t.id === replyingTo);
-    if (!parentMsg) return;
-
     setSending(true);
     try {
-      // For replies, set recipient_id to the parent message sender
       const { error } = await supabase
         .from('direct_messages')
         .insert({
           sender_id: userId,
-          recipient_id: parentMsg.sender_id, // Reply to original poster
+          recipient_id: userId,
           community_id: communityId,
           course_id: courseId,
           content_text: text?.trim() || '',
-          image_url: imageUrl
+          image_url: imageUrl,
+          parent_message_id: replyingTo,
+          is_pinned: false
         });
 
       if (error) throw error;
@@ -249,10 +278,25 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
       setReplyText('');
       setReplyingTo(null);
       setShowReplyEmojiPicker(false);
+      // Expand thread to show new reply
+      setExpandedThreads(prev => new Set([...prev, replyingTo]));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handlePin = async (messageId: string, currentlyPinned: boolean) => {
+    const { error } = await supabase
+      .from('direct_messages')
+      .update({ is_pinned: !currentlyPinned })
+      .eq('id', messageId);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      fetchThreads();
     }
   };
 
@@ -327,6 +371,43 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
   }, [replyingTo]);
+
+  const renderMessage = (msg: ThreadMessage, isReply: boolean = false) => (
+    <div className={cn("flex gap-3", isReply && "pl-8 mt-3")}>
+      <Avatar className={cn("shrink-0", isReply ? "h-8 w-8" : "h-10 w-10")}>
+        <AvatarImage src={msg.sender?.avatar_url || ''} />
+        <AvatarFallback>
+          {msg.sender?.real_name?.[0] || 'U'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={cn("font-medium", isReply ? "text-xs" : "text-sm")}>
+            {msg.sender?.real_name || 'Anonymous'}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {formatDistanceToNow(new Date(msg.created_at), {
+              addSuffix: true,
+              locale: language === 'ru' ? ru : enUS
+            })}
+          </span>
+        </div>
+        
+        {msg.image_url && (
+          <img 
+            src={msg.image_url} 
+            alt="" 
+            className="rounded-lg max-w-[300px] mb-2 cursor-pointer"
+            onClick={() => window.open(msg.image_url!, '_blank')}
+          />
+        )}
+        
+        {msg.content_text && (
+          <p className={cn("whitespace-pre-wrap", isReply ? "text-sm" : "text-sm")}>{msg.content_text}</p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -424,121 +505,141 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
           <div className="divide-y divide-border">
             {threads.map(thread => (
               <div key={thread.id} className="p-4">
+                {/* Pinned indicator */}
+                {thread.is_pinned && (
+                  <div className="flex items-center gap-1 text-xs text-primary mb-2">
+                    <Pin className="h-3 w-3" />
+                    <span>{language === 'ru' ? 'Закреплено' : 'Pinned'}</span>
+                  </div>
+                )}
+                
                 {/* Main message */}
-                <div className="flex gap-3">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={thread.sender?.avatar_url || ''} />
-                    <AvatarFallback>
-                      {thread.sender?.real_name?.[0] || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">
-                        {thread.sender?.real_name || 'Anonymous'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(thread.created_at), {
-                          addSuffix: true,
-                          locale: language === 'ru' ? ru : enUS
-                        })}
-                      </span>
-                    </div>
-                    
-                    {thread.image_url && (
-                      <img 
-                        src={thread.image_url} 
-                        alt="" 
-                        className="rounded-lg max-w-[300px] mb-2 cursor-pointer"
-                        onClick={() => window.open(thread.image_url!, '_blank')}
-                      />
-                    )}
-                    
-                    {thread.content_text && (
-                      <p className="text-sm whitespace-pre-wrap">{thread.content_text}</p>
-                    )}
+                {renderMessage(thread)}
 
-                    {/* Reply button */}
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        onClick={() => setReplyingTo(replyingTo === thread.id ? null : thread.id)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        {language === 'ru' ? 'Ответить' : 'Reply'}
-                      </button>
-                    </div>
+                {/* Action buttons */}
+                <div className="mt-2 pl-13 flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      if (replyingTo === thread.id) {
+                        setReplyingTo(null);
+                      } else {
+                        setReplyingTo(thread.id);
+                        setReplyText('');
+                      }
+                    }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    {language === 'ru' ? 'Ответить' : 'Reply'}
+                  </button>
+                  
+                  {thread.reply_count > 0 && (
+                    <button
+                      onClick={() => toggleThread(thread.id)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      {expandedThreads.has(thread.id) 
+                        ? (language === 'ru' ? 'Скрыть ответы' : 'Hide replies')
+                        : (language === 'ru' ? `Показать ответы (${thread.reply_count})` : `Show replies (${thread.reply_count})`)
+                      }
+                    </button>
+                  )}
 
-                    {/* Reply form */}
-                    {replyingTo === thread.id && (
-                      <div className="mt-3 pl-4 border-l-2 border-border">
-                        <div className="flex items-end gap-2">
-                          <div className="flex-1 relative">
-                            <Textarea
-                              ref={replyTextareaRef}
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(e, true)}
-                              placeholder={language === 'ru' ? 'Ваш ответ...' : 'Your reply...'}
-                              className="min-h-[50px] resize-none pr-16 text-sm"
-                              autoFocus
-                            />
-                            <div className="absolute right-2 bottom-2 flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => setShowReplyEmojiPicker(!showReplyEmojiPicker)}
-                              >
-                                <Smile className="h-3.5 w-3.5" />
-                              </Button>
-                              <input
-                                ref={replyFileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleFileSelect(e, true)}
-                                className="hidden"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => replyFileInputRef.current?.click()}
-                                disabled={uploading}
-                              >
-                                <Paperclip className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                            
-                            {showReplyEmojiPicker && (
-                              <div className="absolute bottom-full right-0 mb-2 p-2 bg-popover border rounded-lg shadow-lg z-10">
-                                <div className="grid grid-cols-8 gap-1">
-                                  {EMOJI_LIST.map(emoji => (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => addEmoji(emoji, true)}
-                                      className="text-lg hover:bg-muted rounded p-1"
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <Button 
-                            size="sm"
-                            onClick={handleSendReply} 
-                            disabled={!replyText.trim() || sending}
-                            className="bg-gradient-primary"
+                  {/* Pin button - only for owner */}
+                  {isOwner && (
+                    <button
+                      onClick={() => handlePin(thread.id, thread.is_pinned)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Pin className="h-3.5 w-3.5" />
+                      {thread.is_pinned 
+                        ? (language === 'ru' ? 'Открепить' : 'Unpin')
+                        : (language === 'ru' ? 'Закрепить' : 'Pin')
+                      }
+                    </button>
+                  )}
+                </div>
+
+                {/* Reply form */}
+                {replyingTo === thread.id && (
+                  <div className="mt-3 pl-8">
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 relative">
+                        <Textarea
+                          ref={replyTextareaRef}
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, true)}
+                          placeholder={language === 'ru' ? 'Ваш ответ...' : 'Your reply...'}
+                          className="min-h-[50px] resize-none pr-16 text-sm"
+                          autoFocus
+                        />
+                        <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setShowReplyEmojiPicker(!showReplyEmojiPicker)}
                           >
-                            <Send className="h-3.5 w-3.5" />
+                            <Smile className="h-3.5 w-3.5" />
+                          </Button>
+                          <input
+                            ref={replyFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileSelect(e, true)}
+                            className="hidden"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => replyFileInputRef.current?.click()}
+                            disabled={uploading}
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
                           </Button>
                         </div>
+                        
+                        {showReplyEmojiPicker && (
+                          <div className="absolute bottom-full right-0 mb-2 p-2 bg-popover border rounded-lg shadow-lg z-10">
+                            <div className="grid grid-cols-8 gap-1">
+                              {EMOJI_LIST.map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => addEmoji(emoji, true)}
+                                  className="text-lg hover:bg-muted rounded p-1"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <Button 
+                        size="sm"
+                        onClick={handleSendReply} 
+                        disabled={!replyText.trim() || sending}
+                        className="bg-gradient-primary"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Replies */}
+                {expandedThreads.has(thread.id) && thread.replies.length > 0 && (
+                  <div className="mt-3 space-y-3 border-l-2 border-border ml-5">
+                    {thread.replies.map(reply => (
+                      <div key={reply.id}>
+                        {renderMessage(reply, true)}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
