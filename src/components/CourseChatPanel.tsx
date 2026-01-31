@@ -42,7 +42,7 @@ interface ThreadMessage {
 
 interface CourseChatPanelProps {
   communityId: string;
-  courseId: string;
+  courseId: string | null; // null = show all courses
   courseName: string;
   userId: string;
   language: string;
@@ -84,14 +84,19 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
 
   const isOwner = userId === ownerId;
 
-  // Fetch all messages for this course
+  // Fetch all messages for this course (or all courses if courseId is null)
   const fetchThreads = useCallback(async () => {
-    const { data: messagesData } = await supabase
+    let query = supabase
       .from('direct_messages')
       .select('*')
       .eq('community_id', communityId)
-      .eq('course_id', courseId)
-      .order('created_at', { ascending: true });
+      .not('course_id', 'is', null); // Only course messages
+    
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    }
+    
+    const { data: messagesData } = await query.order('created_at', { ascending: true });
 
     if (!messagesData || messagesData.length === 0) {
       setThreads([]);
@@ -158,19 +163,23 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
   useEffect(() => {
     fetchThreads();
 
-    // Realtime subscription
+    // Realtime subscription - listen to all course messages for this community
+    const channelName = courseId ? `course-chat-${courseId}` : `course-chat-all-${communityId}`;
     const channel = supabase
-      .channel(`course-chat-${courseId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { 
           event: '*', 
           schema: 'public', 
           table: 'direct_messages',
-          filter: `course_id=eq.${courseId}`
+          filter: `community_id=eq.${communityId}`
         },
-        () => {
-          fetchThreads();
+        (payload: any) => {
+          // Only refetch if it's a course message
+          if (payload.new?.course_id || payload.old?.course_id) {
+            fetchThreads();
+          }
         }
       )
       .subscribe();
@@ -178,7 +187,7 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [courseId, fetchThreads]);
+  }, [courseId, communityId, fetchThreads]);
 
   const uploadImage = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
@@ -228,6 +237,12 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
 
   const sendMessage = async (text: string | null, imageUrl: string | null = null) => {
     if (!text?.trim() && !imageUrl) return;
+    
+    // Cannot send message without a specific course selected
+    if (!courseId) {
+      toast.error(language === 'ru' ? 'Выберите курс для отправки сообщения' : 'Select a course to send a message');
+      return;
+    }
 
     setSending(true);
     try {
@@ -414,82 +429,96 @@ export function CourseChatPanel({ communityId, courseId, courseName, userId, lan
       <div className="p-4 border-b border-border">
         <h3 className="font-semibold flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          {language === 'ru' ? `Обсуждение: ${courseName}` : `Discussion: ${courseName}`}
+          {courseId 
+            ? (language === 'ru' ? `Обсуждение: ${courseName}` : `Discussion: ${courseName}`)
+            : (language === 'ru' ? 'Обсуждения курсов' : 'Course Discussions')
+          }
         </h3>
       </div>
 
-      {/* New message form at top */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 relative">
-            <Textarea
-              ref={textareaRef}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, false)}
-              placeholder={language === 'ru' ? 'Написать сообщение...' : 'Write a message...'}
-              className="min-h-[60px] resize-none pr-20"
-            />
-            <div className="absolute right-2 bottom-2 flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              >
-                <Smile className="h-4 w-4" />
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileSelect(e, false)}
-                className="hidden"
+      {/* New message form at top - only when course is selected */}
+      {courseId && (
+        <div className="p-4 border-b border-border">
+          <div className="flex items-end gap-2">
+            <div className="flex-1 relative">
+              <Textarea
+                ref={textareaRef}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, false)}
+                placeholder={language === 'ru' ? 'Написать сообщение...' : 'Write a message...'}
+                className="min-h-[60px] resize-none pr-20"
               />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Paperclip className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            
-            {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-2 p-2 bg-popover border rounded-lg shadow-lg z-10">
-                <div className="grid grid-cols-8 gap-1">
-                  {EMOJI_LIST.map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => addEmoji(emoji, false)}
-                      className="text-lg hover:bg-muted rounded p-1"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+              <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
+                  <Smile className="h-4 w-4" />
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileSelect(e, false)}
+                  className="hidden"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
-            )}
+              
+              {showEmojiPicker && (
+                <div className="absolute bottom-full right-0 mb-2 p-2 bg-popover border rounded-lg shadow-lg z-10">
+                  <div className="grid grid-cols-8 gap-1">
+                    {EMOJI_LIST.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => addEmoji(emoji, false)}
+                        className="text-lg hover:bg-muted rounded p-1"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button 
+              onClick={handleSend} 
+              disabled={!newMessage.trim() || sending}
+              className="bg-gradient-primary"
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-          <Button 
-            onClick={handleSend} 
-            disabled={!newMessage.trim() || sending}
-            className="bg-gradient-primary"
-          >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
         </div>
-      </div>
+      )}
+      
+      {/* Hint when no course selected */}
+      {!courseId && (
+        <div className="p-3 border-b border-border bg-muted/50 text-sm text-muted-foreground">
+          {language === 'ru' 
+            ? 'Выберите курс выше, чтобы написать сообщение' 
+            : 'Select a course above to write a message'}
+        </div>
+      )}
 
       {/* Messages list */}
       <ScrollArea className="h-[400px]">
