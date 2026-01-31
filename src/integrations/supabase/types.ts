@@ -511,30 +511,44 @@ export type Database = {
       }
       direct_messages: {
         Row: {
+          community_id: string | null
           content_text: string
           created_at: string | null
           id: string
+          image_url: string | null
           read_at: string | null
           recipient_id: string
           sender_id: string
         }
         Insert: {
+          community_id?: string | null
           content_text: string
           created_at?: string | null
           id?: string
+          image_url?: string | null
           read_at?: string | null
           recipient_id: string
           sender_id: string
         }
         Update: {
+          community_id?: string | null
           content_text?: string
           created_at?: string | null
           id?: string
+          image_url?: string | null
           read_at?: string | null
           recipient_id?: string
           sender_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       emoji: {
         Row: {
