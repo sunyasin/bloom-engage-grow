@@ -3,15 +3,16 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n";
 
 interface PostLikeButtonProps {
   postId: string;
   userId: string | null;
   postAuthorId: string;
-  language?: string;
 }
 
-export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }: PostLikeButtonProps) {
+export function PostLikeButton({ postId, userId, postAuthorId }: PostLikeButtonProps) {
+  const { t } = useI18n();
   const isOwnPost = userId === postAuthorId;
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -55,8 +56,8 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
   const handleToggleLike = async () => {
     if (!userId) {
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Необходимо войти в систему' : 'You must be logged in',
+        title: t('common.error'),
+        description: t('common.loginRequired'),
         variant: 'destructive',
       });
       return;
@@ -64,8 +65,8 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
 
     if (isOwnPost) {
       toast({
-        title: language === 'ru' ? 'Ошибка' : 'Error',
-        description: language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own posts',
+        title: t('common.error'),
+        description: t('common.cannotLikeOwnPost'),
         variant: 'destructive',
       });
       return;
@@ -89,7 +90,7 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
         setIsLiked(wasLiked);
         setLikeCount(prev => prev + 1);
         toast({
-          title: language === 'ru' ? 'Ошибка' : 'Error',
+          title: t('common.error'),
           description: error.message,
           variant: 'destructive',
         });
@@ -106,7 +107,7 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
         setIsLiked(wasLiked);
         setLikeCount(prev => prev - 1);
         toast({
-          title: language === 'ru' ? 'Ошибка' : 'Error',
+          title: t('common.error'),
           description: error.message,
           variant: 'destructive',
         });
@@ -130,10 +131,10 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
             ? 'text-red-500 hover:text-red-600'
             : 'text-muted-foreground hover:text-foreground'
       }`}
-      title={isOwnPost ? (language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own posts') : undefined}
+      title={isOwnPost ? t('common.cannotLikeOwnPost') : undefined}
     >
       <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
-      <span>{language === 'ru' ? 'Нравится' : 'Like'}</span>
+      <span>{t('common.like')}</span>
       {likeCount > 0 && <span className="ml-1">({likeCount})</span>}
     </button>
   );

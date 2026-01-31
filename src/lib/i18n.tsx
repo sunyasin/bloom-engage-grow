@@ -98,6 +98,9 @@ const translations: Translations = {
   "common.delete": { ru: "Удалить", en: "Delete" },
   "common.create": { ru: "Создать", en: "Create" },
   "common.search": { ru: "Поиск", en: "Search" },
+  "common.loginRequired": { ru: "Необходимо войти в систему", en: "You must be logged in" },
+  "common.cannotLikeOwnPost": { ru: "Нельзя лайкать свои сообщения", en: "You cannot like your own posts" },
+  "common.like": { ru: "Нравится", en: "Like" },
 };
 
 interface I18nContextType {

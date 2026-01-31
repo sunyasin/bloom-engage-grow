@@ -568,7 +568,6 @@ export default function Community({ user }: CommunityProps) {
                               postId={post.id}
                               userId={user?.id || null}
                               postAuthorId={post.user_id}
-                              language={language}
                             />
                             <button
                               onClick={() => handleOpenReplyDialog(post)}
