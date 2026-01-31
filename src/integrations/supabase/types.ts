@@ -298,6 +298,7 @@ export type Database = {
         Row: {
           community_id: string
           content: string
+          course_id: string | null
           created_at: string
           id: string
           is_pinned: boolean | null
@@ -308,6 +309,7 @@ export type Database = {
         Insert: {
           community_id: string
           content: string
+          course_id?: string | null
           created_at?: string
           id?: string
           is_pinned?: boolean | null
@@ -318,6 +320,7 @@ export type Database = {
         Update: {
           community_id?: string
           content?: string
+          course_id?: string | null
           created_at?: string
           id?: string
           is_pinned?: boolean | null
@@ -331,6 +334,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
           {
@@ -511,30 +521,67 @@ export type Database = {
       }
       direct_messages: {
         Row: {
+          community_id: string | null
           content_text: string
+          course_id: string | null
           created_at: string | null
           id: string
+          image_url: string | null
+          is_pinned: boolean | null
+          parent_message_id: string | null
           read_at: string | null
           recipient_id: string
           sender_id: string
         }
         Insert: {
+          community_id?: string | null
           content_text: string
+          course_id?: string | null
           created_at?: string | null
           id?: string
+          image_url?: string | null
+          is_pinned?: boolean | null
+          parent_message_id?: string | null
           read_at?: string | null
           recipient_id: string
           sender_id: string
         }
         Update: {
+          community_id?: string | null
           content_text?: string
+          course_id?: string | null
           created_at?: string | null
           id?: string
+          image_url?: string | null
+          is_pinned?: boolean | null
+          parent_message_id?: string | null
           read_at?: string | null
           recipient_id?: string
           sender_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       emoji: {
         Row: {
@@ -948,6 +995,11 @@ export type Database = {
           is_active: boolean
           name: string
           payment_url: string | null
+          payment_url_10: string | null
+          payment_url_20: string | null
+          payment_url_30: string | null
+          payment_url_40: string | null
+          payment_url_50: string | null
           price: number
           sort_order: number
           updated_at: string
@@ -962,6 +1014,11 @@ export type Database = {
           is_active?: boolean
           name: string
           payment_url?: string | null
+          payment_url_10?: string | null
+          payment_url_20?: string | null
+          payment_url_30?: string | null
+          payment_url_40?: string | null
+          payment_url_50?: string | null
           price?: number
           sort_order?: number
           updated_at?: string
@@ -976,6 +1033,11 @@ export type Database = {
           is_active?: boolean
           name?: string
           payment_url?: string | null
+          payment_url_10?: string | null
+          payment_url_20?: string | null
+          payment_url_30?: string | null
+          payment_url_40?: string | null
+          payment_url_50?: string | null
           price?: number
           sort_order?: number
           updated_at?: string
@@ -1102,6 +1164,8 @@ export type Database = {
           portal_subscription_id: string | null
           rating: number | null
           real_name: string | null
+          referral_code: string | null
+          referred_by: string | null
           sbp_phone: string | null
           state: string | null
           telegram_first_name: string | null
@@ -1125,6 +1189,8 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           sbp_phone?: string | null
           state?: string | null
           telegram_first_name?: string | null
@@ -1148,6 +1214,8 @@ export type Database = {
           portal_subscription_id?: string | null
           rating?: number | null
           real_name?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           sbp_phone?: string | null
           state?: string | null
           telegram_first_name?: string | null
@@ -1162,6 +1230,13 @@ export type Database = {
             columns: ["portal_subscription_id"]
             isOneToOne: false
             referencedRelation: "portal_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1236,6 +1311,51 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_stats: {
+        Row: {
+          created_at: string | null
+          first_payment_at: string | null
+          id: string
+          is_paying: boolean | null
+          referred_user_id: string
+          total_payments: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          first_payment_at?: string | null
+          id?: string
+          is_paying?: boolean | null
+          referred_user_id: string
+          total_payments?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          first_payment_at?: string | null
+          id?: string
+          is_paying?: boolean | null
+          referred_user_id?: string
+          total_payments?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_stats_referred_user_id_fkey"
+            columns: ["referred_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_stats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1545,6 +1665,7 @@ export type Database = {
     }
     Functions: {
       decrement_rating: { Args: { user_id_param: string }; Returns: undefined }
+      generate_referral_code: { Args: never; Returns: string }
       get_public_profile: {
         Args: { profile_id: string }
         Returns: {
@@ -1565,6 +1686,7 @@ export type Database = {
           real_name: string
         }[]
       }
+      get_referral_discount: { Args: { referrer_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1573,6 +1695,10 @@ export type Database = {
         Returns: boolean
       }
       increment_rating: { Args: { user_id_param: string }; Returns: undefined }
+      increment_referral_payment: {
+        Args: { referred_id_param: string; referrer_id_param: string }
+        Returns: undefined
+      }
       is_community_owner: {
         Args: { _community_id: string; _user_id: string }
         Returns: boolean

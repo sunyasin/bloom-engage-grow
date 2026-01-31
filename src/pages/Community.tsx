@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal } from "lucide-react";
+import { Users, Pin, MessageSquare, Send, Loader2, Settings, SlidersHorizontal, Lock, BookOpen } from "lucide-react";
 import { SubscriptionTiersManager } from "@/components/SubscriptionTiersManager";
 import { CommunitySettingsDialog } from "@/components/CommunitySettingsDialog";
 import { User } from "@supabase/supabase-js";
@@ -14,9 +14,21 @@ import { CoursesTab } from "@/components/CoursesTab";
 import { CommunityReplyDialog } from "@/components/CommunityReplyDialog";
 import { PostLikeButton } from "@/components/PostLikeButton";
 import { CommunityEventsTab } from "@/components/CommunityEventsTab";
+import { PrivateChatPanel } from "@/components/PrivateChatPanel";
+import { usePrivateChatAccess } from "@/hooks/usePrivateChatAccess";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { useCommunityTabs } from "@/contexts/CommunityTabsContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+interface CommunityData {
+  id: string;
+  name: string;
+  description: string | null;
+  cover_image_url: string | null;
+  member_count: number;
+  creator_id: string;
+  content_html?: string | null;
+}
 
 interface CommunityData {
   id: string;
@@ -34,11 +46,17 @@ interface Post {
   is_pinned: boolean;
   created_at: string;
   user_id: string;
+  course_id?: string | null;
   user?: {
     real_name: string | null;
     avatar_url: string | null;
   };
   reply_count?: number;
+}
+
+interface AccessibleCourse {
+  id: string;
+  title: string;
 }
 
 interface CommunityProps {
@@ -64,6 +82,11 @@ export default function Community({ user }: CommunityProps) {
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showPrivateChat, setShowPrivateChat] = useState(false);
+  const [accessibleCourses, setAccessibleCourses] = useState<AccessibleCourse[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+
+  const { hasPrivateChatAccess, loading: privateChatLoading } = usePrivateChatAccess(id || null, user?.id || null);
 
   const [searchParams] = useSearchParams();
 
@@ -75,12 +98,11 @@ export default function Community({ user }: CommunityProps) {
         { value: "feed", label: language === "ru" ? "Лента" : "Feed" },
         { value: "courses", label: language === "ru" ? "Курсы" : "Courses" },
         { value: "events", label: language === "ru" ? "События" : "Events" },
-        { value: "members", label: language === "ru" ? "Участники" : "Members" },
         { value: "about", label: language === "ru" ? "О сообществе" : "About" },
       ]);
       const tabParam = searchParams.get("tab");
       setActiveTab(
-        tabParam && ["feed", "courses", "events", "members", "about"].includes(tabParam) ? tabParam : "feed",
+        tabParam && ["feed", "courses", "events", "about"].includes(tabParam) ? tabParam : "feed",
       );
     }
 
@@ -101,13 +123,23 @@ export default function Community({ user }: CommunityProps) {
     setLoading(false);
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (courseFilter?: string | null) => {
     if (!id) return;
 
-    const { data: postsData, error } = await supabase
+    let query = supabase
       .from("community_posts")
       .select("*")
-      .eq("community_id", id)
+      .eq("community_id", id);
+    
+    // Apply course filter
+    if (courseFilter) {
+      query = query.eq("course_id", courseFilter);
+    } else {
+      // When no course filter, show only posts without course_id (general feed)
+      query = query.is("course_id", null);
+    }
+    
+    const { data: postsData, error } = await query
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -170,9 +202,63 @@ export default function Community({ user }: CommunityProps) {
     }
   };
 
+  // Fetch courses that user has access to
+  const fetchAccessibleCourses = async () => {
+    if (!id) return;
+
+    const { data: coursesData } = await supabase
+      .from("courses")
+      .select("id, title, author_id, status, access_types, access_type, required_rating, delay_days, gifted_emails, promo_code")
+      .eq("community_id", id)
+      .eq("status", "published");
+
+    if (!coursesData) return;
+
+    // For owner, all courses are accessible
+    if (community?.creator_id === user?.id) {
+      setAccessibleCourses(coursesData.map(c => ({ id: c.id, title: c.title })));
+      return;
+    }
+
+    // Check access for each course
+    const accessible: AccessibleCourse[] = [];
+
+    for (const course of coursesData) {
+      const accessTypes = course.access_types?.length > 0 ? course.access_types : [course.access_type || 'open'];
+      
+      // Check if any access type is satisfied
+      let hasAccess = false;
+      
+      for (const accessType of accessTypes) {
+        if (accessType === 'open') {
+          hasAccess = true;
+          break;
+        }
+        
+        if (accessType === 'paid_subscription' && hasPrivateChatAccess) {
+          hasAccess = true;
+          break;
+        }
+        
+        if (accessType === 'by_rating_level' && userProfile?.rating != null && course.required_rating != null) {
+          if (userProfile.rating >= course.required_rating) {
+            hasAccess = true;
+            break;
+          }
+        }
+      }
+      
+      if (hasAccess) {
+        accessible.push({ id: course.id, title: course.title });
+      }
+    }
+
+    setAccessibleCourses(accessible);
+  };
+
   useEffect(() => {
     fetchCommunity();
-    fetchPosts();
+    fetchPosts(selectedCourseId);
     checkMembership();
     fetchUserProfile();
 
@@ -183,7 +269,7 @@ export default function Community({ user }: CommunityProps) {
         "postgres_changes",
         { event: "*", schema: "public", table: "community_posts", filter: `community_id=eq.${id}` },
         () => {
-          fetchPosts();
+          fetchPosts(selectedCourseId);
         },
       )
       .subscribe();
@@ -191,7 +277,14 @@ export default function Community({ user }: CommunityProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, user]);
+  }, [id, user, selectedCourseId]);
+
+  // Fetch accessible courses when user profile and membership are loaded
+  useEffect(() => {
+    if (community && !privateChatLoading) {
+      fetchAccessibleCourses();
+    }
+  }, [community, userProfile, hasPrivateChatAccess, privateChatLoading]);
 
   const handleJoin = async () => {
     if (!user || !id) return;
@@ -226,7 +319,12 @@ export default function Community({ user }: CommunityProps) {
     setPosting(true);
     const { error } = await supabase
       .from("community_posts")
-      .insert({ community_id: id, user_id: user.id, content: newPost.trim() });
+      .insert({ 
+        community_id: id, 
+        user_id: user.id, 
+        content: newPost.trim(),
+        course_id: selectedCourseId || null
+      });
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -240,7 +338,7 @@ export default function Community({ user }: CommunityProps) {
     const { error } = await supabase.from("community_posts").update({ is_pinned: !isPinned }).eq("id", postId);
 
     if (!error) {
-      fetchPosts();
+      fetchPosts(selectedCourseId);
     }
   };
 
@@ -254,7 +352,7 @@ export default function Community({ user }: CommunityProps) {
   const handleCloseReplyDialog = () => {
     setReplyDialogOpen(false);
     setSelectedPost(null);
-    fetchPosts();
+    fetchPosts(selectedCourseId);
   };
 
   if (loading) {
@@ -333,9 +431,88 @@ export default function Community({ user }: CommunityProps) {
           {/* Feed Tab */}
           {activeTab === "feed" && (
             <>
+              {/* Chat Toggle Buttons */}
+              {isMember && user && (
+                <div className="mb-6 flex flex-wrap gap-2">
+                  <TooltipProvider>
+                    {/* Private Chat Button */}
+                    {hasPrivateChatAccess || isOwner ? (
+                      <Button
+                        variant={showPrivateChat && !selectedCourseId ? "default" : "outline"}
+                        onClick={() => {
+                          setShowPrivateChat(!showPrivateChat || selectedCourseId !== null);
+                          setSelectedCourseId(null);
+                        }}
+                        className={showPrivateChat && !selectedCourseId ? "bg-gradient-primary" : ""}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        {language === "ru" ? "Приватный чат" : "Private Chat"}
+                      </Button>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" disabled className="opacity-50">
+                            <Lock className="h-4 w-4 mr-2" />
+                            {language === "ru" ? "Приватный чат" : "Private Chat"}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{language === "ru" ? "Доступно на платной подписке" : "Available on paid subscription"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+
+                    {/* Course Filter Buttons */}
+                    {accessibleCourses.length > 0 && (
+                      <>
+                        {accessibleCourses.map(course => (
+                          <Button
+                            key={course.id}
+                            variant={selectedCourseId === course.id && !showPrivateChat ? "default" : "outline"}
+                            onClick={() => {
+                              if (selectedCourseId === course.id && !showPrivateChat) {
+                                // Toggle off - show general feed
+                                setSelectedCourseId(null);
+                              } else {
+                                setSelectedCourseId(course.id);
+                                setShowPrivateChat(false); // Close private chat and show course feed
+                              }
+                            }}
+                            className={selectedCourseId === course.id && !showPrivateChat ? "bg-gradient-primary" : ""}
+                          >
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            {course.title}
+                          </Button>
+                        ))}
+                      </>
+                    )}
+                  </TooltipProvider>
+                </div>
+              )}
+
+              {/* Private Chat Panel */}
+              {showPrivateChat && (hasPrivateChatAccess || isOwner) && user && (
+                <div className="mb-6">
+                  <PrivateChatPanel
+                    communityId={id!}
+                    userId={user.id}
+                    language={language}
+                  />
+                </div>
+              )}
+
               {/* New post form */}
-              {isMember && (
+              {isMember && !showPrivateChat && (
                 <div className="bg-card rounded-xl p-4 border border-border mb-6">
+                  {selectedCourseId && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                      <BookOpen className="h-4 w-4" />
+                      <span>
+                        {language === "ru" ? "Публикация в курс: " : "Posting to course: "}
+                        <strong>{accessibleCourses.find(c => c.id === selectedCourseId)?.title}</strong>
+                      </span>
+                    </div>
+                  )}
                   <Textarea
                     value={newPost}
                     onChange={(e) => setNewPost(e.target.value)}
@@ -352,63 +529,73 @@ export default function Community({ user }: CommunityProps) {
               )}
 
               {/* Posts */}
-              <div className="space-y-4">
-                {posts.map((post) => (
-                  <div key={post.id} className="bg-card rounded-xl p-4 border border-border">
-                    {post.is_pinned && (
-                      <div className="flex items-center gap-1 text-xs text-primary mb-2">
-                        <Pin className="h-3 w-3" />
-                        <span>{t("community.pinned")}</span>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={post.user?.avatar_url || ""} />
-                        <AvatarFallback>{post.user?.real_name?.[0] || "U"}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{post.user?.real_name || "Anonymous"}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(post.created_at), {
-                              addSuffix: true,
-                              locale: language === "ru" ? ru : enUS,
-                            })}
-                          </span>
+              {!showPrivateChat && (
+                <div className="space-y-4">
+                  {posts.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {selectedCourseId 
+                        ? (language === "ru" ? "Нет постов для этого курса" : "No posts for this course")
+                        : (language === "ru" ? "Нет постов" : "No posts")
+                      }
+                    </div>
+                  )}
+                  {posts.map((post) => (
+                    <div key={post.id} className="bg-card rounded-xl p-4 border border-border">
+                      {post.is_pinned && (
+                        <div className="flex items-center gap-1 text-xs text-primary mb-2">
+                          <Pin className="h-3 w-3" />
+                          <span>{t("community.pinned")}</span>
                         </div>
-                        <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
-                        <div className="flex items-center gap-4 mt-3">
-                          <PostLikeButton
-                            postId={post.id}
-                            userId={user?.id || null}
-                            postAuthorId={post.user_id}
-                            language={language}
-                          />
-                          <button
-                            onClick={() => handleOpenReplyDialog(post)}
-                            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                            <span>{t("community.reply")}</span>
-                            {post.reply_count && post.reply_count > 0 && (
-                              <span className="ml-1">({post.reply_count})</span>
-                            )}
-                          </button>
-                          {isOwner && (
+                      )}
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={post.user?.avatar_url || ""} />
+                          <AvatarFallback>{post.user?.real_name?.[0] || "U"}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{post.user?.real_name || "Anonymous"}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(post.created_at), {
+                                addSuffix: true,
+                                locale: language === "ru" ? ru : enUS,
+                              })}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
+                          <div className="flex items-center gap-4 mt-3">
+                            <PostLikeButton
+                              postId={post.id}
+                              userId={user?.id || null}
+                              postAuthorId={post.user_id}
+                              language={language}
+                            />
                             <button
-                              onClick={() => handlePin(post.id, post.is_pinned)}
+                              onClick={() => handleOpenReplyDialog(post)}
                               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
                             >
-                              <Pin className="h-4 w-4" />
-                              <span>{post.is_pinned ? t("community.unpin") : t("community.pin")}</span>
+                              <MessageSquare className="h-4 w-4" />
+                              <span>{t("community.reply")}</span>
+                              {post.reply_count && post.reply_count > 0 && (
+                                <span className="ml-1">({post.reply_count})</span>
+                              )}
                             </button>
-                          )}
+                            {isOwner && (
+                              <button
+                                onClick={() => handlePin(post.id, post.is_pinned)}
+                                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-smooth"
+                              >
+                                <Pin className="h-4 w-4" />
+                                <span>{post.is_pinned ? t("community.unpin") : t("community.pin")}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
@@ -428,10 +615,6 @@ export default function Community({ user }: CommunityProps) {
             />
           )}
 
-          {/* Members Tab */}
-          {activeTab === "members" && (
-            <div className="text-center py-16 text-muted-foreground">Members list coming soon...</div>
-          )}
 
           {/* About Tab */}
           {activeTab === "about" && (

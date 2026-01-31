@@ -186,9 +186,35 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Get user's referral discount
+    let discountPercent = 0;
+    try {
+      const discountResponse = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/get_referral_discount`,
+        {
+          method: "POST",
+          headers: {
+            "apikey": supabaseServiceRoleKey,
+            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ referrer_id: userId }),
+        }
+      );
+      
+      if (discountResponse.ok) {
+        const discountResult = await discountResponse.json();
+        discountPercent = discountResult || 0;
+      }
+    } catch (discountError) {
+      console.error("Error getting referral discount:", discountError);
+    }
+
     const transactionId = crypto.randomUUID();
     const idempotencyKey = `portal-${userId}-${portalSubscriptionId}-${Date.now()}`;
-    const amount = subscription.price || 0;
+    const originalAmount = subscription.price || 0;
+    const discountAmount = originalAmount * (discountPercent / 100);
+    const finalAmount = originalAmount - discountAmount;
 
     const createTransactionResponse = await fetch(
       `${supabaseUrl}/rest/v1/transactions`,
@@ -203,15 +229,18 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           id: transactionId,
           user_id: userId,
-          amount: amount,
+          amount: finalAmount,
           currency: "RUB",
           status: "pending",
           provider: "yookassa",
           idempotency_key: idempotencyKey,
-          description: `Портальная подписка: ${subscription.name}`,
+          description: `Портальная подписка: ${subscription.name}${discountPercent > 0 ? ` (скидка ${discountPercent}%)` : ''}`,
           metadata: {
             type: "portal_subscription",
             portal_subscription_id: portalSubscriptionId,
+            original_amount: originalAmount,
+            discount_percent: discountPercent,
+            discount_amount: discountAmount,
           },
         }),
       }
@@ -233,7 +262,7 @@ Deno.serve(async (req: Request) => {
 
     const paymentData = {
       amount: {
-        value: amount.toFixed(2),
+        value: finalAmount.toFixed(2),
         currency: "RUB",
       },
       capture: true,
@@ -241,12 +270,13 @@ Deno.serve(async (req: Request) => {
         type: "redirect",
         return_url: returnUrl || `${frontendUrl}/payment/callback?transactionId=${transactionId}`,
       },
-      description: `Портальная подписка: ${subscription.name}`,
+      description: `Портальная подписка: ${subscription.name}${discountPercent > 0 ? ` (скидка ${discountPercent}%)` : ''}`,
       metadata: {
         userId: userId,
         portalSubscriptionId: portalSubscriptionId,
         transactionId: transactionId,
         type: "portal_subscription",
+        discountPercent: discountPercent,
       },
     };
 
