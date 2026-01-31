@@ -15,6 +15,7 @@ import { CommunityReplyDialog } from "@/components/CommunityReplyDialog";
 import { PostLikeButton } from "@/components/PostLikeButton";
 import { CommunityEventsTab } from "@/components/CommunityEventsTab";
 import { PrivateChatPanel } from "@/components/PrivateChatPanel";
+import { CourseChatPanel } from "@/components/CourseChatPanel";
 import { usePrivateChatAccess } from "@/hooks/usePrivateChatAccess";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
@@ -465,15 +466,26 @@ export default function Community({ user }: CommunityProps) {
                 </div>
               )}
 
-              {/* Private/Course Chat Panel */}
-              {showPrivateChat && (hasPrivateChatAccess || isOwner) && user && (
+              {/* Private Chat Panel (no course selected) */}
+              {showPrivateChat && !selectedCourseId && (hasPrivateChatAccess || isOwner) && user && (
                 <div className="mb-6">
                   <PrivateChatPanel
                     communityId={id!}
                     userId={user.id}
                     language={language}
+                  />
+                </div>
+              )}
+
+              {/* Course Chat Panel (course selected) */}
+              {showPrivateChat && selectedCourseId && (hasPrivateChatAccess || isOwner) && user && (
+                <div className="mb-6">
+                  <CourseChatPanel
+                    communityId={id!}
                     courseId={selectedCourseId}
-                    courseName={accessibleCourses.find(c => c.id === selectedCourseId)?.title || null}
+                    courseName={accessibleCourses.find(c => c.id === selectedCourseId)?.title || ''}
+                    userId={user.id}
+                    language={language}
                   />
                 </div>
               )}
