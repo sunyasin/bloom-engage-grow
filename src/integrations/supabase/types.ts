@@ -513,6 +513,7 @@ export type Database = {
         Row: {
           community_id: string | null
           content_text: string
+          course_id: string | null
           created_at: string | null
           id: string
           image_url: string | null
@@ -523,6 +524,7 @@ export type Database = {
         Insert: {
           community_id?: string | null
           content_text: string
+          course_id?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -533,6 +535,7 @@ export type Database = {
         Update: {
           community_id?: string | null
           content_text?: string
+          course_id?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -546,6 +549,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
         ]
