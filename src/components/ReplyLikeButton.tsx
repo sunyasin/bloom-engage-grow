@@ -9,10 +9,12 @@ interface ReplyLikeButtonProps {
   userId: string | null;
   replyAuthorId: string;
   language?: string;
+  isMember?: boolean;
 }
 
-export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = "en" }: ReplyLikeButtonProps) {
+export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = "en", isMember = true }: ReplyLikeButtonProps) {
   const isOwnReply = userId === replyAuthorId;
+  const isDisabled = isOwnReply || !isMember;
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -58,6 +60,15 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = "en
       toast({
         title: language === "ru" ? "Ошибка" : "Error",
         description: language === "ru" ? "Необходимо войти в систему" : "You must be logged in",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isMember) {
+      toast({
+        title: language === "ru" ? "Ошибка" : "Error",
+        description: language === "ru" ? "Для отправки сообщений вступите в сообщество" : "Join the community to interact",
         variant: "destructive",
       });
       return;
@@ -109,26 +120,30 @@ export function ReplyLikeButton({ replyId, userId, replyAuthorId, language = "en
     setLoading(false);
   };
 
+  const getTitle = () => {
+    if (!isMember) {
+      return language === "ru" ? "Для отправки сообщений вступите в сообщество" : "Join the community to interact";
+    }
+    if (isOwnReply) {
+      return language === "ru" ? "Нельзя лайкать свои сообщения" : "You cannot like your own replies";
+    }
+    return undefined;
+  };
+
   return (
     <Button
       variant="ghost"
       size="sm"
       onClick={handleToggleLike}
-      disabled={loading || isOwnReply}
+      disabled={loading || isDisabled}
       className={`h-7 gap-1 ${
-        isOwnReply
+        isDisabled
           ? "text-muted-foreground/50 cursor-not-allowed"
           : isLiked
             ? "text-red-500 hover:text-red-600"
             : "text-muted-foreground"
       }`}
-      title={
-        isOwnReply
-          ? language === "ru"
-            ? "Нельзя лайкать свои сообщения"
-            : "You cannot like your own replies"
-          : undefined
-      }
+      title={getTitle()}
     >
       <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-current" : ""}`} />
       {likeCount > 0 && <span className="text-xs">{likeCount}</span>}

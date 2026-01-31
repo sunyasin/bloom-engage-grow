@@ -9,10 +9,12 @@ interface PostLikeButtonProps {
   userId: string | null;
   postAuthorId: string;
   language?: string;
+  isMember?: boolean;
 }
 
-export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }: PostLikeButtonProps) {
+export function PostLikeButton({ postId, userId, postAuthorId, language = 'en', isMember = true }: PostLikeButtonProps) {
   const isOwnPost = userId === postAuthorId;
+  const isDisabled = isOwnPost || !isMember;
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,15 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
       toast({
         title: language === 'ru' ? 'Ошибка' : 'Error',
         description: language === 'ru' ? 'Необходимо войти в систему' : 'You must be logged in',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isMember) {
+      toast({
+        title: language === 'ru' ? 'Ошибка' : 'Error',
+        description: language === 'ru' ? 'Для отправки сообщений вступите в сообщество' : 'Join the community to interact',
         variant: 'destructive',
       });
       return;
@@ -119,18 +130,28 @@ export function PostLikeButton({ postId, userId, postAuthorId, language = 'en' }
     setLoading(false);
   };
 
+  const getTitle = () => {
+    if (!isMember) {
+      return language === 'ru' ? 'Для отправки сообщений вступите в сообщество' : 'Join the community to interact';
+    }
+    if (isOwnPost) {
+      return language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own posts';
+    }
+    return undefined;
+  };
+
   return (
     <button
       onClick={handleToggleLike}
-      disabled={loading || isOwnPost}
+      disabled={loading || isDisabled}
       className={`flex items-center gap-1 text-sm transition-smooth ${
-        isOwnPost
+        isDisabled
           ? 'text-muted-foreground/50 cursor-not-allowed'
           : isLiked
             ? 'text-red-500 hover:text-red-600'
             : 'text-muted-foreground hover:text-foreground'
       }`}
-      title={isOwnPost ? (language === 'ru' ? 'Нельзя лайкать свои сообщения' : 'You cannot like your own posts') : undefined}
+      title={getTitle()}
     >
       <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
       <span>{language === 'ru' ? 'Нравится' : 'Like'}</span>
