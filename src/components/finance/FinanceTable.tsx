@@ -15,6 +15,7 @@ export interface FinanceTransaction {
   id: string;
   community_name: string;
   tier_name: string;
+  subscriber_name: string;
   amount: number;
   date: string;
   type: "payment" | "payout";
@@ -66,6 +67,7 @@ export function FinanceTable({ data, isLoading }: FinanceTableProps) {
             <TableRow>
               <TableHead>Дата</TableHead>
               <TableHead>Сообщество</TableHead>
+              <TableHead>Подписчик</TableHead>
               <TableHead>Описание</TableHead>
               <TableHead className="text-right">Сумма</TableHead>
             </TableRow>
@@ -77,6 +79,7 @@ export function FinanceTable({ data, isLoading }: FinanceTableProps) {
                   {formatDate(row.date)}
                 </TableCell>
                 <TableCell className="font-medium">{row.community_name}</TableCell>
+                <TableCell>{row.subscriber_name}</TableCell>
                 <TableCell>
                   {row.type === "payment" ? `Подписка: ${row.tier_name}` : row.tier_name}
                 </TableCell>

@@ -6,6 +6,7 @@ interface FinanceTransaction {
   id: string;
   community_name: string;
   tier_name: string;
+  subscriber_name: string;
   amount: number;
   date: string;
   type: "payment" | "payout";
@@ -36,6 +37,7 @@ export function useFinanceData(month: Date) {
         .from("transactions")
         .select(`
           id,
+          user_id,
           amount,
           created_at,
           community:communities!transactions_community_id_fkey(name),
@@ -53,11 +55,29 @@ export function useFinanceData(month: Date) {
         throw transError;
       }
 
+      // Получаем профили подписчиков отдельным запросом
+      const userIds = [...new Set(transactions?.map(t => t.user_id) || [])];
+      let profileMap = new Map<string, { real_name?: string }>();
+      
+      if (userIds.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: profiles } = await (supabase as any)
+          .from("profiles")
+          .select("id, real_name")
+          .in("id", userIds);
+        
+        profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
+      }
+
       // Формируем массив платежей
       const payments: FinanceTransaction[] = transactions?.map((t) => ({
         id: t.id,
         community_name: t.community?.name || "Unknown",
         tier_name: t.subscription_tier?.name || "Unknown",
+        subscriber_name: t.user_id ? (() => {
+          const profile = profileMap.get(t.user_id);
+          return profile?.real_name || '—';
+        })() : '—',
         amount: Number(t.amount),
         date: t.created_at,
         type: "payment" as const,
@@ -85,6 +105,7 @@ export function useFinanceData(month: Date) {
         id: p.id,
         community_name: p.community?.name || "Unknown",
         tier_name: "Выплата",
+        subscriber_name: '—',
         amount: Number(p.amount),
         date: p.paid_at,
         type: "payout" as const,
