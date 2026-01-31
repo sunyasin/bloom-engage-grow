@@ -447,27 +447,53 @@ export default function Community({ user }: CommunityProps) {
                       </Tooltip>
                     )}
 
-                    {/* Course Chat Buttons */}
-                    {(hasPrivateChatAccess || isOwner) && accessibleCourses.map(course => (
-                      <Button
-                        key={course.id}
-                        variant={selectedCourseId === course.id ? "default" : "outline"}
-                        onClick={() => {
-                          setSelectedCourseId(course.id);
-                          setShowPrivateChat(true);
-                        }}
-                        className={selectedCourseId === course.id ? "bg-gradient-primary" : ""}
-                      >
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        {course.title}
-                      </Button>
-                    ))}
+                    {/* Course Chat Buttons - act as filters */}
+                    {(hasPrivateChatAccess || isOwner) && accessibleCourses.length > 0 && (
+                      <>
+                        {/* Show all courses discussion button */}
+                        <Button
+                          variant={showPrivateChat && selectedCourseId === null ? "default" : "outline"}
+                          onClick={() => {
+                            if (showPrivateChat && selectedCourseId === null) {
+                              setShowPrivateChat(false);
+                            } else {
+                              setSelectedCourseId(null);
+                              setShowPrivateChat(true);
+                            }
+                          }}
+                          className={showPrivateChat && selectedCourseId === null ? "bg-gradient-primary" : ""}
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          {language === "ru" ? "Все курсы" : "All Courses"}
+                        </Button>
+                        
+                        {accessibleCourses.map(course => (
+                          <Button
+                            key={course.id}
+                            variant={selectedCourseId === course.id ? "default" : "outline"}
+                            onClick={() => {
+                              if (selectedCourseId === course.id) {
+                                // Toggle off - show all
+                                setSelectedCourseId(null);
+                              } else {
+                                setSelectedCourseId(course.id);
+                                setShowPrivateChat(true);
+                              }
+                            }}
+                            className={selectedCourseId === course.id ? "bg-gradient-primary" : ""}
+                          >
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            {course.title}
+                          </Button>
+                        ))}
+                      </>
+                    )}
                   </TooltipProvider>
                 </div>
               )}
 
-              {/* Private Chat Panel (no course selected) */}
-              {showPrivateChat && !selectedCourseId && (hasPrivateChatAccess || isOwner) && user && (
+              {/* Private Chat Panel (only when Private Chat button is active, not course buttons) */}
+              {showPrivateChat && !accessibleCourses.length && (hasPrivateChatAccess || isOwner) && user && (
                 <div className="mb-6">
                   <PrivateChatPanel
                     communityId={id!}
@@ -477,13 +503,13 @@ export default function Community({ user }: CommunityProps) {
                 </div>
               )}
 
-              {/* Course Chat Panel (course selected) */}
-              {showPrivateChat && selectedCourseId && (hasPrivateChatAccess || isOwner) && user && (
+              {/* Course Chat Panel - shown when any course filter is active (including "All") */}
+              {showPrivateChat && accessibleCourses.length > 0 && (hasPrivateChatAccess || isOwner) && user && (
                 <div className="mb-6">
                   <CourseChatPanel
                     communityId={id!}
                     courseId={selectedCourseId}
-                    courseName={accessibleCourses.find(c => c.id === selectedCourseId)?.title || ''}
+                    courseName={selectedCourseId ? (accessibleCourses.find(c => c.id === selectedCourseId)?.title || '') : ''}
                     userId={user.id}
                     language={language}
                     communityOwnerId={community?.creator_id}
