@@ -8,6 +8,14 @@ datasource db {
   schemas  = ["public"]
 }
 
+enum community_type {
+  shop
+  gallery
+  course
+
+  @@schema("public")
+}
+
 enum membership_status {
   active
   canceled
@@ -41,6 +49,7 @@ model communities {
   name                String
   slug                String?               @unique
   description         String?
+  type                community_type        @default(course)
   creator_id          String?               @db.Uuid
   owner_id            String?               @db.Uuid
   created_at          DateTime              @default(now()) @db.Timestamptz(6)
@@ -49,6 +58,7 @@ model communities {
   memberships         memberships[]
   transactions        transactions[]
   payouts             community_payouts[]
+  gallery_collections gallery_collections[]
 
   @@map("communities")
   @@schema("public")
@@ -183,5 +193,141 @@ model community_payouts {
   @@index([community_id], map: "idx_payouts_community_id")
   @@index([created_at], map: "idx_payouts_created_at")
   @@map("community_payouts")
+  @@schema("public")
+}
+
+// Сборник - коллекция фото и постов
+model gallery_collections {
+  id            BigInt            @id @default(autoincrement())
+  name          String
+  year          Int               @default(dbgenerated("EXTRACT(YEAR FROM CURRENT_DATE)"))
+  thumbnail_url String?
+  slideshow_speed Int              @default(5)
+  community_id  String?           @db.Uuid
+  user_id       String            @db.Uuid
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime          @default(now()) @db.Timestamptz(6)
+
+  community     communities?     @relation(fields: [community_id], references: [id], onDelete: SetNull)
+  posts         gallery_posts[]
+  photos        gallery_photos[]
+  audio         gallery_audio[]
+
+  @@index([user_id], map: "idx_collections_user_id")
+  @@index([community_id], map: "idx_collections_community_id")
+  @@map("gallery_collections")
+  @@schema("public")
+}
+
+// Пост с HTML контентом и ценой
+model gallery_posts {
+  id              BigInt            @id @default(autoincrement())
+  title           String?
+  thumbnail_url   String?
+  content_html    String
+  price           Decimal?          @db.Decimal(10, 2)
+  currency        String            @default("RUB")
+  collection_id   BigInt
+  user_id         String            @db.Uuid
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+
+  collection      gallery_collections @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  orders         orders[]
+
+  @@index([collection_id], map: "idx_posts_collection_id")
+  @@index([user_id], map: "idx_posts_user_id")
+  @@map("gallery_posts")
+  @@schema("public")
+}
+
+// Фото с ценой и описанием
+model gallery_photos {
+  id            BigInt            @id @default(autoincrement())
+  url           String
+  description   String?
+  price         Decimal?          @db.Decimal(10, 2)
+  currency      String            @default("RUB")
+  collection_id BigInt
+  user_id       String            @db.Uuid
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+
+  collection    gallery_collections @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  orders        orders[]
+
+  @@index([collection_id], map: "idx_photos_collection_id")
+  @@index([user_id], map: "idx_photos_user_id")
+  @@map("gallery_photos")
+  @@schema("public")
+}
+
+// Аудио-треки для коллекции
+enum gallery_playback_mode {
+  repeat_one
+  repeat_all
+  mix
+
+  @@schema("public")
+}
+
+model gallery_audio {
+  id            BigInt              @id @default(autoincrement())
+  url           String
+  title         String?
+  playback_mode gallery_playback_mode @default(repeat_all)
+  collection_id BigInt
+  created_at    DateTime            @default(now()) @db.Timestamptz(6)
+
+  collection    gallery_collections @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+
+  @@index([collection_id], map: "idx_audio_collection_id")
+  @@map("gallery_audio")
+  @@schema("public")
+}
+
+// Статус заказа
+enum order_status {
+  new
+  paid
+  delivery
+  delivered
+  archived
+
+  @@schema("public")
+}
+
+// Заказы
+model orders {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String        @db.Uuid
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  
+  // Ссылка на фото или пост
+  photo_id      BigInt?
+  post_id       BigInt?
+  
+  // Товар
+  price         Decimal       @db.Decimal(10, 2)
+  currency      String        @default("RUB")
+  quantity      Int           @default(1)
+  options       String?       // JSON строка с опциями товара
+  
+  // Статус
+  status        order_status  @default(new)
+  status_changed_at DateTime?  @db.Timestamptz(6)
+  
+  // Контактные данные
+  address       String?
+  phone         String?
+  email         String?
+  comment       String?
+  
+  photo         gallery_photos? @relation(fields: [photo_id], references: [id], onDelete: SetNull)
+  post          gallery_posts?  @relation(fields: [post_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id], map: "idx_orders_user_id")
+  @@index([status], map: "idx_orders_status")
+  @@index([created_at], map: "idx_orders_created_at")
+  @@map("orders")
   @@schema("public")
 }

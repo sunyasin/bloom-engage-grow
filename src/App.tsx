@@ -29,6 +29,7 @@ import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
 import CreateCommunity from "./pages/CreateCommunity";
 import FinancePage from "./pages/FinancePage";
+import GalleryCarouselPage from "./pages/GalleryCarouselPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -166,6 +167,10 @@ const App = () => {
                   <Route
                     path="/create-community"
                     element={user ? <CreateCommunity /> : <Navigate to="/" />}
+                  />
+                  <Route 
+                    path="/gallery/:collectionId" 
+                    element={<GalleryCarouselPage />} 
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

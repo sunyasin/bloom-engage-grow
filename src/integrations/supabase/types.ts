@@ -583,6 +583,173 @@ export type Database = {
           },
         ]
       }
+      gallery_collections: {
+        Row: {
+          id: number
+          name: string
+          year: number
+          thumbnail_url: string | null
+          slideshow_speed: number
+          community_id: string | null
+          user_id: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          name: string
+          year?: number
+          thumbnail_url?: string | null
+          slideshow_speed?: number
+          community_id?: string | null
+          user_id: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          name?: string
+          year?: number
+          thumbnail_url?: string | null
+          slideshow_speed?: number
+          community_id?: string | null
+          user_id?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_community"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_posts: {
+        Row: {
+          id: number
+          title: string | null
+          thumbnail_url: string | null
+          content_html: string
+          price: number | null
+          currency: string
+          collection_id: number
+          user_id: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          title?: string | null
+          thumbnail_url?: string | null
+          content_html: string
+          price?: number | null
+          currency?: string
+          collection_id: number
+          user_id: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          title?: string | null
+          thumbnail_url?: string | null
+          content_html?: string
+          price?: number | null
+          currency?: string
+          collection_id?: number
+          user_id?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_collection_post"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_photos: {
+        Row: {
+          id: number
+          url: string
+          description: string | null
+          price: number | null
+          currency: string
+          collection_id: number
+          user_id: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          url: string
+          description?: string | null
+          price?: number | null
+          currency?: string
+          collection_id: number
+          user_id: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          url?: string
+          description?: string | null
+          price?: number | null
+          currency?: string
+          collection_id?: number
+          user_id?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_collection_photo"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gallery_audio: {
+        Row: {
+          id: number
+          url: string
+          title: string | null
+          playback_mode: string
+          collection_id: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          url: string
+          title?: string | null
+          playback_mode?: string
+          collection_id: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          url?: string
+          title?: string | null
+          playback_mode?: string
+          collection_id?: number
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_collection_audio"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emoji: {
         Row: {
           created_at: string | null
@@ -1617,6 +1784,75 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string | null
+          photo_id: number | null
+          post_id: number | null
+          price: number
+          currency: string
+          quantity: number
+          options: string | null
+          status: string
+          status_changed_at: string | null
+          address: string | null
+          phone: string | null
+          email: string | null
+          comment: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string | null
+          photo_id?: number | null
+          post_id?: number | null
+          price: number
+          currency?: string
+          quantity?: number
+          options?: string | null
+          status?: string
+          status_changed_at?: string | null
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          comment?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string | null
+          photo_id?: number | null
+          post_id?: number | null
+          price?: number
+          currency?: string
+          quantity?: number
+          options?: string | null
+          status?: string
+          status_changed_at?: string | null
+          address?: string | null
+          phone?: string | null
+          email?: string | null
+          comment?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_order_photo"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_order_post"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_logs: {
         Row: {
           created_at: string
@@ -1726,9 +1962,11 @@ export type Database = {
       community_role: "owner" | "moderator" | "member"
       course_status: "draft" | "published" | "archived"
       discount_type: "percent" | "fixed"
+      gallery_playback_mode: "repeat_one" | "repeat_all" | "mix"
       homework_status: "ready" | "ok" | "reject"
       lesson_type: "lesson" | "test" | "assignment"
       membership_status: "active" | "canceled" | "expired" | "trial"
+      order_status: "new" | "paid" | "delivery" | "delivered" | "archived"
       payment_status: "pending" | "paid" | "failed" | "refunded"
       progress_status: "not_started" | "in_progress" | "completed"
       rating_level: "newbie" | "regular" | "experienced" | "guru"
@@ -1885,9 +2123,11 @@ export const Constants = {
       community_role: ["owner", "moderator", "member"],
       course_status: ["draft", "published", "archived"],
       discount_type: ["percent", "fixed"],
+      gallery_playback_mode: ["repeat_one", "repeat_all", "mix"],
       homework_status: ["ready", "ok", "reject"],
       lesson_type: ["lesson", "test", "assignment"],
       membership_status: ["active", "canceled", "expired", "trial"],
+      order_status: ["new", "paid", "delivery", "delivered", "archived"],
       payment_status: ["pending", "paid", "failed", "refunded"],
       progress_status: ["not_started", "in_progress", "completed"],
       rating_level: ["newbie", "regular", "experienced", "guru"],

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, Upload, X } from 'lucide-react';
 
 export default function CreateCommunity() {
@@ -23,7 +24,32 @@ export default function CreateCommunity() {
     slug: '',
     description: '',
     cover_image_url: '',
+    type: 'course',
   });
+
+  const communityTypes = [
+    {
+      value: 'course',
+      label: language === 'ru' ? 'Курс' : 'Course',
+      description: language === 'ru' 
+        ? 'Для создания курсов, обучения, консультации' 
+        : 'For creating courses, education, consultations',
+    },
+    {
+      value: 'shop',
+      label: language === 'ru' ? 'Магазин' : 'Shop',
+      description: language === 'ru' 
+        ? 'Для одного или нескольких магазинов с товарами/услугами' 
+        : 'For one or multiple shops with goods/services',
+    },
+    {
+      value: 'gallery',
+      label: language === 'ru' ? 'Галерея' : 'Gallery',
+      description: language === 'ru' 
+        ? 'Для создания клуба по интересам с персональными фото-галереями участников или авторскими блогами и общим тематическим форумом' 
+        : 'For creating an interest club with personal photo galleries of participants or author blogs and a general thematic forum',
+    },
+  ];
 
   useEffect(() => {
     checkAuth();
@@ -171,6 +197,7 @@ export default function CreateCommunity() {
           slug: formData.slug,
           description: formData.description || null,
           cover_image_url: formData.cover_image_url || null,
+          type: formData.type,
           creator_id: user.id,
         })
         .select()
@@ -220,6 +247,39 @@ export default function CreateCommunity() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Label>
+                {language === 'ru' ? 'Тип сообщества' : 'Community Type'} <span className="text-destructive">*</span>
+              </Label>
+              <RadioGroup 
+                value={formData.type} 
+                onValueChange={(value) => setFormData({ ...formData, type: value })}
+                className="grid grid-cols-1 gap-4"
+              >
+                {communityTypes.map((type) => (
+                  <div 
+                    key={type.value} 
+                    className={`flex items-start space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                      formData.type === type.value 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-input hover:border-primary/50'
+                    }`}
+                    onClick={() => setFormData({ ...formData, type: type.value })}
+                  >
+                    <RadioGroupItem value={type.value} className="mt-1" />
+                    <div className="flex-1">
+                      <Label className="text-base font-medium cursor-pointer">
+                        {type.label}
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {type.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">
                 {language === 'ru' ? 'Название' : 'Name'} <span className="text-destructive">*</span>

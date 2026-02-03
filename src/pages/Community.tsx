@@ -14,6 +14,7 @@ import { CoursesTab } from "@/components/CoursesTab";
 import { CommunityReplyDialog } from "@/components/CommunityReplyDialog";
 import { PostLikeButton } from "@/components/PostLikeButton";
 import { CommunityEventsTab } from "@/components/CommunityEventsTab";
+import { CommunityGalleriesTab } from "@/components/CommunityGalleriesTab";
 import { PrivateChatPanel } from "@/components/PrivateChatPanel";
 import { usePrivateChatAccess } from "@/hooks/usePrivateChatAccess";
 import { formatDistanceToNow } from "date-fns";
@@ -28,16 +29,7 @@ interface CommunityData {
   member_count: number;
   creator_id: string;
   content_html?: string | null;
-}
-
-interface CommunityData {
-  id: string;
-  name: string;
-  description: string | null;
-  cover_image_url: string | null;
-  member_count: number;
-  creator_id: string;
-  content_html?: string | null;
+  type: 'shop' | 'gallery' | 'course';
 }
 
 interface Post {
@@ -126,15 +118,29 @@ export default function Community({ user }: CommunityProps) {
   useEffect(() => {
     if (id) {
       setCommunityId(id);
-      setTabs([
+      
+      const baseTabs = [
         { value: "feed", label: language === "ru" ? "Лента" : "Feed" },
-        { value: "courses", label: language === "ru" ? "Курсы" : "Courses" },
         { value: "events", label: language === "ru" ? "События" : "Events" },
         { value: "about", label: language === "ru" ? "О сообществе" : "About" },
-      ]);
+      ];
+      
+      // Add tabs based on community type
+      if (community?.type === 'shop') {
+        baseTabs.splice(1, 0, { value: "shops", label: language === "ru" ? "Магазины" : "Shops" });
+      } else if (community?.type === 'gallery') {
+        baseTabs.splice(1, 0, { value: "galleries", label: language === "ru" ? "Галереи" : "Galleries" });
+      } else {
+        // course type - keep courses tab
+        baseTabs.splice(1, 0, { value: "courses", label: language === "ru" ? "Курсы" : "Courses" });
+      }
+      
+      setTabs(baseTabs);
+      
+      const validTabs = ["feed", "courses", "shops", "galleries", "events", "about"];
       const tabParam = searchParams.get("tab");
       setActiveTab(
-        tabParam && ["feed", "courses", "events", "about"].includes(tabParam) ? tabParam : "feed",
+        tabParam && validTabs.includes(tabParam) ? tabParam : "feed",
       );
     }
 
@@ -142,7 +148,7 @@ export default function Community({ user }: CommunityProps) {
       setCommunityId(null);
       setTabs([]);
     };
-  }, [id, language, setCommunityId, setTabs, setActiveTab, searchParams]);
+  }, [id, language, community, setCommunityId, setTabs, setActiveTab, searchParams]);
 
   const fetchCommunity = async () => {
     if (!id) return;
@@ -751,6 +757,16 @@ export default function Community({ user }: CommunityProps) {
           {/* Courses Tab */}
           {activeTab === "courses" && (
             <CoursesTab communityId={id!} isOwner={isOwner} userId={user?.id} language={language} navigate={navigate} />
+          )}
+
+          {/* Shops Tab */}
+          {activeTab === "shops" && community.type === 'shop' && (
+            <CommunityGalleriesTab communityId={id!} communityType="shop" language={language} />
+          )}
+
+          {/* Galleries Tab */}
+          {activeTab === "galleries" && community.type === 'gallery' && (
+            <CommunityGalleriesTab communityId={id!} communityType="gallery" language={language} />
           )}
 
           {/* Events Tab */}
