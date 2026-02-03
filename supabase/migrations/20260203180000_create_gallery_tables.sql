@@ -4,6 +4,7 @@ CREATE TABLE public.gallery_collections (
   name TEXT NOT NULL,
   year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE),
   thumbnail_url TEXT,
+  slideshow_speed INTEGER NOT NULL DEFAULT 5 CHECK (slideshow_speed >= 1 AND slideshow_speed <= 100),
   community_id UUID,
   user_id UUID NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -62,5 +63,7 @@ COMMENT ON TABLE public.gallery_collections IS 'Сборники - коллек�
 COMMENT ON TABLE public.gallery_posts IS 'Посты с HTML контентом и ценой';
 COMMENT ON TABLE public.gallery_photos IS 'Фото с ценой и описанием';
 COMMENT ON COLUMN public.gallery_collections.thumbnail_url IS 'URL обложки сборника';
+COMMENT ON COLUMN public.gallery_collections.slideshow_speed IS 'Скорость слайд-шоу в секундах (1-100)';
+COMMENT ON COLUMN public.gallery_collections.community_id IS 'ID связанного сообщества';
 COMMENT ON COLUMN public.gallery_posts.title IS 'Название поста';
 COMMENT ON COLUMN public.gallery_posts.thumbnail_url IS 'URL обложки поста';

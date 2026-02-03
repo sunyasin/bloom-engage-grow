@@ -52,6 +52,11 @@ export const Navigation = ({ user, isSuperuser, onAuthClick }: NavigationProps) 
                 Communities
               </Link>
               {user && (
+                <Link to="/my-gallery" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
+                  Мой фото-блог
+                </Link>
+              )}
+              {user && (
                 <Link to="/profile" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
                   My Profile
                 </Link>

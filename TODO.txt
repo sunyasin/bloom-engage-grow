@@ -1,5 +1,6 @@
 TODO Univer
-Supabase migration on supabase
+
+
 
 тг рассылки - 30 сообщений/сек, пауза 1 сек между отправками при большом количестве
 
@@ -41,3 +42,36 @@ Supabase migration on supabase
 UI: новый ReferralBlock компонент в Кабинете с ссылкой и статистикой
 Регистрация: реферальный код из URL сохраняется и привязывается к новому пользователю
 Платежи: скидка автоматически применяется при оплате портальной подписки, tribute-webhook обновляет статистику рефералов
+
+=======================
+Загрузка файлов галереи изменена с Supabase Storage на локальную файловую систему.
+
+Созданные/изменённые файлы:
+
+server/routes/upload.js - Новый API endpoint для загрузки файлов:
+
+POST /api/upload - загрузка одного файла
+POST /api/upload-multiple - загрузка нескольких файлов
+Файлы сохраняются в public/uploads/{folder}/
+Поддержка папок: gallery/thumbnails/ и gallery/{collectionId}/
+server/index.js - Добавлена раздача статических файлов из /uploads
+
+vite.config.ts - Добавлен прокси для /uploads и /api
+
+src/components/gallery/CreateCollectionDialog.tsx - Использует локальный API для загрузки thumbnails
+
+src/components/gallery/EditCollectionDialog.tsx - Использует локальный API для загрузки thumbnails
+
+src/components/gallery/AddPhotosDialog.tsx - Использует локальный API для загрузки фотографий
+
+Запуск:
+
+# Установить зависимости
+npm install multer
+
+# Запустить бэкенд
+npm run dev:backend
+
+# Запустить фронтенд
+npm run dev
+Файлы будут доступны по URL: http://localhost:3001/uploads/gallery/thumbnails/{filename}
