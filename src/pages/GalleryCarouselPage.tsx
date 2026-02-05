@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight, Shuffle, Repeat, Repeat1 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -9,6 +9,7 @@ interface GalleryCollection {
   id: number;
   name: string;
   slideshow_speed: number;
+  playback_mode: 'repeat_one' | 'repeat_all' | 'shuffle' | null;
 }
 
 interface GalleryPhoto {
@@ -26,12 +27,17 @@ interface GalleryPost {
   price: number | null;
 }
 
-interface GalleryAudio {
+interface GalleryAudioTrack {
   id: number;
   url: string;
-  audio_filename: string | null;
-  playback_mode: string;
+  audio_filename: string;
 }
+
+const PLAYBACK_MODE_CONFIG = {
+  repeat_all: { icon: Repeat, label: 'repeat_all' },
+  repeat_one: { icon: Repeat1, label: 'repeat_one' },
+  shuffle: { icon: Shuffle, label: 'shuffle' },
+} as const;
 
 export default function GalleryCarouselPage() {
   const { collectionId } = useParams();
@@ -43,7 +49,8 @@ export default function GalleryCarouselPage() {
   const [collection, setCollection] = useState<GalleryCollection | null>(null);
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [posts, setPosts] = useState<GalleryPost[]>([]);
-  const [audio, setAudio] = useState<GalleryAudio | null>(null);
+  const [audioTracks, setAudioTracks] = useState<GalleryAudioTrack[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(80);
@@ -58,7 +65,9 @@ export default function GalleryCarouselPage() {
 
   const allItems = [...photos.map(p => ({ type: 'photo' as const, ...p })), ...posts.map(p => ({ type: 'post' as const, ...p }))];
   const currentItem = allItems[currentIndex];
-  const hasAudio = !!audio;
+  const hasAudio = audioTracks.length > 0;
+  const currentTrack = audioTracks[currentTrackIndex];
+  const playbackMode = collection?.playback_mode || 'repeat_all';
 
   useEffect(() => {
     if (collectionIdNum) {
@@ -92,26 +101,52 @@ export default function GalleryCarouselPage() {
     }
   }, [volume, isMuted]);
 
-  // Автозапуск аудио при загрузке
+  // Play current track when it changes
   useEffect(() => {
-    if (audio?.url && audioRef.current) {
+    if (currentTrack && audioRef.current) {
+      audioRef.current.src = currentTrack.url;
+      if (isPlaying) {
+        audioRef.current.play().catch(() => {});
+      }
+    }
+  }, [currentTrack, isPlaying]);
+
+  // Handle audio ended
+  const handleAudioEnded = useCallback(() => {
+    if (playbackMode === 'repeat_one') {
+      // Replay same track
+      audioRef.current?.play().catch(() => {});
+    } else if (playbackMode === 'repeat_all') {
+      // Next track or loop to first
+      const nextIndex = (currentTrackIndex + 1) % audioTracks.length;
+      setCurrentTrackIndex(nextIndex);
+    } else if (playbackMode === 'shuffle') {
+      // Random track
+      const randomIndex = Math.floor(Math.random() * audioTracks.length);
+      setCurrentTrackIndex(randomIndex);
+    }
+  }, [playbackMode, currentTrackIndex, audioTracks.length]);
+
+  // Autoplay audio when collection loads
+  useEffect(() => {
+    if (hasAudio && currentTrack && isPlaying) {
       const playAudio = async () => {
         try {
           audioRef.current.volume = isMuted ? 0 : volume / 100;
-          await audioRef.current.play();
+          await audioRef.current?.play();
         } catch (e) {
           console.log('Audio autoplay blocked:', e);
         }
       };
       playAudio();
     }
-  }, [audio, isMuted, volume]);
+  }, [hasAudio, currentTrack]);
 
   const loadCollection = async (id: number) => {
     try {
       const { data, error } = await supabase
         .from('gallery_collections')
-        .select('id, name, slideshow_speed')
+        .select('id, name, slideshow_speed, playback_mode')
         .eq('id', id)
         .single();
       
@@ -139,10 +174,9 @@ export default function GalleryCarouselPage() {
           .order('created_at', { ascending: true }),
         supabase
           .from('gallery_audio')
-          .select('id, url, audio_filename, playback_mode')
+          .select('id, url, audio_filename')
           .eq('collection_id', id)
-          .limit(1)
-          .single()
+          .order('id', { ascending: true })
       ]);
 
       if (photosResult.error) throw photosResult.error;
@@ -152,10 +186,9 @@ export default function GalleryCarouselPage() {
       setPosts(postsResult.data || []);
       
       if (audioResult.data) {
-        setAudio(audioResult.data);
+        setAudioTracks(audioResult.data);
       }
     } catch (err: any) {
-      // Ошибка normal для audio если записей нет
       if (err.message !== 'PGRST116') {
         setError(err.message);
       }
@@ -186,12 +219,29 @@ export default function GalleryCarouselPage() {
     setCurrentIndex(prev => (prev - 1 + allItems.length) % allItems.length);
   }, [allItems.length]);
 
+  const goToNextTrack = () => {
+    const nextIndex = (currentTrackIndex + 1) % audioTracks.length;
+    setCurrentTrackIndex(nextIndex);
+  };
+
+  const goToPrevTrack = () => {
+    const prevIndex = (currentTrackIndex - 1 + audioTracks.length) % audioTracks.length;
+    setCurrentTrackIndex(prevIndex);
+  };
+
   const handleAddToOrder = () => {
     setOrderQuantity(prev => prev + 1);
   };
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play().catch(() => {});
+      }
+    }
   };
 
   const handleVolumeChange = (value: number[]) => {
@@ -208,6 +258,8 @@ export default function GalleryCarouselPage() {
   };
 
   const currentPrice = currentItem?.type === 'photo' ? currentItem.price : currentItem?.type === 'post' ? currentItem.price : null;
+
+  const ModeIcon = PLAYBACK_MODE_CONFIG[playbackMode as keyof typeof PLAYBACK_MODE_CONFIG]?.icon || Repeat;
 
   if (loading) {
     return (
@@ -231,11 +283,12 @@ export default function GalleryCarouselPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Audio element */}
-      {hasAudio && audio?.url && (
+      {hasAudio && currentTrack && (
         <audio
           ref={audioRef}
-          src={audio.url}
-          loop
+          src={currentTrack.url}
+          onEnded={handleAudioEnded}
+          autoPlay={isPlaying}
         />
       )}
 
@@ -247,6 +300,18 @@ export default function GalleryCarouselPage() {
           </Button>
           <h1 className="text-xl font-semibold">{collection?.name}</h1>
         </div>
+        
+        {/* Audio player info */}
+        {hasAudio && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ModeIcon className="h-4 w-4" />
+            <span>{playbackMode}</span>
+            <span>•</span>
+            <span>{currentTrackIndex + 1}/{audioTracks.length}</span>
+            <span>•</span>
+            <span className="truncate max-w-[200px]">{currentTrack?.audio_filename}</span>
+          </div>
+        )}
       </div>
 
       {/* Carousel Area */}
@@ -314,21 +379,36 @@ export default function GalleryCarouselPage() {
             </Button>
           )}
 
-          {/* Volume */}
+          {/* Audio Controls */}
           {hasAudio && (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={toggleMute}>
-                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            <>
+              <Button variant="ghost" size="icon" onClick={goToPrevTrack} title="Предыдущий трек">
+                <Play className="h-4 w-4 rotate-180" />
               </Button>
-              <Slider
-                value={[isMuted ? 0 : volume]}
-                onValueChange={handleVolumeChange}
-                min={0}
-                max={100}
-                step={1}
-                className="w-24"
-              />
-            </div>
+              
+              <Button variant="outline" size="icon" onClick={handlePlayPause}>
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
+              
+              <Button variant="ghost" size="icon" onClick={goToNextTrack} title="Следующий трек">
+                <Play className="h-4 w-4" />
+              </Button>
+
+              {/* Volume */}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={toggleMute}>
+                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </Button>
+                <Slider
+                  value={[isMuted ? 0 : volume]}
+                  onValueChange={handleVolumeChange}
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-24"
+                />
+              </div>
+            </>
           )}
 
           {/* Speed */}

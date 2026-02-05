@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, X, Play, Pause, Music } from 'lucide-react';
+import { Upload, X, Play, Pause, Music, Shuffle, Repeat, Repeat1, Trash2 } from 'lucide-react';
 
 interface Community {
   id: string;
@@ -19,6 +19,13 @@ interface Collection {
   year: number;
   community_id: string | null;
   thumbnail_url: string | null;
+  playback_mode: 'repeat_one' | 'repeat_all' | 'shuffle' | null;
+}
+
+interface GalleryAudioTrack {
+  id?: number;
+  url: string;
+  audio_filename: string;
 }
 
 interface EditCollectionDialogProps {
@@ -30,6 +37,11 @@ interface EditCollectionDialogProps {
 }
 
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10 MB
+const PLAYBACK_MODES = [
+  { value: 'repeat_all', label: 'repeat_all', icon: Repeat },
+  { value: 'repeat_one', label: 'repeat_one', icon: Repeat1 },
+  { value: 'shuffle', label: 'shuffle', icon: Shuffle },
+] as const;
 
 export function EditCollectionDialog({
   open,
@@ -43,10 +55,10 @@ export function EditCollectionDialog({
   const [communityId, setCommunityId] = useState('');
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
-  const [audio, setAudio] = useState<File | null>(null);
-  const [audioPreview, setAudioPreview] = useState<string | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioFilename, setAudioFilename] = useState<string | null>(null);
+  const [audioTracks, setAudioTracks] = useState<GalleryAudioTrack[]>([]);
+  const [playbackMode, setPlaybackMode] = useState<'repeat_one' | 'repeat_all' | 'shuffle'>('repeat_all');
+  const [newAudio, setNewAudio] = useState<File | null>(null);
+  const [newAudioPreview, setNewAudioPreview] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -61,47 +73,57 @@ export function EditCollectionDialog({
       setYear(collection.year.toString());
       setCommunityId(collection.community_id || '');
       setThumbnailPreview(collection.thumbnail_url);
+      setPlaybackMode(collection.playback_mode || 'repeat_all');
       setThumbnail(null);
+      setNewAudio(null);
+      setNewAudioPreview(null);
+      setIsPlaying(false);
       // Загружаем аудио из gallery_audio
       loadCollectionAudio(collection.id);
-      setAudio(null);
-      setAudioPreview(null);
-      setIsPlaying(false);
     }
   }, [collection]);
-
-  // Загрузка аудио записи для коллекции
-  const loadCollectionAudio = async (collectionId: number) => {
-    try {
-      const { data } = await supabase
-        .from('gallery_audio')
-        .select('url, audio_filename')
-        .eq('collection_id', collectionId)
-        .limit(1)
-        .single();
-      
-      if (data) {
-        setAudioUrl(data.url);
-        setAudioFilename(data.audio_filename);
-      } else {
-        setAudioUrl(null);
-        setAudioFilename(null);
-      }
-    } catch (e) {
-      // Записей может не быть - это нормально
-      setAudioUrl(null);
-      setAudioFilename(null);
-    }
-  };
 
   // Cleanup audio preview URL
   useEffect(() => {
     return () => {
-      if (audioPreview) {
-        URL.revokeObjectURL(audioPreview);
+      if (newAudioPreview) {
+        URL.revokeObjectURL(newAudioPreview);
       }
     };
-  }, [audioPreview]);
+  }, [newAudioPreview]);
+
+  // Cleanup audio player on unmount
+  useEffect(() => {
+    return () => {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Загрузка аудио записей для коллекции
+  const loadCollectionAudio = async (collectionId: number) => {
+    try {
+      const { data } = await supabase
+        .from('gallery_audio')
+        .select('id, url, audio_filename')
+        .eq('collection_id', collectionId)
+        .order('id', { ascending: true });
+      
+      if (data) {
+        setAudioTracks(data.map(t => ({
+          id: t.id,
+          url: t.url,
+          audio_filename: t.audio_filename
+        })));
+      } else {
+        setAudioTracks([]);
+      }
+    } catch (e) {
+      setAudioTracks([]);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,12 +143,11 @@ export function EditCollectionDialog({
     }
     
     if (file.type.startsWith('audio/')) {
-      if (audioPreview) {
-        URL.revokeObjectURL(audioPreview);
+      if (newAudioPreview) {
+        URL.revokeObjectURL(newAudioPreview);
       }
-      setAudio(file);
-      setAudioFilename(file.name); // Сохраняем оригинальное имя
-      setAudioPreview(URL.createObjectURL(file));
+      setNewAudio(file);
+      setNewAudioPreview(URL.createObjectURL(file));
       setIsPlaying(false);
     }
   };
@@ -142,30 +163,18 @@ export function EditCollectionDialog({
     }
   };
 
-  const removeAudio = async () => {
-    if (audioPreview) {
-      URL.revokeObjectURL(audioPreview);
-    }
+  const removeAudioTrack = async (trackId: number) => {
+    // Удаляем из БД
+    await supabase
+      .from('gallery_audio')
+      .delete()
+      .eq('id', trackId);
     
-    // Удаляем запись из gallery_audio
-    if (collection) {
-      await supabase
-        .from('gallery_audio')
-        .delete()
-        .eq('collection_id', collection.id);
-    }
-    
-    setAudio(null);
-    setAudioUrl(null);
-    setAudioFilename(null);
-    setAudioPreview(null);
-    setIsPlaying(false);
-    if (audioInputRef.current) {
-      audioInputRef.current.value = '';
-    }
+    // Удаляем из локального списка
+    setAudioTracks(prev => prev.filter(t => t.id !== trackId));
   };
 
-  const toggleAudioPlayback = () => {
+  const togglePreviewPlayback = () => {
     if (!audioPlayerRef.current) return;
     
     if (isPlaying) {
@@ -184,8 +193,6 @@ export function EditCollectionDialog({
 
     try {
       let thumbnailUrl: string | null = thumbnailPreview;
-      let finalAudioUrl: string | null = audioUrl;
-      let finalAudioFilename: string | null = audioFilename;
 
       // Upload thumbnail if new
       if (thumbnail) {
@@ -203,12 +210,12 @@ export function EditCollectionDialog({
         thumbnailUrl = publicUrl;
       }
 
-      // Upload audio if new
-      if (audio) {
-        const fileName = generateGalleryFileName(audio.name, GALLERY_AUDIO_FOLDER);
+      // Upload new audio if exists
+      if (newAudio) {
+        const fileName = generateGalleryFileName(newAudio.name, GALLERY_AUDIO_FOLDER);
         const { error: uploadError } = await supabase.storage
           .from(GALLERY_BUCKET)
-          .upload(fileName, audio, { upsert: true });
+          .upload(fileName, newAudio, { upsert: true });
 
         if (uploadError) throw uploadError;
 
@@ -216,25 +223,16 @@ export function EditCollectionDialog({
           .from(GALLERY_BUCKET)
           .getPublicUrl(fileName);
 
-        // Удаляем старую запись если есть
-        await supabase
-          .from('gallery_audio')
-          .delete()
-          .eq('collection_id', collection.id);
-
         // Создаём новую запись в gallery_audio
         const { error: audioError } = await supabase
           .from('gallery_audio')
           .insert({
             collection_id: collection.id,
             url: publicUrl,
-            audio_filename: audio.name,
-            playback_mode: 'repeat_all'
+            audio_filename: newAudio.name
           });
 
         if (audioError) throw audioError;
-      } else if (audioUrl && audioFilename) {
-        // Аудио уже существует, ничего не делаем
       }
 
       // Update record in Supabase
@@ -244,7 +242,8 @@ export function EditCollectionDialog({
           name,
           year: parseInt(year),
           community_id: communityId && communityId !== 'none' ? communityId : null,
-          thumbnail_url: thumbnailUrl
+          thumbnail_url: thumbnailUrl,
+          playback_mode: playbackMode
         })
         .eq('id', collection.id);
 
@@ -260,17 +259,20 @@ export function EditCollectionDialog({
     }
   };
 
-  // Determine what filename to display
-  const displayAudioName = audio ? audio.name : (audioFilename || (audioUrl ? 'Аудио трек' : ''));
+  // Get current preview audio URL
+  const previewAudioUrl = newAudioPreview || (audioTracks.length > 0 ? audioTracks[0].url : null);
+
+  const currentMode = PLAYBACK_MODES.find(m => m.value === playbackMode) || PLAYBACK_MODES[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Редактировать сборник</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+        <div className="overflow-auto max-h-[400px] pr-2">
+          <form id="collection-form" onSubmit={handleSubmit}>
+            <div className="grid gap-3 pb-4">
             {/* Thumbnail */}
             <div className="grid gap-2">
               <Label>Обложка</Label>
@@ -349,25 +351,94 @@ export function EditCollectionDialog({
               </Select>
             </div>
 
-            {/* Audio - последнее поле */}
+            {/* Audio Tracks */}
             <div className="grid gap-2">
-              <Label>Аудио</Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Аудио треки</Label>
+                {/* Playback Mode Selector */}
+                <Select 
+                  value={playbackMode} 
+                  onValueChange={(v: 'repeat_one' | 'repeat_all' | 'shuffle') => setPlaybackMode(v)}
+                >
+                  <SelectTrigger className="h-7 text-xs w-32">
+                    <currentMode.icon className="h-3 w-3 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLAYBACK_MODES.map((mode) => (
+                      <SelectItem key={mode.value} value={mode.value}>
+                        <div className="flex items-center">
+                          <mode.icon className="h-4 w-4 mr-2" />
+                          {mode.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {audioTracks.length > 0 ? (
+                <div className="space-y-2">
+                  {audioTracks.map((track, index) => (
+                    <div 
+                      key={track.id} 
+                      className="flex items-center gap-2 p-2 bg-muted rounded-lg"
+                    >
+                      {/* Play/Pause */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          if (audioPlayerRef.current) {
+                            audioPlayerRef.current.src = track.url;
+                            audioPlayerRef.current.play().catch(() => {});
+                            setIsPlaying(true);
+                          }
+                        }}
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
+
+                      {/* Track name */}
+                      <span className="flex-1 text-sm truncate">
+                        {index + 1}. {track.audio_filename}
+                      </span>
+
+                      {/* Delete */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => track.id && removeAudioTrack(track.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Нет аудио треков</p>
+              )}
+
+              {/* Add new audio */}
+              <div className="flex items-center gap-2 mt-2">
                 <Input
-                  value={displayAudioName}
-                  placeholder="Файл не выбран"
+                  value={newAudio ? newAudio.name : ''}
+                  placeholder="Выберите файл"
                   readOnly
                   className="flex-1 bg-muted"
                 />
                 <div className="flex items-center gap-1">
-                  {audio || audioUrl ? (
+                  {previewAudioUrl ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9"
-                      onClick={toggleAudioPlayback}
-                      disabled={!audio && !audioUrl}
+                      onClick={togglePreviewPlayback}
                     >
                       {isPlaying ? (
                         <Pause className="h-4 w-4" />
@@ -385,21 +456,27 @@ export function EditCollectionDialog({
                   >
                     <Upload className="h-4 w-4" />
                   </Button>
-                  {audio || audioUrl ? (
+                  {newAudio && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9 text-destructive hover:text-destructive"
-                      onClick={removeAudio}
+                      onClick={() => {
+                        setNewAudio(null);
+                        setNewAudioPreview(null);
+                        if (audioInputRef.current) {
+                          audioInputRef.current.value = '';
+                        }
+                      }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
-                  ) : null}
+                  )}
                 </div>
                 <audio
                   ref={audioPlayerRef}
-                  src={audioPreview || audioUrl || undefined}
+                  src={previewAudioUrl || undefined}
                   onEnded={() => setIsPlaying(false)}
                   className="hidden"
                 />
@@ -413,15 +490,16 @@ export function EditCollectionDialog({
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Отмена
-            </Button>
-            <Button type="submit" disabled={loading || !name.trim()}>
-              {loading ? 'Сохранение...' : 'Сохранить'}
-            </Button>
-          </DialogFooter>
-        </form>
+          </form>
+        </div>
+        <div className="flex justify-end gap-2 pt-2 border-t mt-2 flex-shrink-0">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Отмена
+          </Button>
+          <Button type="submit" form="collection-form" disabled={loading || !name.trim()}>
+            {loading ? 'Сохранение...' : 'Сохранить'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

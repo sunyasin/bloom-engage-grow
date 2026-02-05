@@ -19,6 +19,7 @@ interface GalleryCollection {
   audio_url: string | null;
   audio_filename: string | null;
   community_id: string | null;
+  playback_mode: 'repeat_one' | 'repeat_all' | 'shuffle' | null;
   created_at: string;
 }
 
