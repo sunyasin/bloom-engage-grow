@@ -338,7 +338,7 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
                         <div
                           key={post.id}
                           className="aspect-[4/3] rounded-lg overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => navigate(`/gallery/${selectedCollection.id}`)}
+                          onClick={() => navigate(`/gallery/${selectedCollection.id}`, { state: { returnTo: '/my-gallery' } })}
                         >
                           {post.thumbnail_url ? (
                             <img
@@ -371,7 +371,7 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
                         <div
                           key={photo.id}
                           className="aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer group hover:opacity-80 transition-opacity relative"
-                          onClick={() => navigate(`/gallery/${selectedCollection.id}`)}
+                          onClick={() => navigate(`/gallery/${selectedCollection.id}`, { state: { returnTo: '/my-gallery' } })}
                         >
                           <img
                             src={photo.url}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,8 @@ interface GalleryAudio {
 export default function GalleryCarouselPage() {
   const { collectionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = location.state?.returnTo || '/my-gallery';
   const collectionIdNum = collectionId ? parseInt(collectionId) : null;
   
   const [collection, setCollection] = useState<GalleryCollection | null>(null);
@@ -43,7 +45,7 @@ export default function GalleryCarouselPage() {
   const [posts, setPosts] = useState<GalleryPost[]>([]);
   const [audio, setAudio] = useState<GalleryAudio | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
   const [speed, setSpeed] = useState(5);
@@ -78,7 +80,7 @@ export default function GalleryCarouselPage() {
       stopSlideshow();
     }
     return () => stopSlideshow();
-  }, [isPlaying, currentIndex, speed]);
+  }, [isPlaying, currentIndex, speed, allItems.length]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -136,6 +138,13 @@ export default function GalleryCarouselPage() {
       
       if (audioResult.data) {
         setAudio(audioResult.data);
+        // Автоматически включаем воспроизведение звука если есть
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.volume = isMuted ? 0 : volume / 100;
+            audioRef.current.play().catch(() => {});
+          }
+        }, 100);
       }
     } catch (err: any) {
       setError(err.message);
@@ -227,7 +236,7 @@ export default function GalleryCarouselPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(returnTo)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold">{collection?.name}</h1>

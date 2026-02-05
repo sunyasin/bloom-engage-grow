@@ -129,7 +129,7 @@ export default function Community({ user }: CommunityProps) {
       if (community?.type === 'shop') {
         baseTabs.splice(1, 0, { value: "shops", label: language === "ru" ? "Магазины" : "Shops" });
       } else if (community?.type === 'gallery') {
-        baseTabs.splice(1, 0, { value: "galleries", label: language === "ru" ? "Галереи" : "Galleries" });
+        baseTabs.splice(1, 0, { value: "gallery", label: language === "ru" ? "Галереи" : "Galleries" });
       } else {
         // course type - keep courses tab
         baseTabs.splice(1, 0, { value: "courses", label: language === "ru" ? "Курсы" : "Courses" });
@@ -137,7 +137,7 @@ export default function Community({ user }: CommunityProps) {
       
       setTabs(baseTabs);
       
-      const validTabs = ["feed", "courses", "shops", "galleries", "events", "about"];
+      const validTabs = ["feed", "courses", "shops", "gallery", "events", "about"];
       const tabParam = searchParams.get("tab");
       setActiveTab(
         tabParam && validTabs.includes(tabParam) ? tabParam : "feed",
@@ -765,7 +765,7 @@ export default function Community({ user }: CommunityProps) {
           )}
 
           {/* Galleries Tab */}
-          {activeTab === "galleries" && community.type === 'gallery' && (
+          {activeTab === "gallery" && community.type === 'gallery' && (
             <CommunityGalleriesTab communityId={id!} communityType="gallery" language={language} />
           )}
 

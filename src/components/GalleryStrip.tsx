@@ -44,7 +44,8 @@ export function GalleryStrip({ title, items, language }: GalleryStripProps) {
   };
 
   const handleItemClick = (id: number | string) => {
-    navigate(`/gallery/${id}`);
+    // Всегда возвращаем на вкладку ?tab=gallery
+    navigate(`/gallery/${id}`, { state: { returnTo: `${window.location.pathname}?tab=gallery` } });
   };
 
   if (items.length === 0) {
@@ -77,10 +78,10 @@ export function GalleryStrip({ title, items, language }: GalleryStripProps) {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex-shrink-0 w-[260px] cursor-pointer group"
+              className="flex-shrink-0 w-[130px] cursor-pointer group"
               onClick={() => handleItemClick(item.id)}
             >
-              <div className="aspect-[4/5] rounded-lg overflow-hidden bg-muted mb-2 relative">
+              <div className="aspect-[4/5] rounded-lg overflow-hidden bg-muted mb-2 relative h-[160px]">
                 {item.thumbnail_url ? (
                   <img
                     src={item.thumbnail_url}
