@@ -24,7 +24,7 @@ interface Collection {
 interface GalleryAudioTrack {
   id?: number;
   url: string;
-  title: string;
+  audio_filename: string;
 }
 
 interface EditCollectionDialogProps {
@@ -99,7 +99,7 @@ export function EditCollectionDialog({
     try {
       const { data } = await supabase
         .from('gallery_audio')
-        .select('id, url, title')
+        .select('id, url, audio_filename')
         .eq('collection_id', collectionId)
         .order('id', { ascending: true });
       
@@ -107,7 +107,7 @@ export function EditCollectionDialog({
         setAudioTracks(data.map(t => ({
           id: t.id,
           url: t.url,
-          title: t.title
+          audio_filename: t.audio_filename
         })));
       } else {
         setAudioTracks([]);
@@ -385,7 +385,7 @@ export function EditCollectionDialog({
 
                       {/* Track name */}
                       <span className="flex-1 text-sm truncate">
-                        {index + 1}. {track.title}
+                        {index + 1}. {track.audio_filename}
                       </span>
 
                       {/* Delete */}

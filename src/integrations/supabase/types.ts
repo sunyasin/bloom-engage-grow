@@ -719,7 +719,7 @@ export type Database = {
         Row: {
           id: number
           url: string
-          title: string | null
+          audio_filename: string | null
           playback_mode: string
           collection_id: number
           created_at: string | null
@@ -727,7 +727,7 @@ export type Database = {
         Insert: {
           id?: number
           url: string
-          title?: string | null
+          audio_filename?: string | null
           playback_mode?: string
           collection_id: number
           created_at?: string | null
@@ -735,7 +735,7 @@ export type Database = {
         Update: {
           id?: number
           url?: string
-          title?: string | null
+          audio_filename?: string | null
           playback_mode?: string
           collection_id?: number
           created_at?: string | null

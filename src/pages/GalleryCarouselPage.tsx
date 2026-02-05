@@ -36,7 +36,7 @@ interface GalleryPost {
 interface GalleryAudioTrack {
   id: number;
   url: string;
-  title: string;
+  audio_filename: string;
 }
 
 export default function GalleryCarouselPage() {
@@ -97,12 +97,15 @@ export default function GalleryCarouselPage() {
 
   // Play current track when it changes
   useEffect(() => {
-    console.log('[DEBUG] audio track effect:', { currentTrack, isAudioPlaying });
+    console.log('[DEBUG] audio track effect:', { currentTrack, isAudioPlaying, hasAudio });
     if (currentTrack && audioRef.current) {
+      console.log('[DEBUG] setting audio src to:', currentTrack.url);
       audioRef.current.src = currentTrack.url;
       if (isAudioPlaying) {
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(e => console.log('[DEBUG] track effect play() failed:', e));
       }
+    } else if (!currentTrack) {
+      console.log('[DEBUG] no currentTrack, audioTracks.length:', audioTracks.length);
     }
   }, [currentTrack, isAudioPlaying]);
 
@@ -126,8 +129,11 @@ export default function GalleryCarouselPage() {
       const playAudio = async () => {
         try {
           await audioRef.current?.play();
+          console.log('[DEBUG] autoplay play() result: success');
         } catch (e) {
-          console.log('Audio autoplay blocked:', e);
+          console.log('[DEBUG] autoplay play() blocked:', e);
+          // Update state to reflect that audio is not playing
+          setIsAudioPlaying(false);
         }
       };
       playAudio();
@@ -166,7 +172,7 @@ export default function GalleryCarouselPage() {
           .order('created_at', { ascending: true }),
         supabase
           .from('gallery_audio')
-          .select('id, url, title')
+          .select('id, url, audio_filename')
           .eq('collection_id', id)
           .order('id', { ascending: true })
       ]);
@@ -314,15 +320,26 @@ export default function GalleryCarouselPage() {
   };
 
   const toggleAudioPlayPause = () => {
-    console.log('[DEBUG] toggle audio:', !isAudioPlaying);
+    console.log('[DEBUG] toggleAudioPlayPause clicked, hasAudio:', hasAudio, 'audioRef.current:', !!audioRef.current);
     if (audioRef.current) {
+      console.log('[DEBUG] audio.currentTime:', audioRef.current.currentTime, 'paused:', audioRef.current.paused);
       if (audioRef.current.paused) {
-        audioRef.current.play().catch(() => {});
-        setIsAudioPlaying(true);
+        audioRef.current.play()
+          .then(() => {
+            console.log('[DEBUG] audio play() succeeded');
+            setIsAudioPlaying(true);
+          })
+          .catch((e) => {
+            console.error('[DEBUG] audio play() failed:', e);
+            // Even if play fails, update state to reflect reality
+            setIsAudioPlaying(false);
+          });
       } else {
         audioRef.current.pause();
         setIsAudioPlaying(false);
       }
+    } else {
+      console.warn('[DEBUG] audioRef.current is null - audio element not rendered, hasAudio:', hasAudio);
     }
   };
 
@@ -370,6 +387,9 @@ export default function GalleryCarouselPage() {
             src={currentTrack.url}
             onEnded={handleAudioEnded}
             autoPlay={isAudioPlaying}
+            onPlay={() => console.log('[DEBUG] audio onPlay event')}
+            onPause={() => console.log('[DEBUG] audio onPause event')}
+            onError={(e) => console.log('[DEBUG] audio onError event:', e)}
           />
         )}
 
@@ -387,7 +407,7 @@ export default function GalleryCarouselPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{currentTrackIndex + 1}/{audioTracks.length}</span>
               <span>•</span>
-              <span className="truncate max-w-[200px]">{currentTrack?.title || 'Аудио'}</span>
+              <span className="truncate max-w-[200px]">{currentTrack?.audio_filename || 'Аудио'}</span>
             </div>
           )}
         </div>
@@ -480,55 +500,58 @@ export default function GalleryCarouselPage() {
         {/* Toolbar */}
         <div className="flex items-center justify-between px-6 py-4 border-t">
           <div className="flex items-center gap-4">
-            {/* Audio Controls - слева */}
-            {/* Всегда показываем для отладки */}
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleAudioPlayPause}
-                  >
-                    {isAudioPlaying ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isAudioPlaying ? 'Пауза' : 'Воспроизвести аудио'}</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <div className="flex items-center gap-2">
-                <div title={`Громкость: ${volume}%`}>
-                  <Slider
-                    value={[volume]}
-                    onValueChange={handleVolumeChange}
-                    min={0}
-                    max={100}
-                    step={1}
-                    className="w-24"
-                  />
-                </div>
+            {/* Audio Controls - показываем только когда есть аудио */}
+            {hasAudio ? (
+              <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={toggleMute}>
-                      {isMuted || volume === 0 ? (
-                        <VolumeX className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleAudioPlayPause}
+                    >
+                      {isAudioPlaying ? (
+                        <Pause className="h-4 w-4" />
                       ) : (
-                        <Volume2 className="h-4 w-4" />
+                        <Play className="h-4 w-4" />
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{isMuted ? 'Включить звук' : 'Без звука'}</p>
+                    <p>{isAudioPlaying ? 'Пауза' : 'Воспроизвести аудио'}</p>
                   </TooltipContent>
                 </Tooltip>
-              </div>
-            </>
+
+                <div className="flex items-center gap-2">
+                  <div title={`Громкость: ${volume}%`}>
+                    <Slider
+                      value={[volume]}
+                      onValueChange={handleVolumeChange}
+                      min={0}
+                      max={100}
+                      step={1}
+                      className="w-24"
+                    />
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={toggleMute}>
+                        {isMuted || volume === 0 ? (
+                          <VolumeX className="h-4 w-4" />
+                        ) : (
+                          <Volume2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isMuted ? 'Включить звук' : 'Без звука'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground"></span>
+            )}
 
             {/* Speed slider */}
             <div title={`Скорость: ${speed} сек`}>
