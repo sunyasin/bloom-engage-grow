@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, X, Play, Pause, Music, Shuffle, Repeat, Repeat1, Trash2 } from 'lucide-react';
+import { Upload, X, Play, Pause, Music, Trash2 } from 'lucide-react';
 
 interface Community {
   id: string;
@@ -19,13 +19,12 @@ interface Collection {
   year: number;
   community_id: string | null;
   thumbnail_url: string | null;
-  playback_mode: 'repeat_one' | 'repeat_all' | 'shuffle' | null;
 }
 
 interface GalleryAudioTrack {
   id?: number;
   url: string;
-  audio_filename: string;
+  title: string;
 }
 
 interface EditCollectionDialogProps {
@@ -37,11 +36,6 @@ interface EditCollectionDialogProps {
 }
 
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10 MB
-const PLAYBACK_MODES = [
-  { value: 'repeat_all', label: 'repeat_all', icon: Repeat },
-  { value: 'repeat_one', label: 'repeat_one', icon: Repeat1 },
-  { value: 'shuffle', label: 'shuffle', icon: Shuffle },
-] as const;
 
 export function EditCollectionDialog({
   open,
@@ -56,7 +50,6 @@ export function EditCollectionDialog({
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [audioTracks, setAudioTracks] = useState<GalleryAudioTrack[]>([]);
-  const [playbackMode, setPlaybackMode] = useState<'repeat_one' | 'repeat_all' | 'shuffle'>('repeat_all');
   const [newAudio, setNewAudio] = useState<File | null>(null);
   const [newAudioPreview, setNewAudioPreview] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -73,7 +66,6 @@ export function EditCollectionDialog({
       setYear(collection.year.toString());
       setCommunityId(collection.community_id || '');
       setThumbnailPreview(collection.thumbnail_url);
-      setPlaybackMode(collection.playback_mode || 'repeat_all');
       setThumbnail(null);
       setNewAudio(null);
       setNewAudioPreview(null);
@@ -107,7 +99,7 @@ export function EditCollectionDialog({
     try {
       const { data } = await supabase
         .from('gallery_audio')
-        .select('id, url, audio_filename')
+        .select('id, url, title')
         .eq('collection_id', collectionId)
         .order('id', { ascending: true });
       
@@ -115,7 +107,7 @@ export function EditCollectionDialog({
         setAudioTracks(data.map(t => ({
           id: t.id,
           url: t.url,
-          audio_filename: t.audio_filename
+          title: t.title
         })));
       } else {
         setAudioTracks([]);
@@ -229,7 +221,7 @@ export function EditCollectionDialog({
           .insert({
             collection_id: collection.id,
             url: publicUrl,
-            audio_filename: newAudio.name
+            title: newAudio.name
           });
 
         if (audioError) throw audioError;
@@ -242,8 +234,7 @@ export function EditCollectionDialog({
           name,
           year: parseInt(year),
           community_id: communityId && communityId !== 'none' ? communityId : null,
-          thumbnail_url: thumbnailUrl,
-          playback_mode: playbackMode
+          thumbnail_url: thumbnailUrl
         })
         .eq('id', collection.id);
 
@@ -261,8 +252,6 @@ export function EditCollectionDialog({
 
   // Get current preview audio URL
   const previewAudioUrl = newAudioPreview || (audioTracks.length > 0 ? audioTracks[0].url : null);
-
-  const currentMode = PLAYBACK_MODES.find(m => m.value === playbackMode) || PLAYBACK_MODES[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -353,29 +342,7 @@ export function EditCollectionDialog({
 
             {/* Audio Tracks */}
             <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label>Аудио треки</Label>
-                {/* Playback Mode Selector */}
-                <Select 
-                  value={playbackMode} 
-                  onValueChange={(v: 'repeat_one' | 'repeat_all' | 'shuffle') => setPlaybackMode(v)}
-                >
-                  <SelectTrigger className="h-7 text-xs w-32">
-                    <currentMode.icon className="h-3 w-3 mr-1" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PLAYBACK_MODES.map((mode) => (
-                      <SelectItem key={mode.value} value={mode.value}>
-                        <div className="flex items-center">
-                          <mode.icon className="h-4 w-4 mr-2" />
-                          {mode.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label>Аудио треки</Label>
               
               {audioTracks.length > 0 ? (
                 <div className="space-y-2">
@@ -392,18 +359,33 @@ export function EditCollectionDialog({
                         className="h-8 w-8"
                         onClick={() => {
                           if (audioPlayerRef.current) {
-                            audioPlayerRef.current.src = track.url;
-                            audioPlayerRef.current.play().catch(() => {});
-                            setIsPlaying(true);
+                            const currentSrc = audioPlayerRef.current.src;
+                            const isCurrentTrack = currentSrc === track.url;
+                            
+                            if (isCurrentTrack && !audioPlayerRef.current.paused) {
+                              // Pause current track
+                              audioPlayerRef.current.pause();
+                              setIsPlaying(false);
+                            } else {
+                              // Stop current and play new track
+                              audioPlayerRef.current.pause();
+                              audioPlayerRef.current.src = track.url;
+                              audioPlayerRef.current.play().catch(() => {});
+                              setIsPlaying(true);
+                            }
                           }
                         }}
                       >
-                        <Play className="h-4 w-4" />
+                        {audioPlayerRef.current?.src === track.url && !audioPlayerRef.current?.paused ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
                       </Button>
 
                       {/* Track name */}
                       <span className="flex-1 text-sm truncate">
-                        {index + 1}. {track.audio_filename}
+                        {index + 1}. {track.title}
                       </span>
 
                       {/* Delete */}
@@ -477,8 +459,10 @@ export function EditCollectionDialog({
                 <audio
                   ref={audioPlayerRef}
                   src={previewAudioUrl || undefined}
-                  onEnded={() => setIsPlaying(false)}
-                  className="hidden"
+                  onEnded={() => {
+                    setIsPlaying(false);
+                  }}
+                  style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
                 />
               </div>
               <input
