@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight, Edit2, Trash2, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/contexts/CartContext';
+import { User } from '@supabase/supabase-js';
 
 interface GalleryCollection {
   id: number;
   name: string;
   slideshow_speed: number;
+  user_id: string;
 }
 
 interface GalleryPhoto {
@@ -32,7 +36,7 @@ interface GalleryPost {
 interface GalleryAudioTrack {
   id: number;
   url: string;
-  audio_filename: string;
+  title: string;
 }
 
 export default function GalleryCarouselPage() {
@@ -56,12 +60,15 @@ export default function GalleryCarouselPage() {
   const [speed, setSpeed] = useState(5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [orderQuantity, setOrderQuantity] = useState(1);
   // Edit description state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editDescription, setEditDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  // Add to cart animation state
+  const [isAdded, setIsAdded] = useState(false);
   const { toast } = useToast();
+  const { addItem } = useCart();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const slideshowRef = useRef<NodeJS.Timeout | null>(null);
@@ -131,7 +138,7 @@ export default function GalleryCarouselPage() {
     try {
       const { data, error } = await supabase
         .from('gallery_collections')
-        .select('id, name, slideshow_speed')
+        .select('id, name, slideshow_speed, user_id')
         .eq('id', id)
         .single();
        
@@ -145,7 +152,7 @@ export default function GalleryCarouselPage() {
   const loadItems = async (id: number) => {
     try {
       setLoading(true);
-       
+        
       const [photosResult, postsResult, audioResult] = await Promise.all([
         supabase
           .from('gallery_photos')
@@ -159,7 +166,7 @@ export default function GalleryCarouselPage() {
           .order('created_at', { ascending: true }),
         supabase
           .from('gallery_audio')
-          .select('id, url, audio_filename')
+          .select('id, url, title')
           .eq('collection_id', id)
           .order('id', { ascending: true })
       ]);
@@ -181,6 +188,20 @@ export default function GalleryCarouselPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Load user session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (collectionIdNum) {
@@ -221,8 +242,33 @@ export default function GalleryCarouselPage() {
     setCurrentTrackIndex(prevIndex);
   };
 
-  const handleAddToOrder = () => {
-    setOrderQuantity(prev => prev + 1);
+  const handleAddToOrder = async () => {
+    if (!user) {
+      toast({
+        title: 'Войдите в систему',
+        description: 'Для добавления в корзину необходимо войти в систему',
+        variant: 'destructive',
+        duration: 3000,
+      });
+      return;
+    }
+    
+    if (!currentItem || !collection) return;
+    
+    // Добавляем в корзину
+    addItem({
+      id: `${currentItem.type}_${currentItem.id}`,
+      type: currentItem.type,
+      itemId: currentItem.id,
+      authorId: collection.user_id,
+      name: currentItem.type === 'photo' ? `Фото ${currentItem.id}` : (currentItem.title || 'Пост'),
+      price: currentItem.price || 0,
+      collectionName: collection.name,
+    });
+    
+    // Показываем анимацию галочки
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 1000);
   };
 
   const openEditDialog = () => {
@@ -316,199 +362,256 @@ export default function GalleryCarouselPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Audio element */}
-      {hasAudio && currentTrack && (
-        <audio
-          ref={audioRef}
-          src={currentTrack.url}
-          onEnded={handleAudioEnded}
-          autoPlay={isAudioPlaying}
-        />
-      )}
+      <TooltipProvider>
+        {/* Audio element */}
+        {hasAudio && currentTrack && (
+          <audio
+            ref={audioRef}
+            src={currentTrack.url}
+            onEnded={handleAudioEnded}
+            autoPlay={isAudioPlaying}
+          />
+        )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(returnTo)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-semibold">{collection?.name}</h1>
-        </div>
-         
-        {/* Audio player info */}
-        {hasAudio && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{currentTrackIndex + 1}/{audioTracks.length}</span>
-            <span>•</span>
-            <span className="truncate max-w-[200px]">{currentTrack?.audio_filename}</span>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(returnTo)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold">{collection?.name}</h1>
           </div>
-        )}
-      </div>
+            
+          {/* Audio player info */}
+          {hasAudio && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{currentTrackIndex + 1}/{audioTracks.length}</span>
+              <span>•</span>
+              <span className="truncate max-w-[200px]">{currentTrack?.title || 'Аудио'}</span>
+            </div>
+          )}
+        </div>
 
-      {/* Carousel Area */}
-      <div className="relative px-16 py-6">
-        {/* Left Arrow */}
-        {allItems.length > 1 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10"
-            onClick={goToPrev}
-          >
-            <ChevronLeft className="h-8 w-8" />
-          </Button>
-        )}
-
-        {/* Content */}
-        <div className="aspect-[4/3] max-h-[60vh] flex items-center justify-center bg-muted rounded-lg overflow-hidden">
-          {currentItem ? (
-            currentItem.type === 'photo' ? (
-              <div className="flex flex-col items-center relative group">
-                <img
-                  src={currentItem.url}
-                  alt=""
-                  className="max-w-full max-h-[50vh] object-contain cursor-pointer"
-                  onClick={openEditDialog}
-                />
-                {/* Edit button */}
+        {/* Carousel Area */}
+        <div className="relative px-16 py-6">
+          {/* Left Arrow */}
+          {allItems.length > 1 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={openEditDialog}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10"
+                  onClick={goToPrev}
                 >
-                  <Edit2 className="h-4 w-4" />
+                  <ChevronLeft className="h-8 w-8" />
                 </Button>
-                {currentItem.description && (
-                  <p className="text-sm text-muted-foreground p-2 text-center max-h-16 overflow-y-auto">
-                    {currentItem.description}
-                  </p>
-                )}
-              </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Предыдущий слайд</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Content */}
+          <div className="aspect-[4/3] max-h-[60vh] flex items-center justify-center bg-muted rounded-lg overflow-hidden">
+            {currentItem ? (
+              currentItem.type === 'photo' ? (
+                <div className="flex flex-col items-center relative group">
+                  <img
+                    src={currentItem.url}
+                    alt=""
+                    className="max-w-full max-h-[50vh] object-contain cursor-pointer"
+                    onClick={openEditDialog}
+                  />
+                  {/* Edit button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={openEditDialog}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Редактировать описание</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  {currentItem.description && (
+                    <p className="text-sm text-muted-foreground p-2 text-center max-h-16 overflow-y-auto">
+                      {currentItem.description}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div 
+                  className="w-full h-full overflow-auto"
+                  dangerouslySetInnerHTML={{ __html: currentItem.content_html }}
+                />
+              )
             ) : (
-              <div 
-                className="w-full h-full overflow-auto"
-                dangerouslySetInnerHTML={{ __html: currentItem.content_html }}
-              />
-            )
-          ) : (
-            <p className="text-muted-foreground">Пусто</p>
-          )}
-        </div>
-
-        {/* Right Arrow */}
-        {allItems.length > 1 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10"
-            onClick={goToNext}
-          >
-            <ChevronRight className="h-8 w-8" />
-          </Button>
-        )}
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-6 py-4 border-t">
-        <div className="flex items-center gap-4">
-           {/* Audio Controls - слева */}
-           {/* Всегда показываем для отладки */}
-           <>
-             <Button
-               variant="ghost"
-               size="icon"
-               onClick={toggleAudioPlayPause}
-             >
-               {isAudioPlaying ? (
-                 <Pause className="h-4 w-4" />
-               ) : (
-                 <Play className="h-4 w-4" />
-               )}
-             </Button>
-
-             <div className="flex items-center gap-2">
-               <Slider
-                 value={[volume]}
-                 onValueChange={handleVolumeChange}
-                 min={0}
-                 max={100}
-                 step={1}
-                 className="w-24"
-               />
-               <Button variant="ghost" size="icon" onClick={toggleMute}>
-                 {isMuted || volume === 0 ? (
-                   <VolumeX className="h-4 w-4" />
-                 ) : (
-                   <Volume2 className="h-4 w-4" />
-                 )}
-               </Button>
-             </div>
-           </>
-
-          {/* Price */}
-          {currentPrice !== null && currentPrice > 0 && (
-            <span className="text-lg font-semibold">{currentPrice} ₽</span>
-          )}
-
-          {/* Add to Order */}
-          {currentPrice !== null && currentPrice > 0 && (
-            <Button variant="outline" size="icon" onClick={handleAddToOrder}>
-              <Plus className="h-4 w-4" />
-              {orderQuantity > 1 && (
-                <span className="ml-1 text-sm">{orderQuantity}</span>
-              )}
-            </Button>
-          )}
-
-          {/* Speed slider */}
-          <div className="flex items-center gap-2">
-            <Slider
-              value={[speed]}
-              onValueChange={handleSpeedChange}
-              min={1}
-              max={60}
-              step={1}
-              className="w-24"
-            />
-            <span className="text-sm w-8">{speed}c</span>
+              <p className="text-muted-foreground">Пусто</p>
+            )}
           </div>
 
-          {/* Play/Pause slideshow */}
-          <Button variant="outline" size="icon" onClick={handlePlayPause}>
-            {isSlideshowPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          </Button>
+          {/* Right Arrow */}
+          {allItems.length > 1 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10"
+                  onClick={goToNext}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Следующий слайд</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
-      </div>
 
-      {/* Edit Description Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Описание фото</DialogTitle>
-          </DialogHeader>
-          <Textarea
-            value={editDescription}
-            onChange={(e) => setEditDescription(e.target.value)}
-            placeholder="Введите описание..."
-            rows={4}
-          />
-          <DialogFooter className="flex justify-between mt-4">
-            <Button variant="outline" onClick={deleteDescription} disabled={!editDescription}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Удалить
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>
-                Отмена
-              </Button>
-              <Button onClick={saveDescription} disabled={isSaving}>
-                {isSaving ? 'Сохранение...' : 'Сохранить'}
-              </Button>
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-6 py-4 border-t">
+          <div className="flex items-center gap-4">
+            {/* Audio Controls - слева */}
+            {/* Всегда показываем для отладки */}
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleAudioPlayPause}
+                  >
+                    {isAudioPlaying ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isAudioPlaying ? 'Пауза' : 'Воспроизвести аудио'}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="flex items-center gap-2">
+                <div title={`Громкость: ${volume}%`}>
+                  <Slider
+                    value={[volume]}
+                    onValueChange={handleVolumeChange}
+                    min={0}
+                    max={100}
+                    step={1}
+                    className="w-24"
+                  />
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={toggleMute}>
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="h-4 w-4" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isMuted ? 'Включить звук' : 'Без звука'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </>
+
+            {/* Speed slider */}
+            <div title={`Скорость: ${speed} сек`}>
+              <div className="flex items-center gap-2">
+                <Slider
+                  value={[speed]}
+                  onValueChange={handleSpeedChange}
+                  min={1}
+                  max={60}
+                  step={1}
+                  className="w-24"
+                />
+                <span className="text-sm w-8">{speed}c</span>
+              </div>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+            {/* Play/Pause slideshow */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handlePlayPause}>
+                  {isSlideshowPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isSlideshowPlaying ? 'Пауза слайдшоу' : 'Воспроизвести слайдшоу'}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Price */}
+            {currentPrice !== null && currentPrice > 0 && (
+              <span className="text-lg font-semibold ml-2">{currentPrice} ₽</span>
+            )}
+
+            {/* Add to Order */}
+            {currentPrice !== null && currentPrice > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleAddToOrder}
+                    className={isAdded ? "bg-green-500 hover:bg-green-600" : ""}>
+                    {isAdded ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isAdded ? 'Добавлено в корзину' : 'Добавить в корзину'}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+
+        {/* Edit Description Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Описание фото</DialogTitle>
+            </DialogHeader>
+            <Textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Введите описание..."
+              rows={4}
+            />
+            <DialogFooter className="flex justify-between mt-4">
+              <Button variant="outline" onClick={deleteDescription} disabled={!editDescription}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Удалить
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>
+                  Отмена
+                </Button>
+                <Button onClick={saveDescription} disabled={isSaving}>
+                  {isSaving ? 'Сохранение...' : 'Сохранить'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </TooltipProvider>
     </div>
   );
 }

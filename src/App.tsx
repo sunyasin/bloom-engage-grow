@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { checkIfSuperuser } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { CommunityTabsProvider } from "@/contexts/CommunityTabsContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { Header } from "@/components/Header";
 import { AuthModal } from "@/components/AuthModal";
 import Home from "./pages/Home";
@@ -102,7 +103,8 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <CommunityTabsProvider>
-          <TooltipProvider>
+          <CartProvider>
+            <TooltipProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -182,7 +184,8 @@ const App = () => {
               </div>
             </BrowserRouter>
           </TooltipProvider>
-        </CommunityTabsProvider>
+        </CartProvider>
+      </CommunityTabsProvider>
       </I18nProvider>
     </QueryClientProvider>
   );

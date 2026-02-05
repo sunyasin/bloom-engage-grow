@@ -11,6 +11,7 @@ import { AddPhotosDialog } from '@/components/gallery/AddPhotosDialog';
 import { EditCollectionDialog } from '@/components/gallery/EditCollectionDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { GALLERY_BUCKET } from '@/lib/galleryStorage';
 
@@ -30,6 +31,7 @@ interface GalleryPhoto {
   id: number;
   url: string;
   description: string | null;
+  price: number | null;
 }
 
 interface GalleryPost {
@@ -61,6 +63,7 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
   const [isEditPhotoOpen, setIsEditPhotoOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<GalleryPhoto | null>(null);
   const [editPhotoDescription, setEditPhotoDescription] = useState('');
+  const [editPhotoPrice, setEditPhotoPrice] = useState<number | null>(null);
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const { toast } = useToast();
   
@@ -122,7 +125,7 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
     const [photosResult, postsResult] = await Promise.all([
       supabase
         .from('gallery_photos')
-        .select('id, url, description')
+        .select('id, url, description, price')
         .eq('collection_id', collectionId)
         .order('created_at', { ascending: false }),
       supabase
@@ -144,6 +147,7 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
   const openEditPhotoDialog = (photo: GalleryPhoto) => {
     setEditingPhoto(photo);
     setEditPhotoDescription(photo.description || '');
+    setEditPhotoPrice(photo.price);
     setIsEditPhotoOpen(true);
   };
 
@@ -154,17 +158,22 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
     try {
       const { error } = await supabase
         .from('gallery_photos')
-        .update({ description: editPhotoDescription || null })
+        .update({ 
+          description: editPhotoDescription || null,
+          price: editPhotoPrice || 0
+        })
         .eq('id', editingPhoto.id);
       
       if (error) throw error;
       
       // Update local state
       setPhotos(prev => prev.map(p => 
-        p.id === editingPhoto.id ? { ...p, description: editPhotoDescription || null } : p
+        p.id === editingPhoto.id 
+          ? { ...p, description: editPhotoDescription || null, price: editPhotoPrice || null } 
+          : p
       ));
       
-      toast({ title: 'Сохранено', description: 'Описание обновлено' });
+      toast({ title: 'Сохранено', description: 'Изменения сохранены' });
       setIsEditPhotoOpen(false);
     } catch (err: any) {
       toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
@@ -173,9 +182,6 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
     }
   };
 
-  const deletePhotoDescription = () => {
-    setEditPhotoDescription('');
-  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -521,16 +527,44 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
           <DialogHeader>
             <DialogTitle>Описание фото</DialogTitle>
           </DialogHeader>
-          <Textarea
-            value={editPhotoDescription}
-            onChange={(e) => setEditPhotoDescription(e.target.value)}
-            placeholder="Введите описание..."
-            rows={4}
-          />
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="photo-description">Описание</Label>
+              <Textarea
+                id="photo-description"
+                value={editPhotoDescription}
+                onChange={(e) => setEditPhotoDescription(e.target.value)}
+                placeholder="Введите описание..."
+                rows={4}
+              />
+            </div>
+            <div>
+              <Label htmlFor="photo-price">Цена (₽)</Label>
+              <Input
+                id="photo-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={editPhotoPrice ?? ''}
+                onChange={(e) => setEditPhotoPrice(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="0.00"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Оставьте пустым или 0 для бесплатного фото
+              </p>
+            </div>
+          </div>
           <DialogFooter className="flex justify-between mt-4">
-            <Button variant="outline" onClick={deletePhotoDescription} disabled={!editPhotoDescription}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setEditPhotoDescription('');
+                setEditPhotoPrice(null);
+              }} 
+              disabled={!editPhotoDescription && editPhotoPrice === null}
+            >
               <Trash2 className="h-4 w-4 mr-2" />
-              Удалить
+              Очистить
             </Button>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setIsEditPhotoOpen(false)}>

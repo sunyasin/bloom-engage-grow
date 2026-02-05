@@ -3,9 +3,11 @@ import { Button } from "./ui/button";
 import { User } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { HelpCircle, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { HelpCircle, Menu, X, ShoppingCart } from "lucide-react";
+import { useState, useEffect, Fragment } from "react";
 import { useCommunityTabs } from "@/contexts/CommunityTabsContext";
+import { useCart } from "@/contexts/CartContext";
+import { CartDialog } from "./CartDialog";
 
 interface HeaderProps {
   user: User | null;
@@ -21,8 +23,10 @@ export const Header = ({ user, isSuperuser, isModerator = false, isAuthor, onAut
   const location = useLocation();
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cartDialogOpen, setCartDialogOpen] = useState(false);
   
   const { tabs, activeTab, setActiveTab, communityId } = useCommunityTabs();
+  const { totalItems } = useCart();
   
   // Check if we're on a community page
   const isCommunityPage = location.pathname.startsWith('/community/') && communityId;
@@ -125,7 +129,8 @@ export const Header = ({ user, isSuperuser, isModerator = false, isAuthor, onAut
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Fragment>
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo and Navigation */}
@@ -145,7 +150,20 @@ export const Header = ({ user, isSuperuser, isModerator = false, isAuthor, onAut
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Cart button - only for authenticated users */}
+            {user && totalItems > 0 && (
+              <button
+                onClick={() => setCartDialogOpen(true)}
+                className="relative text-muted-foreground hover:text-foreground transition-smooth"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              </button>
+            )}
+            
             <Link 
               to="/help" 
               className="text-muted-foreground hover:text-foreground transition-smooth"
@@ -205,5 +223,9 @@ export const Header = ({ user, isSuperuser, isModerator = false, isAuthor, onAut
         )}
       </div>
     </header>
+
+      {/* Cart Dialog */}
+      <CartDialog open={cartDialogOpen} onOpenChange={setCartDialogOpen} />
+    </Fragment>
   );
 };
