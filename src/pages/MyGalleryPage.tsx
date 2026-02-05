@@ -4,11 +4,14 @@ import { supabase } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Plus, FileText, Image as ImageIcon, Upload, ChevronRight, Edit2 } from 'lucide-react';
+import { Loader2, Plus, FileText, Image as ImageIcon, Upload, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { CreateCollectionDialog } from '@/components/gallery/CreateCollectionDialog';
 import { CreatePostDialog } from '@/components/gallery/CreatePostDialog';
 import { AddPhotosDialog } from '@/components/gallery/AddPhotosDialog';
 import { EditCollectionDialog } from '@/components/gallery/EditCollectionDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import { GALLERY_BUCKET } from '@/lib/galleryStorage';
 
 interface GalleryCollection {
@@ -54,6 +57,12 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
   const [editCollectionOpen, setEditCollectionOpen] = useState(false);
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [addPhotosOpen, setAddPhotosOpen] = useState(false);
+  // Edit photo description state
+  const [isEditPhotoOpen, setIsEditPhotoOpen] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<GalleryPhoto | null>(null);
+  const [editPhotoDescription, setEditPhotoDescription] = useState('');
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const { toast } = useToast();
   
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,6 +138,43 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
 
   const handleCollectionSelect = (collection: GalleryCollection) => {
     setSelectedCollection(collection);
+  };
+
+  // Photo description editing
+  const openEditPhotoDialog = (photo: GalleryPhoto) => {
+    setEditingPhoto(photo);
+    setEditPhotoDescription(photo.description || '');
+    setIsEditPhotoOpen(true);
+  };
+
+  const savePhotoDescription = async () => {
+    if (!editingPhoto) return;
+    
+    setIsSavingPhoto(true);
+    try {
+      const { error } = await supabase
+        .from('gallery_photos')
+        .update({ description: editPhotoDescription || null })
+        .eq('id', editingPhoto.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setPhotos(prev => prev.map(p => 
+        p.id === editingPhoto.id ? { ...p, description: editPhotoDescription || null } : p
+      ));
+      
+      toast({ title: 'Сохранено', description: 'Описание обновлено' });
+      setIsEditPhotoOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsSavingPhoto(false);
+    }
+  };
+
+  const deletePhotoDescription = () => {
+    setEditPhotoDescription('');
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -374,13 +420,23 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
                         <div
                           key={photo.id}
                           className="aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer group hover:opacity-80 transition-opacity relative"
-                          onClick={() => navigate(`/gallery/${selectedCollection.id}`, { state: { returnTo: '/my-gallery' } })}
+                          onClick={() => openEditPhotoDialog(photo)}
                         >
                           <img
                             src={photo.url}
                             alt={photo.description || ''}
                             className="w-full h-full object-cover"
                           />
+                          {/* Edit button */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Edit2 className="h-8 w-8 text-white" />
+                          </div>
+                          {/* Description badge */}
+                          {photo.description && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-1">
+                              <p className="text-xs text-white truncate">{photo.description}</p>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -458,6 +514,35 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
           />
         </>
       )}
+
+      {/* Edit Photo Description Dialog */}
+      <Dialog open={isEditPhotoOpen} onOpenChange={setIsEditPhotoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Описание фото</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={editPhotoDescription}
+            onChange={(e) => setEditPhotoDescription(e.target.value)}
+            placeholder="Введите описание..."
+            rows={4}
+          />
+          <DialogFooter className="flex justify-between mt-4">
+            <Button variant="outline" onClick={deletePhotoDescription} disabled={!editPhotoDescription}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Удалить
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setIsEditPhotoOpen(false)}>
+                Отмена
+              </Button>
+              <Button onClick={savePhotoDescription} disabled={isSavingPhoto}>
+                {isSavingPhoto ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

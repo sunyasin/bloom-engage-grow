@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 
 interface GalleryCollection {
   id: number;
@@ -54,6 +57,11 @@ export default function GalleryCarouselPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orderQuantity, setOrderQuantity] = useState(1);
+  // Edit description state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editDescription, setEditDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const slideshowRef = useRef<NodeJS.Timeout | null>(null);
@@ -217,6 +225,43 @@ export default function GalleryCarouselPage() {
     setOrderQuantity(prev => prev + 1);
   };
 
+  const openEditDialog = () => {
+    if (currentItem?.type === 'photo') {
+      setEditDescription(currentItem.description || '');
+      setIsEditDialogOpen(true);
+    }
+  };
+
+  const saveDescription = async () => {
+    if (currentItem?.type !== 'photo') return;
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('gallery_photos')
+        .update({ description: editDescription || null })
+        .eq('id', currentItem.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setPhotos(prev => prev.map(p => 
+        p.id === currentItem.id ? { ...p, description: editDescription || null } : p
+      ));
+      
+      toast({ title: 'Сохранено', description: 'Описание обновлено' });
+      setIsEditDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Ошибка', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteDescription = async () => {
+    setEditDescription('');
+  };
+
   const handlePlayPause = () => {
     console.log('[DEBUG] toggle slideshow:', !isSlideshowPlaying);
     setIsSlideshowPlaying(!isSlideshowPlaying);
@@ -318,11 +363,28 @@ export default function GalleryCarouselPage() {
         <div className="aspect-[4/3] max-h-[60vh] flex items-center justify-center bg-muted rounded-lg overflow-hidden">
           {currentItem ? (
             currentItem.type === 'photo' ? (
-              <img
-                src={currentItem.url}
-                alt=""
-                className="max-w-full max-h-full object-contain"
-              />
+              <div className="flex flex-col items-center relative group">
+                <img
+                  src={currentItem.url}
+                  alt=""
+                  className="max-w-full max-h-[50vh] object-contain cursor-pointer"
+                  onClick={openEditDialog}
+                />
+                {/* Edit button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={openEditDialog}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                {currentItem.description && (
+                  <p className="text-sm text-muted-foreground p-2 text-center max-h-16 overflow-y-auto">
+                    {currentItem.description}
+                  </p>
+                )}
+              </div>
             ) : (
               <div 
                 className="w-full h-full overflow-auto"
@@ -419,14 +481,34 @@ export default function GalleryCarouselPage() {
         </div>
       </div>
 
-      {/* Description (only for photos) */}
-      {currentItem?.type === 'photo' && currentItem.description && (
-        <div className="px-6 py-4">
-          <p className="text-sm text-muted-foreground max-h-24 overflow-y-auto">
-            {currentItem.description}
-          </p>
-        </div>
-      )}
+      {/* Edit Description Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Описание фото</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            placeholder="Введите описание..."
+            rows={4}
+          />
+          <DialogFooter className="flex justify-between mt-4">
+            <Button variant="outline" onClick={deleteDescription} disabled={!editDescription}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Удалить
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>
+                Отмена
+              </Button>
+              <Button onClick={saveDescription} disabled={isSaving}>
+                {isSaving ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
