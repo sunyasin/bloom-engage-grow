@@ -221,7 +221,7 @@ export function EditCollectionDialog({
           .insert({
             collection_id: collection.id,
             url: publicUrl,
-            title: newAudio.name
+            audio_filename: newAudio.name
           });
 
         if (audioError) throw audioError;
