@@ -107,7 +107,7 @@ export function EditCollectionDialog({
         .update({
           name,
           year: parseInt(year),
-          community_id: communityId || null,
+          community_id: communityId && communityId !== 'none' ? communityId : null,
           thumbnail_url: thumbnailUrl
         })
         .eq('id', collection.id);
