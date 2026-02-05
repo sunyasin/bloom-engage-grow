@@ -1,8 +1,8 @@
 // Константы для Gallery Storage в Supabase
-// Используем 'course-covers' как в CommunitySettingsDialog - bucket уже настроен с RLS
 export const GALLERY_BUCKET = 'gallery-public';
 export const GALLERY_THUMBNAILS_FOLDER = 'gallery/thumbnails';
 export const GALLERY_PHOTOS_FOLDER = 'gallery/photos';
+export const GALLERY_AUDIO_FOLDER = 'audio';
 
 // Генерация уникального имени файла для галереи
 export function generateGalleryFileName(

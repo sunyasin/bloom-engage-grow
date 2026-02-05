@@ -16,6 +16,8 @@ interface GalleryCollection {
   name: string;
   year: number;
   thumbnail_url: string | null;
+  audio_url: string | null;
+  audio_filename: string | null;
   community_id: string | null;
   created_at: string;
 }

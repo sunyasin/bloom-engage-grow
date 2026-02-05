@@ -202,6 +202,8 @@ model gallery_collections {
   name          String
   year          Int               @default(dbgenerated("EXTRACT(YEAR FROM CURRENT_DATE)"))
   thumbnail_url String?
+  audio_url     String?
+  audio_filename String?
   slideshow_speed Int              @default(5)
   community_id  String?           @db.Uuid
   user_id       String            @db.Uuid

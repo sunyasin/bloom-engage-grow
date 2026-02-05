@@ -29,7 +29,7 @@ interface GalleryPost {
 interface GalleryAudio {
   id: number;
   url: string;
-  title: string | null;
+  audio_filename: string | null;
   playback_mode: string;
 }
 
@@ -92,6 +92,21 @@ export default function GalleryCarouselPage() {
     }
   }, [volume, isMuted]);
 
+  // Автозапуск аудио при загрузке
+  useEffect(() => {
+    if (audio?.url && audioRef.current) {
+      const playAudio = async () => {
+        try {
+          audioRef.current.volume = isMuted ? 0 : volume / 100;
+          await audioRef.current.play();
+        } catch (e) {
+          console.log('Audio autoplay blocked:', e);
+        }
+      };
+      playAudio();
+    }
+  }, [audio, isMuted, volume]);
+
   const loadCollection = async (id: number) => {
     try {
       const { data, error } = await supabase
@@ -124,7 +139,7 @@ export default function GalleryCarouselPage() {
           .order('created_at', { ascending: true }),
         supabase
           .from('gallery_audio')
-          .select('id, url, title, playback_mode')
+          .select('id, url, audio_filename, playback_mode')
           .eq('collection_id', id)
           .limit(1)
           .single()
@@ -138,16 +153,12 @@ export default function GalleryCarouselPage() {
       
       if (audioResult.data) {
         setAudio(audioResult.data);
-        // Автоматически включаем воспроизведение звука если есть
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.volume = isMuted ? 0 : volume / 100;
-            audioRef.current.play().catch(() => {});
-          }
-        }, 100);
       }
     } catch (err: any) {
-      setError(err.message);
+      // Ошибка normal для audio если записей нет
+      if (err.message !== 'PGRST116') {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -220,16 +231,11 @@ export default function GalleryCarouselPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Audio element */}
-      {hasAudio && audio && (
+      {hasAudio && audio?.url && (
         <audio
           ref={audioRef}
           src={audio.url}
-          loop={audio.playback_mode === 'repeat_all' || audio.playback_mode === 'mix'}
-          onEnded={() => {
-            if (audio.playback_mode === 'repeat_one') {
-              audioRef.current?.play();
-            }
-          }}
+          loop
         />
       )}
 
