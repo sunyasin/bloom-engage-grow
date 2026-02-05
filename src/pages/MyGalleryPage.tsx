@@ -9,6 +9,7 @@ import { CreateCollectionDialog } from '@/components/gallery/CreateCollectionDia
 import { CreatePostDialog } from '@/components/gallery/CreatePostDialog';
 import { AddPhotosDialog } from '@/components/gallery/AddPhotosDialog';
 import { EditCollectionDialog } from '@/components/gallery/EditCollectionDialog';
+import { GALLERY_BUCKET } from '@/lib/galleryStorage';
 
 interface GalleryCollection {
   id: number;
@@ -171,13 +172,13 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
         const filePath = `gallery/${selectedCollection.id}/${fileName}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('public-files')
+          .from(GALLERY_BUCKET)
           .upload(filePath, file);
         
         if (uploadError) throw uploadError;
         
         const { data: { publicUrl } } = supabase.storage
-          .from('public-files')
+          .from(GALLERY_BUCKET)
           .getPublicUrl(filePath);
         
         const { error: dbError } = await supabase
@@ -435,12 +436,20 @@ export default function MyGalleryPage({ user }: { user: User | null }) {
             open={editCollectionOpen}
             onOpenChange={setEditCollectionOpen}
             communities={communities}
-            userId={user.id}
             collection={selectedCollection}
             onCollectionUpdated={() => {
               loadCollections();
+              // После обновления находим текущий selectedCollection в массиве
               if (selectedCollection) {
                 loadCollectionItems(selectedCollection.id);
+                // Обновляем selectedCollection из свежего массива
+                setCollections(prev => {
+                  const updated = prev.find(c => c.id === selectedCollection.id);
+                  if (updated) {
+                    setSelectedCollection(updated);
+                  }
+                  return prev;
+                });
               }
             }}
           />

@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { GALLERY_BUCKET, GALLERY_PHOTOS_FOLDER, generateGalleryFileName } from '@/lib/galleryStorage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 interface PhotoItem {
   file: File;
@@ -29,11 +30,8 @@ export function AddPhotosDialog({
   onPhotosAdded
 }: AddPhotosDialogProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -74,33 +72,26 @@ export function AddPhotosDialog({
     setUploading(true);
     
     try {
-      // Создаем FormData для загрузки всех файлов
-      const formData = new FormData();
-      photos.forEach((photo) => {
-        formData.append('files', photo.file);
-      });
-      formData.append('folder', `gallery/${collectionId}`);
+      // Загружаем каждый файл напрямую в Supabase Storage
+      for (const photo of photos) {
+        const fileName = generateGalleryFileName(photo.file.name, `${GALLERY_PHOTOS_FOLDER}/${collectionId}`);
+        
+        // Прямая загрузка в Supabase Storage (как в CommunitySettingsDialog)
+        const { error: uploadError } = await supabase.storage
+          .from(GALLERY_BUCKET)
+          .upload(fileName, photo.file, { upsert: false });
 
-      const uploadResponse = await fetch(`${API_URL}/api/upload-multiple`, {
-        method: 'POST',
-        body: formData
-      });
+        if (uploadError) throw uploadError;
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload photos');
-      }
+        const { data: { publicUrl } } = supabase.storage
+          .from(GALLERY_BUCKET)
+          .getPublicUrl(fileName);
 
-      const uploadResult = await uploadResponse.json();
-
-      // Сохраняем записи в базу данных
-      for (let i = 0; i < uploadResult.files.length; i++) {
-        const fileData = uploadResult.files[i];
-        const photo = photos[i];
-
+        // Сохраняем запись в базу данных
         const { error: dbError } = await supabase
           .from('gallery_photos')
           .insert({
-            url: fileData.url,
+            url: publicUrl,
             description: photo.description || null,
             price: photo.price ? parseFloat(photo.price) : null,
             collection_id: collectionId,

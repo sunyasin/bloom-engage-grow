@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import paymentsRouter from './routes/payments.js';
-import uploadRouter from './routes/upload.js';
+import supabaseStorageRouter from './routes/supabaseStorage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 app.use('/api/payments', paymentsRouter);
-app.use('/api', uploadRouter);
+app.use('/api/supabase-storage', supabaseStorageRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

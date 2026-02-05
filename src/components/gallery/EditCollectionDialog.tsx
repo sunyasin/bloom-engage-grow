@@ -1,61 +1,59 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { GALLERY_BUCKET, GALLERY_THUMBNAILS_FOLDER, generateGalleryFileName } from '@/lib/galleryStorage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, X, Edit2 } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 interface Community {
   id: string;
   name: string;
 }
 
-interface GalleryCollection {
+interface Collection {
   id: number;
   name: string;
   year: number;
-  thumbnail_url: string | null;
   community_id: string | null;
+  thumbnail_url: string | null;
 }
 
 interface EditCollectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  collection: Collection | null;
   communities: Community[];
-  userId: string;
-  collection: GalleryCollection;
   onCollectionUpdated: () => void;
 }
 
 export function EditCollectionDialog({
   open,
   onOpenChange,
-  communities,
-  userId,
   collection,
+  communities,
   onCollectionUpdated
 }: EditCollectionDialogProps) {
-  const [name, setName] = useState(collection.name);
-  const [year, setYear] = useState(collection.year.toString());
-  const [communityId, setCommunityId] = useState(collection.community_id || '');
+  const [name, setName] = useState('');
+  const [year, setYear] = useState('');
+  const [communityId, setCommunityId] = useState('');
   const [thumbnail, setThumbnail] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(collection.thumbnail_url);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
+  // Initialize form when collection changes
   useEffect(() => {
-    if (open) {
+    if (collection) {
       setName(collection.name);
       setYear(collection.year.toString());
       setCommunityId(collection.community_id || '');
       setThumbnailPreview(collection.thumbnail_url);
       setThumbnail(null);
     }
-  }, [open, collection]);
+  }, [collection]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,102 +74,47 @@ export function EditCollectionDialog({
     }
   };
 
-  // Транслитерация названия на латиницу
-  const transliterate = (text: string): string => {
-    const mapping: Record<string, string> = {
-      'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
-      'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k', 'л': 'l', 'м': 'm',
-      'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
-      'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
-      'ь': '', 'ы': 'y', 'ъ': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
-      ' ': '_', '-': '_', '.': '_', ',': '_', '(': '_', ')': '_'
-    };
-    
-    return text.split('').map(char => mapping[char] || char).join('')
-      .replace(/[^a-z0-9_]/g, '')
-      .toLowerCase();
-  };
-
-  // Сжатие изображения до 300x300
-  const resizeImage = (file: File): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Cannot get canvas context'));
-          return;
-        }
-
-        const size = Math.min(img.width, img.height);
-        const sx = (img.width - size) / 2;
-        const sy = (img.height - size) / 2;
-
-        canvas.width = 300;
-        canvas.height = 300;
-
-        ctx.drawImage(img, sx, sy, size, size, 0, 0, 300, 300);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error('Failed to create blob'));
-          },
-          'image/jpeg',
-          0.9
-        );
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!collection) return;
+    
     setLoading(true);
 
     try {
-      let thumbnailUrl: string | null = collection.thumbnail_url;
+      let thumbnailUrl: string | null = thumbnailPreview;
 
-      // Если выбрано новое изображение
+      // Загружаем thumbnail если есть новое - напрямую в Supabase Storage
       if (thumbnail) {
-        const resizedBlob = await resizeImage(thumbnail);
-        const ext = 'jpg';
-        const baseName = transliterate(name || 'collection');
-        const fileName = `${baseName}_${year}_thumbnail.${ext}`;
+        const fileName = generateGalleryFileName('thumbnail.jpg', GALLERY_THUMBNAILS_FOLDER);
+        
+        // Прямая загрузка в Supabase Storage (как в CommunitySettingsDialog)
+        const { error: uploadError } = await supabase.storage
+          .from(GALLERY_BUCKET)
+          .upload(fileName, thumbnail, { upsert: true });
 
-        // Создаем FormData для локальной загрузки
-        const formData = new FormData();
-        formData.append('file', resizedBlob, fileName);
-        formData.append('folder', 'gallery/thumbnails');
+        if (uploadError) throw uploadError;
 
-        const uploadResponse = await fetch(`${API_URL}/api/upload`, {
-          method: 'POST',
-          body: formData
-        });
+        const { data: { publicUrl } } = supabase.storage
+          .from(GALLERY_BUCKET)
+          .getPublicUrl(fileName);
 
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload thumbnail');
-        }
-
-        const uploadResult = await uploadResponse.json();
-        thumbnailUrl = uploadResult.url;
+        thumbnailUrl = publicUrl;
       }
 
+      // Обновляем запись в Supabase
       const { error } = await supabase
         .from('gallery_collections')
         .update({
           name,
           year: parseInt(year),
           community_id: communityId || null,
-          thumbnail_url: thumbnailUrl,
-          updated_at: new Date().toISOString()
+          thumbnail_url: thumbnailUrl
         })
         .eq('id', collection.id);
 
       if (error) throw error;
 
+      // Вызываем колбэк с обновлёнными данными сборника
       onCollectionUpdated();
       onOpenChange(false);
     } catch (error: any) {
@@ -182,19 +125,8 @@ export function EditCollectionDialog({
     }
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      if (thumbnailPreview && !thumbnailPreview.startsWith('http')) {
-        URL.revokeObjectURL(thumbnailPreview);
-      }
-      setThumbnail(null);
-      setThumbnailPreview(null);
-    }
-    onOpenChange(newOpen);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Редактировать сборник</DialogTitle>
@@ -203,7 +135,7 @@ export function EditCollectionDialog({
           <div className="grid gap-4 py-4">
             {/* Thumbnail */}
             <div className="grid gap-2">
-              <Label>Обложка (300×300)</Label>
+              <Label>Обложка</Label>
               {!thumbnailPreview ? (
                 <div
                   className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
@@ -217,7 +149,7 @@ export function EditCollectionDialog({
               ) : (
                 <div className="relative">
                   <img
-                    src={thumbnailPreview}
+                    src={thumbnailPreview!}
                     alt="Preview"
                     className="w-32 h-32 object-cover rounded-lg mx-auto"
                   />
@@ -247,7 +179,7 @@ export function EditCollectionDialog({
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Мой фото-блог"
+                placeholder="Название сборника"
                 required
               />
             </div>
@@ -263,12 +195,13 @@ export function EditCollectionDialog({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="community">Сообщество (необязательно)</Label>
+              <Label htmlFor="community">Сообщество</Label>
               <Select value={communityId} onValueChange={setCommunityId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите сообщество" />
+                  <SelectValue placeholder="Без сообщества" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Без сообщества</SelectItem>
                   {communities.map((community) => (
                     <SelectItem key={community.id} value={community.id}>
                       {community.name}
@@ -279,7 +212,7 @@ export function EditCollectionDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Отмена
             </Button>
             <Button type="submit" disabled={loading || !name.trim()}>

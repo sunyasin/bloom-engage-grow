@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { GALLERY_BUCKET, GALLERY_THUMBNAILS_FOLDER, generateGalleryFileName } from '@/lib/galleryStorage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 interface Community {
   id: string;
@@ -18,6 +19,41 @@ interface CreateCollectionDialogProps {
   communities: Community[];
   userId: string;
   onCollectionCreated: () => void;
+}
+
+// Сжатие изображения до 300x300
+function resizeImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Cannot get canvas context'));
+        return;
+      }
+
+      const size = Math.min(img.width, img.height);
+      const sx = (img.width - size) / 2;
+      const sy = (img.height - size) / 2;
+
+      canvas.width = 300;
+      canvas.height = 300;
+
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 300, 300);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create blob'));
+        },
+        'image/jpeg',
+        0.9
+      );
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 export function CreateCollectionDialog({
@@ -34,8 +70,6 @@ export function CreateCollectionDialog({
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,66 +90,6 @@ export function CreateCollectionDialog({
     }
   };
 
-  // Транслитерация названия на латиницу
-  const transliterate = (text: string): string => {
-    const mapping: Record<string, string> = {
-      'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
-      'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k', 'л': 'l', 'м': 'm',
-      'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
-      'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
-      'ь': '', 'ы': 'y', 'ъ': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
-      'А': 'a', 'Б': 'b', 'В': 'v', 'Г': 'g', 'Д': 'd', 'Е': 'e', 'Ё': 'e',
-      'Ж': 'zh', 'З': 'z', 'И': 'i', 'Й': 'j', 'К': 'k', 'Л': 'l', 'М': 'm',
-      'Н': 'n', 'О': 'o', 'П': 'p', 'Р': 'r', 'С': 's', 'Т': 't', 'У': 'u',
-      'Ф': 'f', 'Х': 'h', 'Ц': 'c', 'Ч': 'ch', 'Ш': 'sh', 'Щ': 'sch',
-      'Ь': '', 'Ы': 'y', 'Ъ': '', 'Э': 'e', 'Ю': 'yu', 'Я': 'ya',
-      ' ': '_', '-': '_', '.': '_', ',': '_', '(': '_', ')': '_'
-    };
-    
-    return text.split('').map(char => mapping[char] || char).join('')
-      .replace(/[^a-z0-9_]/g, '')
-      .toLowerCase();
-  };
-
-  // Сжатие изображения до 300x300
-  const resizeImage = (file: File): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Cannot get canvas context'));
-          return;
-        }
-
-        // Вычисляем размеры для обрезки по центру
-        const size = Math.min(img.width, img.height);
-        const sx = (img.width - size) / 2;
-        const sy = (img.height - size) / 2;
-
-        canvas.width = 300;
-        canvas.height = 300;
-
-        ctx.drawImage(img, sx, sy, size, size, 0, 0, 300, 300);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to create blob'));
-            }
-          },
-          'image/jpeg',
-          0.9
-        );
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -123,29 +97,23 @@ export function CreateCollectionDialog({
     try {
       let thumbnailUrl: string | null = null;
 
-      // Загружаем thumbnail если есть
+      // Загружаем thumbnail если есть - напрямую в Supabase Storage
       if (thumbnail) {
         const resizedBlob = await resizeImage(thumbnail);
-        const ext = 'jpg';
-        const baseName = transliterate(name || 'collection');
-        const fileName = `${baseName}_${year}_thumbnail.${ext}`;
+        const fileName = generateGalleryFileName('thumbnail.jpg', GALLERY_THUMBNAILS_FOLDER);
+        
+        // Прямая загрузка в Supabase Storage (как в CommunitySettingsDialog)
+        const { error: uploadError } = await supabase.storage
+          .from(GALLERY_BUCKET)
+          .upload(fileName, resizedBlob, { upsert: false });
 
-        // Создаем FormData для локальной загрузки
-        const formData = new FormData();
-        formData.append('file', resizedBlob, fileName);
-        formData.append('folder', 'gallery/thumbnails');
+        if (uploadError) throw uploadError;
 
-        const uploadResponse = await fetch(`${API_URL}/api/upload`, {
-          method: 'POST',
-          body: formData
-        });
+        const { data: { publicUrl } } = supabase.storage
+          .from(GALLERY_BUCKET)
+          .getPublicUrl(fileName);
 
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload thumbnail');
-        }
-
-        const uploadResult = await uploadResponse.json();
-        thumbnailUrl = uploadResult.url;
+        thumbnailUrl = publicUrl;
       }
 
       // Вставляем запись в Supabase для gallery_collections
@@ -179,7 +147,6 @@ export function CreateCollectionDialog({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Очистка при закрытии
       if (thumbnailPreview) {
         URL.revokeObjectURL(thumbnailPreview);
       }

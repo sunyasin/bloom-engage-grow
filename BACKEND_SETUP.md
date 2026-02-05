@@ -191,6 +191,46 @@ pm2 start server/index.js --name backend
 pm2 save
 ```
 
+## Supabase Storage
+
+Загрузка файлов происходит напрямую из браузера через Supabase Storage - **backend сервер не требуется**.
+
+### Создание Bucket для галереи
+
+1. Откройте Supabase Dashboard → SQL Editor
+2. Выполните миграцию: `supabase/migrations/20260205120000_create_gallery_storage_bucket.sql`
+
+Или выполните SQL вручную:
+
+```sql
+-- Создаём bucket 'gallery_public' для изображений галереи
+begin;
+  if not exists (
+    select 1 from storage.buckets where id = 'gallery_public'
+  ) then
+    insert into storage.buckets (id, name, public)
+    values ('gallery_public', 'gallery_public', true);
+  end if;
+
+  alter table storage.objects enable row level security;
+
+  create policy "Gallery images are viewable by everyone"
+    on storage.objects for select
+    using ( bucket_id = 'gallery_public' );
+
+  create policy "Authenticated users can upload gallery images"
+    on storage.objects for insert
+    with check ( bucket_id = 'gallery_public' and auth.role() = 'authenticated' );
+commit;
+```
+
+### Проверка Storage
+
+```bash
+# Проверка через Supabase CLI
+supabase storage ls --project-ref your-project-ref
+```
+
 ## Документация
 
 Полная документация: `YOOKASSA_PRISMA_INTEGRATION.md`
