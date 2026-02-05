@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight, Edit2, Trash2, Check } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Plus, Volume2, VolumeX, ChevronLeft, ChevronRight, Edit2, Trash2, Check, Expand } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -67,11 +68,30 @@ export default function GalleryCarouselPage() {
   const [user, setUser] = useState<User | null>(null);
   // Add to cart animation state
   const [isAdded, setIsAdded] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const { toast } = useToast();
   const { addItem } = useCart();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const slideshowRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  // Track fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const allItems = [...photos.map(p => ({ type: 'photo' as const, ...p })), ...posts.map(p => ({ type: 'post' as const, ...p }))];
   const currentItem = allItems[currentIndex];
@@ -378,7 +398,7 @@ export default function GalleryCarouselPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={containerRef} className="min-h-screen bg-background">
       <TooltipProvider>
         {/* Audio element */}
         {hasAudio && currentTrack && (
@@ -393,23 +413,106 @@ export default function GalleryCarouselPage() {
           />
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        {/* Header with Controls */}
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(returnTo)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-semibold">{collection?.name}</h1>
           </div>
+          
+          <div className="flex items-center gap-4">
+            {/* Audio Controls */}
+            {hasAudio && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={toggleAudioPlayPause}>
+                      {isAudioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isAudioPlaying ? 'Пауза' : 'Воспроизвести'}</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <div className="flex items-center gap-1 w-24">
+                  <Slider
+                    value={[volume]}
+                    onValueChange={handleVolumeChange}
+                    min={0}
+                    max={100}
+                    step={1}
+                    className="w-20"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>{currentTrackIndex + 1}/{audioTracks.length}</span>
+                  <span className="truncate max-w-[100px]">{currentTrack?.audio_filename || 'Аудио'}</span>
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+              </>
+            )}
             
-          {/* Audio player info */}
-          {hasAudio && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{currentTrackIndex + 1}/{audioTracks.length}</span>
-              <span>•</span>
-              <span className="truncate max-w-[200px]">{currentTrack?.audio_filename || 'Аудио'}</span>
+            {/* Speed */}
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handlePlayPause}>
+                    {isSlideshowPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isSlideshowPlaying ? 'Пауза' : 'Воспроизвести'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Slider
+                value={[speed]}
+                onValueChange={handleSpeedChange}
+                min={1}
+                max={60}
+                step={1}
+                className="w-20"
+              />
+              <span className="text-sm w-8">{speed}c</span>
             </div>
-          )}
+            
+            <Separator orientation="vertical" className="h-6" />
+            
+            {/* Price */}
+            {currentPrice !== null && currentPrice > 0 && (
+              <span className="text-lg font-semibold">{currentPrice} ₽</span>
+            )}
+            
+            {/* Add to Cart */}
+            {currentPrice !== null && currentPrice > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleAddToOrder}
+                    className={isAdded ? "bg-green-500 hover:bg-green-600" : ""}>
+                    {isAdded ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isAdded ? 'Добавлено' : 'В корзину'}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            
+            {/* Fullscreen */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={toggleFullscreen}>
+                  <Expand className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Полный экран</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         {/* Carousel Area */}
@@ -434,14 +537,14 @@ export default function GalleryCarouselPage() {
           )}
 
           {/* Content */}
-          <div className="aspect-[4/3] max-h-[60vh] flex items-center justify-center bg-muted rounded-lg overflow-hidden">
+          <div className={`${isFullscreen ? 'h-[calc(100vh-80px)]' : 'aspect-[4/3] max-h-[60vh]'} flex items-center justify-center bg-muted ${isFullscreen ? '' : 'rounded-lg'} overflow-hidden`}>
             {currentItem ? (
               currentItem.type === 'photo' ? (
                 <div className="flex flex-col items-center relative group">
                   <img
                     src={currentItem.url}
                     alt=""
-                    className="max-w-full max-h-[50vh] object-contain cursor-pointer"
+                    className={`${isFullscreen ? 'w-full h-full object-contain' : 'max-w-full max-h-[50vh] object-contain'} cursor-pointer`}
                     onClick={openEditDialog}
                   />
                   {/* Edit button */}
@@ -495,115 +598,6 @@ export default function GalleryCarouselPage() {
               </TooltipContent>
             </Tooltip>
           )}
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-6 py-4 border-t">
-          <div className="flex items-center gap-4">
-            {/* Audio Controls - показываем только когда есть аудио */}
-            {hasAudio ? (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={toggleAudioPlayPause}
-                    >
-                      {isAudioPlaying ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{isAudioPlaying ? 'Пауза' : 'Воспроизвести аудио'}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <div className="flex items-center gap-2">
-                  <div title={`Громкость: ${volume}%`}>
-                    <Slider
-                      value={[volume]}
-                      onValueChange={handleVolumeChange}
-                      min={0}
-                      max={100}
-                      step={1}
-                      className="w-24"
-                    />
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={toggleMute}>
-                        {isMuted || volume === 0 ? (
-                          <VolumeX className="h-4 w-4" />
-                        ) : (
-                          <Volume2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{isMuted ? 'Включить звук' : 'Без звука'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </>
-            ) : (
-              <span className="text-sm text-muted-foreground"></span>
-            )}
-
-            {/* Speed slider */}
-            <div title={`Скорость: ${speed} сек`}>
-              <div className="flex items-center gap-2">
-                <Slider
-                  value={[speed]}
-                  onValueChange={handleSpeedChange}
-                  min={1}
-                  max={60}
-                  step={1}
-                  className="w-24"
-                />
-                <span className="text-sm w-8">{speed}c</span>
-              </div>
-            </div>
-
-            {/* Play/Pause slideshow */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handlePlayPause}>
-                  {isSlideshowPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isSlideshowPlaying ? 'Пауза слайдшоу' : 'Воспроизвести слайдшоу'}</p>
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Price */}
-            {currentPrice !== null && currentPrice > 0 && (
-              <span className="text-lg font-semibold ml-2">{currentPrice} ₽</span>
-            )}
-
-            {/* Add to Order */}
-            {currentPrice !== null && currentPrice > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={handleAddToOrder}
-                    className={isAdded ? "bg-green-500 hover:bg-green-600" : ""}>
-                    {isAdded ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isAdded ? 'Добавлено в корзину' : 'Добавить в корзину'}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
         </div>
 
         {/* Edit Description Dialog */}
